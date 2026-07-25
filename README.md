@@ -29,6 +29,40 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Testing and Browser Setup
+
+This project ships with three test layers: unit/integration (Vitest + Testing Library + jsdom), end-to-end (Playwright with Chromium), and formatting/linting (Prettier + ESLint). A fresh checkout can run unit tests immediately but must install the Playwright browser before running E2E for the first time.
+
+### Fresh checkout sequence
+
+```bash
+# 1. Install npm dependencies (does NOT install browsers).
+npm ci
+
+# 2. Install the Playwright Chromium browser binary. Run once per
+#    fresh environment, or whenever Playwright itself is upgraded.
+npm run e2e:install
+
+# 3. Verify the toolchain.
+npm run typecheck
+npm run lint
+npm run format:check
+npm test
+npm run e2e
+npm run build
+```
+
+### Why browser installation is a separate step
+
+`playwright install chromium` downloads a platform-specific Chromium build into the Playwright cache (typically `~/.cache/ms-playwright`). It is intentionally NOT wired to `postinstall`:
+
+- Browser binaries are large (hundreds of MB) and would slow every `npm install`.
+- They are host-OS-specific and are not a property of `node_modules`, so they belong outside the dependency tree.
+- Some environments (CI runners, shared caches, Docker layers) provide browsers out of band; a forced `postinstall` would fight those setups.
+- Operators choose when to refresh the browser — for example, after upgrading `@playwright/test`.
+
+If you want system libraries installed alongside the browser, run `npx playwright install --with-deps chromium` directly (requires `sudo` on Linux); the script intentionally stays non-interactive.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

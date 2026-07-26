@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     include: ["tests/unit/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}"],
+    // Integration tests share the singleton app_owner row, so they must
+    // run in the same process in declared order to keep fixtures deterministic.
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],

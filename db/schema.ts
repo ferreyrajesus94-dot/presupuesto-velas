@@ -5,6 +5,7 @@ import {
   check,
   customType,
   date,
+  foreignKey,
   index,
   integer,
   numeric,
@@ -39,6 +40,10 @@ export const appOwner = pgTable(
   },
   (t) => [
     uniqueIndex("app_owner_email_uidx").on(t.email),
+    // Table-wide singleton: at most one row with singleton = true.
+    uniqueIndex("app_owner_singleton_uidx")
+      .on(sql`(TRUE)`)
+      .where(sql`${t.singleton} = TRUE`),
     check("app_owner_singleton_true", sql`${t.singleton} = true`),
   ],
 );
@@ -73,6 +78,20 @@ export const materials = pgTable(
     index("materials_owner_idx").on(t.ownerId),
     check("materials_purchase_qty_pos", sql`${t.purchaseQuantity} > 0`),
     check("materials_purchase_price_pos", sql`${t.purchasePrice} > 0`),
+    // Compatible base/purchase units: must share the same dimension.
+    // `mass`: g|kg; `volume`: ml|L; `length`: cm|m; `count`: unit.
+    check(
+      "materials_units_compatible",
+      sql`(${t.dimension} = 'mass' AND ${t.baseUnit} IN ('g', 'kg') AND ${t.purchaseUnit} IN ('g', 'kg'))
+        OR (${t.dimension} = 'volume' AND ${t.baseUnit} IN ('ml', 'L') AND ${t.purchaseUnit} IN ('ml', 'L'))
+        OR (${t.dimension} = 'length' AND ${t.baseUnit} IN ('cm', 'm') AND ${t.purchaseUnit} IN ('cm', 'm'))
+        OR (${t.dimension} = 'count' AND ${t.baseUnit} = 'unit' AND ${t.purchaseUnit} = 'unit')`,
+    ),
+    // Count integrality: when dimension = count, purchase_quantity must be integer.
+    check(
+      "materials_count_integral",
+      sql`${t.dimension} <> 'count' OR ${t.purchaseQuantity} = FLOOR(${t.purchaseQuantity})`,
+    ),
   ],
 );
 
@@ -110,6 +129,7 @@ export const recipeItems = pgTable(
   },
   (t) => [
     uniqueIndex("recipe_items_recipe_pos_uidx").on(t.recipeId, t.position),
+    index("recipe_items_material_idx").on(t.materialId),
     check("recipe_items_pos_pos", sql`${t.position} > 0`),
     check("recipe_items_qty_pos", sql`${t.quantity} > 0`),
   ],
@@ -178,6 +198,7 @@ export const quoteVersions = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.quoteId, t.versionNo] }),
+    index("quote_versions_quote_idx").on(t.quoteId),
     check("quote_versions_no_pos", sql`${t.versionNo} > 0`),
     check("quote_versions_final_nonneg", sql`${t.finalPrice} >= 0`),
   ],
@@ -199,6 +220,12 @@ export const quoteVersionModels = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.quoteId, t.versionNo, t.position] }),
+    foreignKey({
+      columns: [t.quoteId, t.versionNo],
+      foreignColumns: [quoteVersions.quoteId, quoteVersions.versionNo],
+      name: "quote_version_models_parent_fk",
+    }).onDelete("cascade"),
+    index("quote_version_models_recipe_idx").on(t.recipeId),
     check("quote_version_models_pos_pos", sql`${t.position} > 0`),
     check("quote_version_models_qty_pos", sql`${t.quantity} > 0`),
   ],
@@ -223,6 +250,16 @@ export const quoteVersionMaterials = pgTable(
     primaryKey({
       columns: [t.quoteId, t.versionNo, t.modelPosition, t.position],
     }),
+    foreignKey({
+      columns: [t.quoteId, t.versionNo, t.modelPosition],
+      foreignColumns: [
+        quoteVersionModels.quoteId,
+        quoteVersionModels.versionNo,
+        quoteVersionModels.position,
+      ],
+      name: "quote_version_materials_model_parent_fk",
+    }).onDelete("cascade"),
+    index("quote_version_materials_material_idx").on(t.materialId),
     check("quote_version_materials_qty_pos", sql`${t.quantity} > 0`),
   ],
 );
@@ -238,6 +275,11 @@ export const quoteVersionIndirectCosts = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.quoteId, t.versionNo, t.position] }),
+    foreignKey({
+      columns: [t.quoteId, t.versionNo],
+      foreignColumns: [quoteVersions.quoteId, quoteVersions.versionNo],
+      name: "quote_version_indirect_costs_parent_fk",
+    }).onDelete("cascade"),
     check("quote_version_indirect_pos_pos", sql`${t.position} > 0`),
     check("quote_version_indirect_amount_nonneg", sql`${t.amount} >= 0`),
   ],

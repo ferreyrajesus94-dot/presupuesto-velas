@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
-import { getNeonAuthBaseUrl } from "../auth/ownerEnv";
+import { getNeonAuthBaseUrl, getOwnerEmail, getOwnerId } from "../auth/ownerEnv";
 import { setSessionCookie } from "../auth/session";
 import { SignInSchema } from "../auth/signInSchema";
 import { upsertOwner } from "../repositories/owner";
@@ -52,9 +52,21 @@ export async function signInAction(_prev: SignInState, formData: FormData): Prom
   const body = (await res.json().catch(() => null)) as {
     user?: { id?: unknown; email?: unknown };
   } | null;
-  if (body?.user && typeof body.user.id === "string" && typeof body.user.email === "string") {
-    await upsertOwner({ id: body.user.id, email: body.user.email });
+  const user = body?.user;
+  if (!user || typeof user.id !== "string" || typeof user.email !== "string") {
+    return {
+      errors: { _form: ["Sign-in did not return a user."] },
+      values: { email },
+    };
   }
+  // Authorize BEFORE any app_owner mutation: only the configured owner is allowed
+  // to seed the singleton row. A valid non-owner must reach /403 without a write.
+  const ownerId = getOwnerId();
+  const ownerEmail = getOwnerEmail();
+  if (user.id !== ownerId || user.email.toLowerCase() !== ownerEmail.toLowerCase()) {
+    redirect("/403");
+  }
+  await upsertOwner({ id: user.id, email: user.email });
   await setSessionCookie(value);
   redirect("/");
 }

@@ -1,7 +1,14 @@
+import { MaterialEditForm } from "./MaterialEditForm";
+import type { MaterialInput } from "@/server/validation/materialSchema";
+
 export type MaterialListItem = {
   id: string;
   name: string;
-  baseUnit: string;
+  dimension: MaterialInput["dimension"];
+  baseUnit: MaterialInput["baseUnit"];
+  purchaseUnit: MaterialInput["purchaseUnit"];
+  purchaseQuantity: string;
+  purchasePrice: string;
   unitCost: string;
 };
 
@@ -33,6 +40,9 @@ export function MaterialsList({ materials }: { materials: MaterialListItem[] }) 
           <p className="mt-1 text-sm text-zinc-700">
             ARS {material.unitCost} per {material.baseUnit}
           </p>
+          <div className="mt-4">
+            <MaterialEditForm material={material} />
+          </div>
         </li>
       ))}
     </ul>

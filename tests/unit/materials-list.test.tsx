@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   requireOwner: vi.fn(),
   listMaterials: vi.fn(),
   createMaterialAction: vi.fn(),
+  updateMaterialAction: vi.fn(),
 }));
 
 vi.mock("../../src/server/auth/requireOwner", () => ({
@@ -16,6 +17,7 @@ vi.mock("../../src/server/repositories/materials", () => ({
 }));
 vi.mock("../../src/server/actions/materials", () => ({
   createMaterialAction: mocks.createMaterialAction,
+  updateMaterialAction: mocks.updateMaterialAction,
 }));
 
 import MaterialsPage from "../../src/app/materials/page";

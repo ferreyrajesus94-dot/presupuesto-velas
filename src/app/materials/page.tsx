@@ -1,5 +1,6 @@
 import { requireOwner } from "@/server/auth/requireOwner";
 import { listMaterials } from "@/server/repositories/materials";
+import type { MaterialInput } from "@/server/validation/materialSchema";
 import { MaterialsList, type MaterialListItem } from "./MaterialsList";
 import { MaterialCreateForm } from "./MaterialCreateForm";
 
@@ -9,7 +10,11 @@ export default async function MaterialsPage() {
   const items: MaterialListItem[] = materials.map((m) => ({
     id: m.id,
     name: m.name,
-    baseUnit: m.baseUnit,
+    dimension: m.dimension,
+    baseUnit: m.baseUnit as MaterialInput["baseUnit"],
+    purchaseUnit: m.purchaseUnit as MaterialInput["purchaseUnit"],
+    purchaseQuantity: m.purchaseQuantity,
+    purchasePrice: m.purchasePrice,
     unitCost: m.unitCost,
   }));
 

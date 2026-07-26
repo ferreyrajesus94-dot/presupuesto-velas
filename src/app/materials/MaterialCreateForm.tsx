@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { startTransition, useActionState, useEffect, useRef } from "react";
-import { useForm, useWatch, type FieldErrors } from "react-hook-form";
-import { createMaterialAction } from "@/server/actions/materials";
+import { useForm, useWatch, type FieldErrors, type UseFormReset } from "react-hook-form";
+import { createMaterialAction, type MaterialActionState } from "@/server/actions/materials";
 import { DIMENSIONS, UNITS_BY_DIMENSION } from "@/domain/units";
 import {
   materialInputSchema,
@@ -11,7 +11,7 @@ import {
   type ParsedMaterialInput,
 } from "@/server/validation/materialSchema";
 
-const defaultValues: MaterialInput = {
+export const blankMaterialValues: MaterialInput = {
   name: "",
   dimension: "mass",
   baseUnit: "g",
@@ -19,11 +19,29 @@ const defaultValues: MaterialInput = {
   purchaseQuantity: "",
   purchasePrice: "",
 };
+
 const controlClass =
   "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
 const selectClass = `${controlClass} bg-white`;
 type MaterialFormErrors = FieldErrors<MaterialInput> & {
   unitCost?: { message?: string };
+};
+type MaterialAction = (
+  previous: MaterialActionState,
+  formData: FormData,
+) => Promise<MaterialActionState>;
+
+type MaterialFormProps = {
+  action?: MaterialAction;
+  defaultValues?: MaterialInput;
+  idPrefix?: string;
+  title?: string;
+  labelSuffix?: string;
+  hiddenFields?: Record<string, string>;
+  submitLabel?: string;
+  pendingLabel?: string;
+  successMessage?: string;
+  onSuccess?: (reset: UseFormReset<MaterialInput>) => void;
 };
 
 function options(values: readonly string[]) {
@@ -34,17 +52,29 @@ function options(values: readonly string[]) {
   ));
 }
 
-function FieldError({ field, message }: { field: string; message?: string }) {
+function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={`${field}-error`} role="alert" className="text-sm text-rose-800">
+    <p id={id} role="alert" className="text-sm text-rose-800">
       {message}
     </p>
   );
 }
 
-export function MaterialCreateForm() {
-  const [state, formAction, pending] = useActionState(createMaterialAction, { status: "idle" });
+export function MaterialForm({
+  action = createMaterialAction,
+  defaultValues = blankMaterialValues,
+  idPrefix = "",
+  title = "Add a material",
+  labelSuffix = "",
+  hiddenFields,
+  submitLabel = "Create material",
+  pendingLabel = "Creating material…",
+  successMessage = "Material created.",
+  onSuccess,
+}: MaterialFormProps) {
+  const sectionId = idPrefix || "new-material";
+  const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const {
     control,
     register,
@@ -59,11 +89,14 @@ export function MaterialCreateForm() {
   });
   const dimension = useWatch({ control, name: "dimension" });
   const units = UNITS_BY_DIMENSION[dimension] ?? UNITS_BY_DIMENSION.mass;
+  const initialDimension = useRef(dimension);
 
   useEffect(() => {
+    if (initialDimension.current === dimension) return;
+    initialDimension.current = dimension;
     setValue("baseUnit", units[0]);
     setValue("purchaseUnit", units[0]);
-  }, [setValue, units]);
+  }, [dimension, setValue, units]);
 
   const handledActionState = useRef(state);
   useEffect(() => {
@@ -71,14 +104,18 @@ export function MaterialCreateForm() {
     handledActionState.current = state;
 
     if (state.status === "success") {
-      reset(defaultValues);
+      onSuccess?.(reset);
       return;
     }
 
     if (state.status === "error" && state.fieldErrors?.unitCost) {
       setFocus("purchasePrice");
     }
-  }, [reset, setFocus, state]);
+  }, [onSuccess, reset, setFocus, state]);
+
+  const inputId = (field: string) => `${idPrefix ? `${idPrefix}-` : "material-"}${field}`;
+  const errorId = (field: string) => `${idPrefix ? `${idPrefix}-` : ""}${field}-error`;
+  const label = (name: string) => `${name}${labelSuffix}`;
 
   function messageFor(field: keyof MaterialInput): string | undefined {
     return errors[field]?.message?.toString() ?? state.fieldErrors?.[field]?.[0];
@@ -99,90 +136,96 @@ export function MaterialCreateForm() {
 
   return (
     <section
-      id="new-material"
-      aria-labelledby="new-material-heading"
+      id={sectionId}
+      aria-labelledby={`${sectionId}-heading`}
       className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
     >
-      <h2 id="new-material-heading" className="text-xl font-semibold">
-        Add a material
+      <h2 id={`${sectionId}-heading`} className="text-xl font-semibold">
+        {title}
       </h2>
       <form
         onSubmit={handleSubmit(submit, focusDerivedCostError)}
         noValidate
+        autoComplete="off"
         className="mt-5 flex flex-col gap-4"
       >
-        <label className="flex flex-col gap-1 font-medium" htmlFor="material-name">
-          Name
+        {hiddenFields
+          ? Object.entries(hiddenFields).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))
+          : null}
+        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("name")}>
+          {label("Name")}
           <input
-            id="material-name"
+            id={inputId("name")}
             {...register("name")}
-            aria-describedby="name-error"
+            aria-describedby={errorId("name")}
             className={controlClass}
           />
-          <FieldError field="name" message={messageFor("name")} />
+          <FieldError id={errorId("name")} message={messageFor("name")} />
         </label>
-        <label className="flex flex-col gap-1 font-medium" htmlFor="material-dimension">
-          Dimension
-          <select id="material-dimension" {...register("dimension")} className={selectClass}>
+        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("dimension")}>
+          {label("Dimension")}
+          <select id={inputId("dimension")} {...register("dimension")} className={selectClass}>
             {options(DIMENSIONS)}
           </select>
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 font-medium" htmlFor="material-base-unit">
-            Base unit
+          <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("base-unit")}>
+            {label("Base unit")}
             <select
-              id="material-base-unit"
+              id={inputId("base-unit")}
               {...register("baseUnit")}
-              aria-describedby="base-unit-error"
+              aria-describedby={errorId("base-unit")}
               className={selectClass}
             >
               {options(units)}
             </select>
-            <FieldError field="base-unit" message={messageFor("baseUnit")} />
+            <FieldError id={errorId("base-unit")} message={messageFor("baseUnit")} />
           </label>
-          <label className="flex flex-col gap-1 font-medium" htmlFor="material-purchase-unit">
-            Purchase unit
+          <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-unit")}>
+            {label("Purchase unit")}
             <select
-              id="material-purchase-unit"
+              id={inputId("purchase-unit")}
               {...register("purchaseUnit")}
-              aria-describedby="purchase-unit-error"
+              aria-describedby={errorId("purchase-unit")}
               className={selectClass}
             >
               {options(units)}
             </select>
-            <FieldError field="purchase-unit" message={messageFor("purchaseUnit")} />
+            <FieldError id={errorId("purchase-unit")} message={messageFor("purchaseUnit")} />
           </label>
         </div>
-        <label className="flex flex-col gap-1 font-medium" htmlFor="material-purchase-quantity">
-          Purchase quantity
+        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-quantity")}>
+          {label("Purchase quantity")}
           <input
-            id="material-purchase-quantity"
+            id={inputId("purchase-quantity")}
             type="number"
             inputMode="decimal"
             min="0"
             step="any"
             {...register("purchaseQuantity")}
-            aria-describedby="purchase-quantity-error"
+            aria-describedby={errorId("purchase-quantity")}
             className={controlClass}
           />
-          <FieldError field="purchase-quantity" message={messageFor("purchaseQuantity")} />
+          <FieldError id={errorId("purchase-quantity")} message={messageFor("purchaseQuantity")} />
         </label>
-        <label className="flex flex-col gap-1 font-medium" htmlFor="material-purchase-price">
-          Purchase price (ARS)
+        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-price")}>
+          {label("Purchase price (ARS)")}
           <input
-            id="material-purchase-price"
+            id={inputId("purchase-price")}
             type="number"
             inputMode="decimal"
             min="0"
             step="0.01"
             {...register("purchasePrice")}
-            aria-describedby="purchase-price-error unit-cost-error"
+            aria-describedby={`${errorId("purchase-price")} ${errorId("unit-cost")}`}
             className={controlClass}
           />
-          <FieldError field="purchase-price" message={messageFor("purchasePrice")} />
+          <FieldError id={errorId("purchase-price")} message={messageFor("purchasePrice")} />
         </label>
-        <FieldError field="unit-cost" message={unitCostMessage} />
-        {state.message && (
+        <FieldError id={errorId("unit-cost")} message={unitCostMessage} />
+        {state.message ? (
           <p
             role={state.status === "error" ? "alert" : "status"}
             aria-live="polite"
@@ -190,20 +233,24 @@ export function MaterialCreateForm() {
           >
             {state.message}
           </p>
-        )}
-        {state.status === "success" && (
+        ) : null}
+        {state.status === "success" ? (
           <p role="status" aria-live="polite" className="text-sm text-emerald-800">
-            Material created.
+            {successMessage}
           </p>
-        )}
+        ) : null}
         <button
           type="submit"
           disabled={pending}
           className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
         >
-          {pending ? "Creating material…" : "Create material"}
+          {pending ? pendingLabel : submitLabel}
         </button>
       </form>
     </section>
   );
+}
+
+export function MaterialCreateForm() {
+  return <MaterialForm onSuccess={(reset) => reset(blankMaterialValues)} />;
 }

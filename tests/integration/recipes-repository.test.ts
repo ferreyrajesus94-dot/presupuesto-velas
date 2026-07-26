@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { assertSafeNeonTestDatabase } from "./assert-safe-neon-test-database";
 
@@ -15,7 +15,7 @@ const [
   import("../../src/server/repositories/owner"),
   import("../../src/server/repositories/recipes"),
 ]);
-const { getRecipe, listRecipes } = recipeRepository;
+const { createRecipe, getRecipe, listRecipes, RecipeRepositoryError } = recipeRepository;
 
 const materialFixture = (ownerId: string, id: string, name: string, unitCost: string) => ({
   id,
@@ -159,5 +159,241 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     expect(
       (await listRecipes(ownerId, { includeArchived: true })).map(({ recipe: row }) => row.id),
     ).toContain(recipeId);
+  });
+
+  describe("create", () => {
+    let createOwnerId: string;
+    const createOwnerCreated = false;
+    const createdCreateRecipeIds = new Set<string>();
+    const createdCreateMaterialIds = new Set<string>();
+
+    beforeAll(async () => {
+      // Reuse the singleton owner row so all create tests share the same
+      // owner scope as the read tests; this lets them exercise the unique
+      // name index without provisioning extra app_owner rows.
+      createOwnerId = ownerId;
+    });
+
+    afterEach(async () => {
+      const recipeIds = [...createdCreateRecipeIds];
+      if (recipeIds.length > 0) {
+        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
+        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      }
+      createdCreateRecipeIds.clear();
+      const materialIds = [...createdCreateMaterialIds];
+      if (materialIds.length > 0) {
+        await db.delete(materials).where(inArray(materials.id, materialIds));
+      }
+      createdCreateMaterialIds.clear();
+    });
+
+    afterAll(async () => {
+      if (createOwnerCreated) await db.delete(appOwner).where(eq(appOwner.id, createOwnerId));
+    });
+
+    it("creates and reads an owner-scoped recipe with ordered items and deterministic cost", async () => {
+      const waxId = crypto.randomUUID();
+      const scentId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values([
+          materialFixture(createOwnerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+          materialFixture(createOwnerId, scentId, `scent-${scentId}`, "20.000000000000000000"),
+        ]);
+      createdCreateMaterialIds.add(waxId).add(scentId);
+
+      const recipe = await createRecipe(createOwnerId, {
+        name: `floral-${crypto.randomUUID()}`,
+        items: [
+          { materialId: waxId, quantity: "100", unit: "g" },
+          { materialId: scentId, quantity: "50", unit: "g" },
+        ],
+      });
+      createdCreateRecipeIds.add(recipe.recipe.id);
+
+      expect(recipe.recipe.unitCost).toBe("2000.000000000000000000");
+      expect(recipe.items.map(({ position }) => position)).toEqual([1, 2]);
+      expect(recipe.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
+      expect(recipe.items.map(({ quantity }) => quantity)).toEqual(["100", "50"]);
+
+      const got = await getRecipe(createOwnerId, recipe.recipe.id);
+      expect(got?.recipe.id).toBe(recipe.recipe.id);
+      expect(got?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
+    });
+
+    it("maps duplicate names to DUPLICATE_NAME and unavailable material to MATERIAL_UNAVAILABLE", async () => {
+      const waxId = crypto.randomUUID();
+      const archivedId = crypto.randomUUID();
+      await db.insert(materials).values([
+        materialFixture(createOwnerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+        {
+          ...materialFixture(
+            createOwnerId,
+            archivedId,
+            `arch-${archivedId}`,
+            "10.000000000000000000",
+          ),
+          archivedAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ]);
+      createdCreateMaterialIds.add(waxId).add(archivedId);
+
+      const sharedName = `floral-${crypto.randomUUID()}`;
+      const first = await createRecipe(createOwnerId, {
+        name: sharedName,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdCreateRecipeIds.add(first.recipe.id);
+
+      // DUPLICATE_NAME — the unique (ownerId, name) index must surface as the repository code.
+      await expect(
+        createRecipe(createOwnerId, {
+          name: sharedName,
+          items: [{ materialId: waxId, quantity: "50", unit: "g" }],
+        }),
+      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      await expect(
+        createRecipe(createOwnerId, {
+          name: sharedName,
+          items: [{ materialId: waxId, quantity: "50", unit: "g" }],
+        }),
+      ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
+
+      // MATERIAL_UNAVAILABLE — archived material reference.
+      await expect(
+        createRecipe(createOwnerId, {
+          name: `arch-${crypto.randomUUID()}`,
+          items: [{ materialId: archivedId, quantity: "10", unit: "g" }],
+        }),
+      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      await expect(
+        createRecipe(createOwnerId, {
+          name: `arch-${crypto.randomUUID()}`,
+          items: [{ materialId: archivedId, quantity: "10", unit: "g" }],
+        }),
+      ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
+
+      // MATERIAL_UNAVAILABLE — missing material id (also covers cross-owner
+      // references because the owner-scoped FOR SHARE snapshot only sees
+      // this owner's rows).
+      await expect(
+        createRecipe(createOwnerId, {
+          name: `miss-${crypto.randomUUID()}`,
+          items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
+        }),
+      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      await expect(
+        createRecipe(createOwnerId, {
+          name: `miss-${crypto.randomUUID()}`,
+          items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
+        }),
+      ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
+    });
+
+    it("serializes createRecipe behind a held-open archive lock (recipe rejects unavailable material)", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(createOwnerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdCreateMaterialIds.add(waxId);
+
+      let updateDone = () => {};
+      const updateDonePromise = new Promise<void>((resolve) => {
+        updateDone = resolve;
+      });
+      let releaseUpdate = () => {};
+      const releaseUpdatePromise = new Promise<void>((resolve) => {
+        releaseUpdate = resolve;
+      });
+
+      // Held-open transaction: UPDATE acquires the exclusive row lock and
+      // then waits on `releaseUpdatePromise` until the test releases it.
+      const heldTx = db.transaction(async (tx) => {
+        await tx
+          .update(materials)
+          .set({ archivedAt: new Date("2030-01-01T00:00:00Z") })
+          .where(eq(materials.id, waxId));
+        updateDone();
+        await releaseUpdatePromise;
+      });
+
+      let caught: unknown;
+      try {
+        await updateDonePromise;
+
+        // Start createRecipe while the held UPDATE still owns the row lock.
+        // The FOR SHARE snapshot will block until the held tx commits, then
+        // observe the now-archived material and reject with MATERIAL_UNAVAILABLE.
+        const createPromise = createRecipe(createOwnerId, {
+          name: `floral-${crypto.randomUUID()}`,
+          items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+        });
+
+        releaseUpdate();
+        await heldTx;
+
+        caught = await createPromise.catch((error: unknown) => error);
+      } finally {
+        // Pool-leak-safe cleanup: even on assertion failure we must release
+        // the held transaction so its connection returns to the pool.
+        releaseUpdate();
+        await heldTx.catch(() => undefined);
+      }
+
+      expect(caught).toBeInstanceOf(RecipeRepositoryError);
+      expect(caught).toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
+      expect(await getRecipe(createOwnerId, "00000000-0000-0000-0000-000000000000")).toBeNull();
+    });
+
+    it("serializes createRecipe behind a held-open price-update lock (recipe reads post-update unitCost)", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(createOwnerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdCreateMaterialIds.add(waxId);
+
+      let updateDone = () => {};
+      const updateDonePromise = new Promise<void>((resolve) => {
+        updateDone = resolve;
+      });
+      let releaseUpdate = () => {};
+      const releaseUpdatePromise = new Promise<void>((resolve) => {
+        releaseUpdate = resolve;
+      });
+
+      const heldTx = db.transaction(async (tx) => {
+        await tx
+          .update(materials)
+          .set({ unitCost: "30.000000000000000000" })
+          .where(eq(materials.id, waxId));
+        updateDone();
+        await releaseUpdatePromise;
+      });
+
+      let recipe: Awaited<ReturnType<typeof createRecipe>> | undefined;
+      try {
+        await updateDonePromise;
+
+        const createPromise = createRecipe(createOwnerId, {
+          name: `floral-${crypto.randomUUID()}`,
+          items: [{ materialId: waxId, quantity: "10", unit: "g" }],
+        });
+
+        releaseUpdate();
+        await heldTx;
+
+        recipe = await createPromise;
+        createdCreateRecipeIds.add(recipe.recipe.id);
+      } finally {
+        releaseUpdate();
+        await heldTx.catch(() => undefined);
+      }
+
+      // 10 * 30 = 300 — proves the FOR SHARE snapshot read the post-update
+      // unitCost (otherwise the value would have been derived from 10).
+      expect(recipe?.recipe.unitCost).toBe("300.000000000000000000");
+      expect(recipe?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
+    });
   });
 });

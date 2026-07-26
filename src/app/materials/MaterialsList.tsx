@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MaterialArchiveControl } from "./MaterialArchiveControl";
 import { MaterialEditForm } from "./MaterialEditForm";
 import { MaterialViewFilter, type MaterialView } from "./MaterialViewFilter";
 import type { MaterialInput } from "@/server/validation/materialSchema";
@@ -29,6 +30,9 @@ export function MaterialsList({
       <MaterialViewFilter current={view} />
       {materials.length === 0 ? (
         view === "active" && archivedCount > 0 ? (
+          // R3-002: archived-only owner in active view. Archived names are
+          // still unique to the owner, so the empty state must not imply the
+          // catalog is empty. Offer a semantic link to the archived/all view.
           <section
             aria-labelledby="empty-materials"
             className="rounded-2xl border border-dashed border-rose-300 bg-rose-50 p-6"
@@ -89,6 +93,13 @@ export function MaterialsList({
                 ) : null}
               </div>
               {material.archived ? null : <MaterialEditForm material={material} />}
+              <MaterialArchiveControl
+                material={{
+                  id: material.id,
+                  name: material.name,
+                  archived: material.archived,
+                }}
+              />
             </li>
           ))}
         </ul>

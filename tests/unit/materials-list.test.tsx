@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   countArchivedMaterials: vi.fn(),
   createMaterialAction: vi.fn(),
   updateMaterialAction: vi.fn(),
+  archiveMaterialAction: vi.fn(),
+  unarchiveMaterialAction: vi.fn(),
 }));
 
 vi.mock("../../src/server/auth/requireOwner", () => ({
@@ -20,6 +22,8 @@ vi.mock("../../src/server/repositories/materials", () => ({
 vi.mock("../../src/server/actions/materials", () => ({
   createMaterialAction: mocks.createMaterialAction,
   updateMaterialAction: mocks.updateMaterialAction,
+  archiveMaterialAction: mocks.archiveMaterialAction,
+  unarchiveMaterialAction: mocks.unarchiveMaterialAction,
 }));
 
 import MaterialsPage from "../../src/app/materials/page";
@@ -141,12 +145,14 @@ it("renders current materials, hides archived by default, and exposes the filter
   );
 });
 
-it("shows archived materials with a badge and the all view as current", async () => {
+it("shows archived materials with restore controls, a badge, and the all view as current", async () => {
   mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE, MATERIAL_ARCHIVED]);
 
   render(await MaterialsPage(pageProps("all")));
 
   expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: true });
+  expect(screen.getByRole("button", { name: "Archive Soy wax" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Restore Coconut wax" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Edit material: Soy wax" })).toBeInTheDocument();
   expect(
     screen.queryByRole("heading", { name: "Edit material: Coconut wax" }),

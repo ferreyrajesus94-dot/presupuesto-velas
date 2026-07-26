@@ -1,8 +1,14 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db } from "../../db/client";
-import { appOwner } from "../../db/schema";
-import { getOwner, getSingletonOwner, upsertOwner } from "../../src/server/repositories/owner";
+import { assertSafeNeonTestDatabase } from "./assert-safe-neon-test-database";
+
+assertSafeNeonTestDatabase();
+
+const [{ db }, { appOwner }, { getOwner, getSingletonOwner, upsertOwner }] = await Promise.all([
+  import("../../db/client"),
+  import("../../db/schema"),
+  import("../../src/server/repositories/owner"),
+]);
 
 const TEST_ID = "00000000-0000-0000-0000-000000000099";
 const TEST_EMAIL = "pr2-it-owner@calculadora-flor-test.invalid";

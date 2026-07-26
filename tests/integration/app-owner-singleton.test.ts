@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { db } from "../../db/client";
+import { assertSafeNeonTestDatabase } from "./assert-safe-neon-test-database";
+
+assertSafeNeonTestDatabase();
+
+const { db } = await import("../../db/client");
 
 const TEST_ID_A = "00000000-0000-0000-0000-0000000000a1";
 const TEST_ID_B = "00000000-0000-0000-0000-0000000000a2";

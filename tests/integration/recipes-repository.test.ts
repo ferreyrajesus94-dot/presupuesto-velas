@@ -15,7 +15,8 @@ const [
   import("../../src/server/repositories/owner"),
   import("../../src/server/repositories/recipes"),
 ]);
-const { createRecipe, getRecipe, listRecipes, RecipeRepositoryError } = recipeRepository;
+const { createRecipe, getRecipe, listRecipes, updateRecipe, RecipeRepositoryError } =
+  recipeRepository;
 
 const materialFixture = (ownerId: string, id: string, name: string, unitCost: string) => ({
   id,
@@ -396,4 +397,258 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       expect(recipe?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
     });
   });
+
+  describe("update", () => {
+    const createdUpdateRecipeIds = new Set<string>();
+    const createdUpdateMaterialIds = new Set<string>();
+
+    afterEach(async () => {
+      const recipeIds = [...createdUpdateRecipeIds];
+      if (recipeIds.length > 0) {
+        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
+        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      }
+      createdUpdateRecipeIds.clear();
+      const materialIds = [...createdUpdateMaterialIds];
+      if (materialIds.length > 0) {
+        await db.delete(materials).where(inArray(materials.id, materialIds));
+      }
+      createdUpdateMaterialIds.clear();
+    });
+
+    it("replaces name and items atomically with deterministic cost", async () => {
+      const waxId = crypto.randomUUID();
+      const scentId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values([
+          materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+          materialFixture(ownerId, scentId, `scent-${scentId}`, "20.000000000000000000"),
+        ]);
+      createdUpdateMaterialIds.add(waxId).add(scentId);
+
+      const created = await createRecipe(ownerId, {
+        name: `original-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdUpdateRecipeIds.add(created.recipe.id);
+      expect(created.recipe.unitCost).toBe("1000.000000000000000000");
+
+      const updated = await updateRecipe(ownerId, created.recipe.id, {
+        name: `floral-${crypto.randomUUID()}`,
+        items: [
+          { materialId: scentId, quantity: "50", unit: "g" },
+          { materialId: waxId, quantity: "100", unit: "g" },
+        ],
+      });
+
+      // 50 * 20 + 100 * 10 = 2000; order derives from input, not the prior recipe.
+      expect(updated.recipe.name).not.toBe(created.recipe.name);
+      expect(updated.recipe.unitCost).toBe("2000.000000000000000000");
+      expect(updated.items.map(({ position }) => position)).toEqual([1, 2]);
+      expect(updated.items.map(({ materialId }) => materialId)).toEqual([scentId, waxId]);
+      expect(updated.items.map(({ quantity }) => quantity)).toEqual(["50", "100"]);
+
+      // Persisted state must reflect the replacement (no stale items remain).
+      const got = await getRecipe(ownerId, created.recipe.id);
+      expect(got?.recipe.unitCost).toBe("2000.000000000000000000");
+      expect(got?.items.map(({ materialId }) => materialId)).toEqual([scentId, waxId]);
+    });
+
+    it("rejects NOT_FOUND for archived, cross-owner, and missing recipes", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdUpdateMaterialIds.add(waxId);
+
+      const created = await createRecipe(ownerId, {
+        name: `arch-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdUpdateRecipeIds.add(created.recipe.id);
+      // archiveRecipe is deferred to the next child slice; archive the row
+      // directly so the archived-recipe contract is still exercised here.
+      await db
+        .update(recipes)
+        .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
+        .where(and(eq(recipes.id, created.recipe.id), eq(recipes.ownerId, ownerId)));
+
+      const draft: Parameters<typeof updateRecipe>[2] = {
+        name: `renamed-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      };
+      const otherOwnerId = crypto.randomUUID();
+
+      // Archived recipe + cross-owner + missing recipe must all reject updates.
+      await expect(updateRecipe(ownerId, created.recipe.id, draft)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(updateRecipe(otherOwnerId, created.recipe.id, draft)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(updateRecipe(ownerId, crypto.randomUUID(), draft)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+
+      // The original archived recipe row and items remain intact.
+      const stillArchived = await getRecipe(ownerId, created.recipe.id, { includeArchived: true });
+      expect(stillArchived?.recipe.archivedAt).toBeInstanceOf(Date);
+      expect(stillArchived?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
+    });
+
+    it("maps duplicate names to DUPLICATE_NAME without mutating the recipe", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdUpdateMaterialIds.add(waxId);
+
+      const first = await createRecipe(ownerId, {
+        name: `first-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      const second = await createRecipe(ownerId, {
+        name: `second-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "50", unit: "g" }],
+      });
+      createdUpdateRecipeIds.add(first.recipe.id).add(second.recipe.id);
+
+      await expect(
+        updateRecipe(ownerId, second.recipe.id, {
+          name: first.recipe.name,
+          items: [{ materialId: waxId, quantity: "50", unit: "g" }],
+        }),
+      ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
+
+      // The rejected rename must leave the recipe name and items untouched.
+      const stillSecond = await getRecipe(ownerId, second.recipe.id);
+      expect(stillSecond?.recipe.name).toBe(second.recipe.name);
+      expect(stillSecond?.recipe.unitCost).toBe("500.000000000000000000");
+      expect(stillSecond?.items.map(({ quantity }) => quantity)).toEqual(["50.000000"]);
+    });
+
+    it("maps archived and missing materials to MATERIAL_UNAVAILABLE", async () => {
+      const waxId = crypto.randomUUID();
+      const archivedId = crypto.randomUUID();
+      await db.insert(materials).values([
+        materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+        {
+          ...materialFixture(ownerId, archivedId, `arch-${archivedId}`, "10.000000000000000000"),
+          archivedAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ]);
+      createdUpdateMaterialIds.add(waxId).add(archivedId);
+
+      const created = await createRecipe(ownerId, {
+        name: `mat-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdUpdateRecipeIds.add(created.recipe.id);
+
+      // Archived material reference must reject the update.
+      await expect(
+        updateRecipe(ownerId, created.recipe.id, {
+          name: `renamed-${crypto.randomUUID()}`,
+          items: [
+            { materialId: waxId, quantity: "100", unit: "g" },
+            { materialId: archivedId, quantity: "10", unit: "g" },
+          ],
+        }),
+      ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
+      // Missing material reference (also cross-owner by FOR SHARE scope) must reject.
+      await expect(
+        updateRecipe(ownerId, created.recipe.id, {
+          name: `renamed-${crypto.randomUUID()}`,
+          items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
+        }),
+      ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
+
+      // The original recipe must still be intact after the rejected updates.
+      const stillOriginal = await getRecipe(ownerId, created.recipe.id);
+      expect(stillOriginal?.recipe.name).toBe(created.recipe.name);
+      expect(stillOriginal?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
+    });
+
+    it("serializes updateRecipe behind a held-open price-update lock (recipe waits, reads post-update unitCost, and preserves atomic replacement)", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdUpdateMaterialIds.add(waxId);
+
+      // Seed an active recipe so updateRecipe has a row to lock and replace.
+      const seeded = await createRecipe(ownerId, {
+        name: `seed-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdUpdateRecipeIds.add(seeded.recipe.id);
+      expect(seeded.recipe.unitCost).toBe("1000.000000000000000000");
+
+      let updateDone = () => {};
+      const updateDonePromise = new Promise<void>((resolve) => {
+        updateDone = resolve;
+      });
+      let releaseUpdate = () => {};
+      const releaseUpdatePromise = new Promise<void>((resolve) => {
+        releaseUpdate = resolve;
+      });
+
+      // Held-open transaction: UPDATE acquires the exclusive row lock on the
+      // material row and then waits on `releaseUpdatePromise` until the test
+      // releases it. Synchronization on `updateDonePromise` is awaited BEFORE
+      // launching updateRecipe, so we only release once we know updateRecipe
+      // is racing against the held lock.
+      const heldTx = db.transaction(async (tx) => {
+        await tx
+          .update(materials)
+          .set({ unitCost: "30.000000000000000000" })
+          .where(eq(materials.id, waxId));
+        updateDone();
+        await releaseUpdatePromise;
+      });
+
+      let updated: Awaited<ReturnType<typeof updateRecipe>> | undefined;
+      try {
+        await updateDonePromise;
+
+        // Start updateRecipe while the held UPDATE still owns the row lock.
+        // FOR UPDATE on the recipe row acquires immediately, then the FOR
+        // SHARE snapshot of the owner's materials blocks until the held tx
+        // commits. After the held tx commits, updateRecipe reads the new
+        // unitCost (30) and the renormalized recipe cost is 10 * 30 = 300.
+        const updatePromise = updateRecipe(ownerId, seeded.recipe.id, {
+          name: `renamed-${crypto.randomUUID()}`,
+          items: [{ materialId: waxId, quantity: "10", unit: "g" }],
+        });
+
+        releaseUpdate();
+        await heldTx;
+
+        updated = await updatePromise;
+      } finally {
+        // Pool-leak-safe cleanup: even on assertion failure we must release
+        // the held transaction so its connection returns to the pool.
+        releaseUpdate();
+        await heldTx.catch(() => undefined);
+      }
+
+      // 10 * 30 = 300 — proves the FOR SHARE snapshot read the post-update
+      // unitCost (otherwise the value would have been derived from 10).
+      // The returned `quantity` is the parsed numeric "10" (toFixed); the
+      // persisted shape (NUMERIC(24,6)) stores "10.000000".
+      expect(updated?.recipe.unitCost).toBe("300.000000000000000000");
+      expect(updated?.recipe.name).not.toBe(seeded.recipe.name);
+      expect(updated?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
+
+      // The replacement must persist atomically: no stale items remain.
+      const persisted = await getRecipe(ownerId, seeded.recipe.id);
+      expect(persisted?.recipe.unitCost).toBe("300.000000000000000000");
+      expect(persisted?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
+      expect(persisted?.items.map(({ quantity }) => quantity)).toEqual(["10.000000"]);
+    });
+  });
+
+  // archive and restore are deferred to the next child slice (PR3p.lifecycle).
+  // This parent slice is intentionally update-only.
 });

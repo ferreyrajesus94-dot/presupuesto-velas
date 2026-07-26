@@ -34,6 +34,10 @@ function materialUnavailable(): RecipeRepositoryError {
   return new RecipeRepositoryError("MATERIAL_UNAVAILABLE", "Recipe material is unavailable");
 }
 
+function notFound(id: string): RecipeRepositoryError {
+  return new RecipeRepositoryError("NOT_FOUND", `Recipe "${id}" was not found`);
+}
+
 function isUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 4 && current; depth += 1) {
@@ -174,3 +178,53 @@ export async function createRecipe(ownerId: string, input: RecipeInput): Promise
     }
   });
 }
+
+export async function updateRecipe(
+  ownerId: string,
+  id: string,
+  input: RecipeInput,
+): Promise<RecipeRecord> {
+  return db.transaction(async (tx) => {
+    const [recipe] = await tx
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.ownerId, ownerId), eq(recipes.id, id), isNull(recipes.archivedAt)))
+      .for("update");
+    if (!recipe) throw notFound(id);
+
+    const materialRows = await tx
+      .select()
+      .from(materials)
+      .where(eq(materials.ownerId, ownerId))
+      .for("share");
+    const parsed = parseInput(ownerId, input, materialRows);
+
+    await tx.delete(recipeItems).where(eq(recipeItems.recipeId, id));
+    const items: RecipeItem[] = parsed.items.map((item) => ({
+      id: crypto.randomUUID(),
+      recipeId: id,
+      position: item.position,
+      materialId: item.materialId,
+      quantity: item.quantity,
+    }));
+    await tx.insert(recipeItems).values(items);
+
+    try {
+      const [updated] = await tx
+        .update(recipes)
+        .set({ name: parsed.name, unitCost: parsed.unitCost })
+        .where(eq(recipes.id, id))
+        .returning();
+      if (!updated) throw notFound(id);
+      return { recipe: updated, items };
+    } catch (error) {
+      if (isUniqueViolation(error)) throw duplicateName(parsed.name);
+      throw error;
+    }
+  });
+}
+
+// archiveRecipe and restoreRecipe are deferred to the next child slice
+// (PR3p.lifecycle). This parent slice is intentionally update-only so the
+// dedicated updateRecipe concurrency regression can land within the 400
+// authored-line hard budget.

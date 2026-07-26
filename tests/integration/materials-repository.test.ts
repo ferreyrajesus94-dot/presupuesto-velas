@@ -94,6 +94,41 @@ describe("materials repository (integration vs dev branch)", () => {
     await unarchiveMaterial(ownerId, material.id);
     expect((await listMaterials(ownerId)).map(({ id }) => id)).toContain(material.id);
   });
+  it("rejects updates to archived materials without changing them", async () => {
+    const material = await createMaterial(ownerId, input(`read-only-${crypto.randomUUID()}`));
+    createdMaterialIds.add(material.id);
+    const conflicting = await createMaterial(ownerId, input(`active-${crypto.randomUUID()}`));
+    createdMaterialIds.add(conflicting.id);
+    await archiveMaterial(ownerId, material.id);
+
+    await expect(
+      updateMaterial(ownerId, material.id, input(conflicting.name, "12000")),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const archived = await getMaterial(ownerId, material.id, { includeArchived: true });
+    expect(archived).toMatchObject({ name: material.name, unitCost: material.unitCost });
+  });
+  it("rejects renaming one active material to another active material's name with DUPLICATE_NAME", async () => {
+    // R3-004: integration coverage for the 23505 mapping after the
+    // duplicate preflight was removed. Two active siblings; rename one to
+    // the other's name. The DB unique index must surface as DUPLICATE_NAME.
+    const firstName = `first-${crypto.randomUUID()}`;
+    const secondName = `second-${crypto.randomUUID()}`;
+    const first = await createMaterial(ownerId, input(firstName));
+    createdMaterialIds.add(first.id);
+    const second = await createMaterial(ownerId, input(secondName));
+    createdMaterialIds.add(second.id);
+
+    await expect(
+      updateMaterial(ownerId, second.id, input(firstName, "12000")),
+    ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
+    // Both records remain intact after the rejected rename.
+    const stillFirst = await getMaterial(ownerId, first.id);
+    const stillSecond = await getMaterial(ownerId, second.id);
+    expect(stillFirst?.name).toBe(firstName);
+    expect(stillSecond?.name).toBe(secondName);
+    expect(stillFirst?.unitCost).toBe("10.000000000000000000");
+    expect(stillSecond?.unitCost).toBe("10.000000000000000000");
+  });
   it("denies cross-owner and missing mutations without deleting data", async () => {
     const material = await createMaterial(ownerId, input(`owned-${crypto.randomUUID()}`));
     createdMaterialIds.add(material.id);

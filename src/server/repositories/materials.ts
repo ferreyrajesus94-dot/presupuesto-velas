@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, ne, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../../../db/client";
 import { materials } from "../../../db/schema";
 import {
@@ -44,9 +44,8 @@ function isUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-async function hasNameConflict(ownerId: string, name: string, exceptId?: string): Promise<boolean> {
+async function hasNameConflict(ownerId: string, name: string): Promise<boolean> {
   const conditions = [eq(materials.ownerId, ownerId), eq(materials.name, name)];
-  if (exceptId) conditions.push(ne(materials.id, exceptId));
   return (
     (
       await db
@@ -122,12 +121,13 @@ export async function updateMaterial(
   input: MaterialInput,
 ): Promise<Material> {
   const parsed = parseInput(input);
-  if (await hasNameConflict(ownerId, parsed.name, id)) throw duplicateName(parsed.name);
   try {
     const [material] = await db
       .update(materials)
       .set(parsed)
-      .where(and(eq(materials.ownerId, ownerId), eq(materials.id, id)))
+      .where(
+        and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
+      )
       .returning();
     if (!material) throw notFound(id);
     return material;

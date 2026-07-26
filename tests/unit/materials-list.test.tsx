@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireOwner: vi.fn(),
   listMaterials: vi.fn(),
+  countArchivedMaterials: vi.fn(),
   createMaterialAction: vi.fn(),
   updateMaterialAction: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock("../../src/server/auth/requireOwner", () => ({
 }));
 vi.mock("../../src/server/repositories/materials", () => ({
   listMaterials: mocks.listMaterials,
+  countArchivedMaterials: mocks.countArchivedMaterials,
 }));
 vi.mock("../../src/server/actions/materials", () => ({
   createMaterialAction: mocks.createMaterialAction,
@@ -23,16 +25,46 @@ vi.mock("../../src/server/actions/materials", () => ({
 import MaterialsPage from "../../src/app/materials/page";
 import { MaterialCreateForm } from "../../src/app/materials/MaterialCreateForm";
 
+function pageProps(view?: "active" | "all") {
+  return { searchParams: Promise.resolve(view ? { view } : {}) };
+}
+
+const MATERIAL_BASE = {
+  dimension: "mass",
+  baseUnit: "g",
+  purchaseUnit: "kg",
+  purchaseQuantity: "1",
+};
+const MATERIAL_ACTIVE = {
+  ...MATERIAL_BASE,
+  id: "material-1",
+  name: "Soy wax",
+  purchasePrice: "10000",
+  unitCost: "10",
+  archivedAt: null,
+};
+const MATERIAL_ARCHIVED = {
+  ...MATERIAL_BASE,
+  id: "material-2",
+  name: "Coconut wax",
+  purchasePrice: "8000",
+  unitCost: "8",
+  archivedAt: new Date("2026-01-01T00:00:00Z"),
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.listMaterials.mockResolvedValue([]);
+  mocks.countArchivedMaterials.mockResolvedValue(0);
   mocks.createMaterialAction.mockResolvedValue({ status: "success", materialId: "material-1" });
 });
 
 it("shows an actionable empty state when the owner has no materials", async () => {
   mocks.listMaterials.mockResolvedValue([]);
+  mocks.countArchivedMaterials.mockResolvedValue(0);
 
-  render(await MaterialsPage());
+  render(await MaterialsPage(pageProps()));
 
   expect(screen.getByRole("heading", { name: "Materials" })).toBeInTheDocument();
   expect(screen.getByText("No materials yet")).toBeInTheDocument();
@@ -42,15 +74,88 @@ it("shows an actionable empty state when the owner has no materials", async () =
   );
 });
 
-it("renders current materials with their exact base-unit costs", async () => {
-  mocks.listMaterials.mockResolvedValue([
-    { id: "material-1", name: "Soy wax", baseUnit: "g", unitCost: "10" },
-  ]);
+it("shows a view-aware empty state when active list is empty but archived records exist", async () => {
+  // R3-002: archived-only owner in active view. Archived names stay unique
+  // per owner, so the empty state must not pretend the catalog is empty and
+  // must offer a semantic path to the archived/all view.
+  mocks.listMaterials.mockResolvedValue([]);
+  mocks.countArchivedMaterials.mockResolvedValue(3);
 
-  render(await MaterialsPage());
+  render(await MaterialsPage(pageProps()));
+
+  expect(screen.getByRole("heading", { name: "No active materials" })).toBeInTheDocument();
+  expect(screen.getByText("3 materials are archived and hidden in this view.")).toBeInTheDocument();
+  const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+  expect(showArchivedLinks.length).toBeGreaterThanOrEqual(1);
+  expect(
+    showArchivedLinks.find((link) => link.getAttribute("href") === "/materials?view=all"),
+  ).toBeDefined();
+  expect(screen.queryByText("No materials yet")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Add your first material" })).not.toBeInTheDocument();
+  expect(mocks.countArchivedMaterials).toHaveBeenCalledWith("owner-1");
+});
+
+it("uses singular copy when only one archived material exists", async () => {
+  mocks.listMaterials.mockResolvedValue([]);
+  mocks.countArchivedMaterials.mockResolvedValue(1);
+
+  render(await MaterialsPage(pageProps()));
+
+  expect(screen.getByText("1 material is archived and hidden in this view.")).toBeInTheDocument();
+});
+
+it("does not query archived count when active list is non-empty", async () => {
+  mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE]);
+  mocks.countArchivedMaterials.mockResolvedValue(0);
+
+  render(await MaterialsPage(pageProps()));
+
+  expect(mocks.countArchivedMaterials).not.toHaveBeenCalled();
+});
+
+it("does not query archived count in the all view even when the list is empty", async () => {
+  mocks.listMaterials.mockResolvedValue([]);
+  mocks.countArchivedMaterials.mockResolvedValue(0);
+
+  render(await MaterialsPage(pageProps("all")));
+
+  // All view shows "No materials yet" because nothing exists at all.
+  expect(screen.getByText("No materials yet")).toBeInTheDocument();
+  expect(mocks.countArchivedMaterials).not.toHaveBeenCalled();
+});
+
+it("renders current materials, hides archived by default, and exposes the filter nav", async () => {
+  mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE]);
+
+  render(await MaterialsPage(pageProps()));
 
   expect(screen.getByRole("listitem")).toHaveTextContent("Soy wax");
   expect(screen.getByRole("listitem")).toHaveTextContent("ARS 10 per g");
+  expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
+  const nav = screen.getByRole("navigation", { name: "Material view filter" });
+  expect(within(nav).getByRole("link", { name: /Active/ })).toHaveAttribute("href", "/materials");
+  expect(within(nav).getByRole("link", { name: /Active/ })).toHaveAttribute("aria-current", "page");
+  expect(within(nav).getByRole("link", { name: /Show archived/ })).toHaveAttribute(
+    "href",
+    "/materials?view=all",
+  );
+});
+
+it("shows archived materials with a badge and the all view as current", async () => {
+  mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE, MATERIAL_ARCHIVED]);
+
+  render(await MaterialsPage(pageProps("all")));
+
+  expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: true });
+  expect(screen.getByRole("heading", { name: "Edit material: Soy wax" })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Edit material: Coconut wax" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archived");
+  expect(screen.getByRole("link", { name: /Show archived/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 });
 
 async function fillMaterialForm(user: ReturnType<typeof userEvent.setup>) {

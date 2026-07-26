@@ -1,12 +1,32 @@
 import { requireOwner } from "@/server/auth/requireOwner";
-import { listMaterials } from "@/server/repositories/materials";
+import { countArchivedMaterials, listMaterials } from "@/server/repositories/materials";
 import type { MaterialInput } from "@/server/validation/materialSchema";
 import { MaterialsList, type MaterialListItem } from "./MaterialsList";
 import { MaterialCreateForm } from "./MaterialCreateForm";
+import { resolveMaterialView, type MaterialView } from "./MaterialViewFilter";
 
-export default async function MaterialsPage() {
+const VIEW_VISIBILITY: Record<MaterialView, { includeArchived: boolean }> = {
+  active: { includeArchived: false },
+  all: { includeArchived: true },
+};
+
+export default async function MaterialsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const owner = await requireOwner();
-  const materials = await listMaterials(owner.id);
+  const { view: rawView } = await searchParams;
+  const view = resolveMaterialView(rawView);
+  const visibility = VIEW_VISIBILITY[view];
+  const materials = await listMaterials(owner.id, visibility);
+
+  // R3-002: only fetch the archived count when the active list might be
+  // empty — keeps the happy path to a single query and supports the
+  // view-aware empty state for archived-only owners.
+  const archivedCount =
+    view === "active" && materials.length === 0 ? await countArchivedMaterials(owner.id) : 0;
+
   const items: MaterialListItem[] = materials.map((m) => ({
     id: m.id,
     name: m.name,
@@ -16,6 +36,7 @@ export default async function MaterialsPage() {
     purchaseQuantity: m.purchaseQuantity,
     purchasePrice: m.purchasePrice,
     unitCost: m.unitCost,
+    archived: m.archivedAt !== null,
   }));
 
   return (
@@ -28,7 +49,7 @@ export default async function MaterialsPage() {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
-        <MaterialsList materials={items} />
+        <MaterialsList materials={items} view={view} archivedCount={archivedCount} />
         <MaterialCreateForm />
       </div>
     </main>

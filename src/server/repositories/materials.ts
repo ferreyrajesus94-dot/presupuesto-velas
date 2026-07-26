@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, ne, isNull } from "drizzle-orm";
+import { and, asc, eq, ne, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../../../db/client";
 import { materials } from "../../../db/schema";
 import {
@@ -88,6 +88,17 @@ export async function getMaterial(
     .where(and(...conditions))
     .limit(1);
   return rows[0] ?? null;
+}
+
+// R3-002: lets the page decide between the truly-empty empty state and the
+// "no active materials, archived exist" empty state without a second full
+// material fetch.
+export async function countArchivedMaterials(ownerId: string): Promise<number> {
+  const rows = await db
+    .select({ id: materials.id })
+    .from(materials)
+    .where(and(eq(materials.ownerId, ownerId), isNotNull(materials.archivedAt)));
+  return rows.length;
 }
 
 export async function createMaterial(ownerId: string, input: MaterialInput): Promise<Material> {

@@ -21,6 +21,7 @@ const MATERIAL = {
   purchaseQuantity: "1",
   purchasePrice: "10000",
   unitCost: "10",
+  archived: false,
 };
 
 beforeEach(() => {

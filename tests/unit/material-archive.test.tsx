@@ -13,6 +13,7 @@ vi.mock("../../src/server/actions/materials", () => ({
 }));
 
 import { MaterialArchiveControl } from "../../src/app/materials/MaterialArchiveControl";
+import { MaterialsArchiveFeedback } from "../../src/app/materials/MaterialsArchiveFeedback";
 
 const ARCHIVED = { id: "material-1", name: "Soy wax", archived: true } as const;
 const ACTIVE = { id: "material-2", name: "Coconut wax", archived: false } as const;
@@ -108,4 +109,32 @@ it("surfaces a server error returned by the restore action", async () => {
 
   await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Unable to restore material.");
+});
+
+it("reports a successful archive with a polite status message rendered by the parent feedback provider", async () => {
+  const user = userEvent.setup();
+  const confirmSpy = mockConfirm(true);
+  // R3-003: success status lives on the parent provider, not the row. The
+  // parent renders a persistent role=status that survives row removal.
+  render(
+    <MaterialsArchiveFeedback view="all" hasRemainingRows>
+      <MaterialArchiveControl material={ACTIVE} />
+    </MaterialsArchiveFeedback>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archived.");
+  confirmSpy.mockRestore();
+});
+
+it("reports a successful restore with a polite status message rendered by the parent feedback provider", async () => {
+  const user = userEvent.setup();
+  render(
+    <MaterialsArchiveFeedback view="all" hasRemainingRows>
+      <MaterialArchiveControl material={ARCHIVED} />
+    </MaterialsArchiveFeedback>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Soy wax restored.");
 });

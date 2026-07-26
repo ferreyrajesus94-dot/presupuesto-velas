@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireOwner: vi.fn(),
@@ -297,4 +297,124 @@ it("does not steal focus on unrelated rerenders after a server unit-cost error",
   await user.type(name, " updated");
 
   expect(name).toHaveFocus();
+});
+
+// R3-003 page-level composition: the feedback provider must survive the
+// transition from a non-empty active list to an empty active list, and the
+// "Show archived" focus destination must be reached via the truthful
+// remaining-row state. The current wiring mounts the provider only inside
+// the list branch and hardcodes hasRemainingRows to true, so the status
+// unmounts and the focus destination is wrong on the post-revalidation
+// render.
+describe("R3-003 page-level lifecycle composition", () => {
+  function mockConfirm(value: boolean) {
+    return vi.spyOn(window, "confirm").mockReturnValue(value);
+  }
+
+  it("keeps the success announcement and moves focus to Show archived when the last active row is archived", async () => {
+    // RED on the current wiring: the provider unmounts when the list
+    // transitions to empty, so the role=status disappears and the focus
+    // destination is never evaluated. On the fixed wiring the provider
+    // stays mounted and the truthful hasRemainingRows=false re-runs the
+    // focus effect onto the "Show archived" link.
+    const user = userEvent.setup();
+    const confirmSpy = mockConfirm(true);
+    mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE]);
+    mocks.countArchivedMaterials.mockResolvedValue(0);
+    mocks.archiveMaterialAction.mockResolvedValue({
+      status: "success",
+      materialId: MATERIAL_ACTIVE.id,
+    });
+
+    const first = await MaterialsPage(pageProps());
+    const { rerender } = render(first);
+
+    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+
+    // Simulate the post-revalidation render: the active list is now empty
+    // and the owner has one archived material, so the page transitions to
+    // the view-aware empty state.
+    mocks.listMaterials.mockResolvedValue([]);
+    mocks.countArchivedMaterials.mockResolvedValue(1);
+    rerender(await MaterialsPage(pageProps()));
+
+    // The persistent success announcement must survive the transition.
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
+    // Focus must move to a "Show archived" affordance (nav or empty-state
+    // link), not be lost on body.
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    expect(showArchivedLinks.length).toBeGreaterThan(0);
+    expect(showArchivedLinks.some((link) => link === document.activeElement)).toBe(true);
+    confirmSpy.mockRestore();
+  });
+
+  it("preserves the announcement when one of two active rows is archived and rows still remain", async () => {
+    // Triangulation: when rows remain after archive, the provider must keep
+    // the announcement visible across the post-revalidation transition.
+    // The fix must not break the already-verified next-row focus behavior.
+    const user = userEvent.setup();
+    const confirmSpy = mockConfirm(true);
+    const otherActive = {
+      ...MATERIAL_BASE,
+      id: "material-other",
+      name: "Coconut wax",
+      purchasePrice: "8000",
+      unitCost: "8",
+      archivedAt: null,
+    };
+    mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE, otherActive]);
+    mocks.countArchivedMaterials.mockResolvedValue(0);
+    mocks.archiveMaterialAction.mockResolvedValue({
+      status: "success",
+      materialId: MATERIAL_ACTIVE.id,
+    });
+
+    const first = await MaterialsPage(pageProps());
+    const { rerender } = render(first);
+
+    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+
+    // Post-revalidation: Soy wax archived, Coconut wax remains active.
+    mocks.listMaterials.mockResolvedValue([otherActive]);
+    rerender(await MaterialsPage(pageProps()));
+
+    // Status persists across the transition.
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
+    // The remaining row's archive button is still rendered.
+    expect(screen.getByRole("button", { name: "Archive Coconut wax" })).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it("does not move focus to Show archived when a row is restored in the all view", async () => {
+    // Triangulation: restore keeps the row mounted, so the provider must
+    // not move focus. The page-level composition must not break the
+    // already-verified no-focus-move behavior on restore.
+    const user = userEvent.setup();
+    mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE, MATERIAL_ARCHIVED]);
+    mocks.countArchivedMaterials.mockResolvedValue(1);
+    mocks.unarchiveMaterialAction.mockResolvedValue({
+      status: "success",
+      materialId: MATERIAL_ARCHIVED.id,
+    });
+
+    const first = await MaterialsPage(pageProps("all"));
+    const { rerender } = render(first);
+
+    await user.click(screen.getByRole("button", { name: "Restore Coconut wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax restored.");
+
+    // The list is unchanged in the all view (restore doesn't remove rows).
+    rerender(await MaterialsPage(pageProps("all")));
+
+    // Status persists.
+    expect(screen.getByRole("status")).toHaveTextContent("Coconut wax restored.");
+    // Focus must NOT be on a "Show archived" link — restore keeps the row
+    // mounted, so the provider's focus effect must early-return.
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    showArchivedLinks.forEach((link) => {
+      expect(link).not.toBe(document.activeElement);
+    });
+  });
 });

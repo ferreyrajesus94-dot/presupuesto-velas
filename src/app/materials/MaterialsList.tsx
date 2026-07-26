@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MaterialArchiveControl } from "./MaterialArchiveControl";
+import { MaterialsArchiveFeedback } from "./MaterialsArchiveFeedback";
 import { MaterialEditForm } from "./MaterialEditForm";
 import { MaterialViewFilter, type MaterialView } from "./MaterialViewFilter";
 import type { MaterialInput } from "@/server/validation/materialSchema";
@@ -25,10 +26,19 @@ export function MaterialsList({
   view: MaterialView;
   archivedCount: number;
 }) {
+  // R3-003: the feedback provider must wrap both branches so the polite
+  // role=status region and the focus destination survive the transition
+  // from a non-empty active list to an empty active list. Mounting the
+  // provider only inside the list branch (the previous wiring) caused the
+  // success announcement to disappear and the "Show archived" focus move
+  // to be skipped when the last active row was archived.
+  const hasRemainingRows = materials.length > 0;
   return (
     <div className="flex flex-col gap-4">
       <MaterialViewFilter current={view} />
-      {materials.length === 0 ? (
+      {/* prettier-ignore */}
+      <MaterialsArchiveFeedback view={view} hasRemainingRows={hasRemainingRows}>
+    {materials.length === 0 ? (
         view === "active" && archivedCount > 0 ? (
           // R3-002: archived-only owner in active view. Archived names are
           // still unique to the owner, so the empty state must not imply the
@@ -47,6 +57,7 @@ export function MaterialsList({
             </p>
             <Link
               href="/materials?view=all"
+              data-archive-focus="show-archived"
               className="mt-4 inline-block font-semibold text-rose-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
             >
               Show archived
@@ -103,7 +114,7 @@ export function MaterialsList({
             </li>
           ))}
         </ul>
-      )}
+      )}      </MaterialsArchiveFeedback>
     </div>
   );
 }

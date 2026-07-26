@@ -1,6 +1,7 @@
 import { requireOwner } from "@/server/auth/requireOwner";
 import { listMaterials } from "@/server/repositories/materials";
 import { MaterialsList, type MaterialListItem } from "./MaterialsList";
+import { MaterialCreateForm } from "./MaterialCreateForm";
 
 export default async function MaterialsPage() {
   const owner = await requireOwner();
@@ -23,6 +24,7 @@ export default async function MaterialsPage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
         <MaterialsList materials={items} />
+        <MaterialCreateForm />
       </div>
     </main>
   );

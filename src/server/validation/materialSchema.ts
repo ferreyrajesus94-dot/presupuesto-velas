@@ -13,20 +13,28 @@ const MAX_PURCHASE_QUANTITY = decimal("999999999999999999.999999");
 const MAX_PURCHASE_PRICE = decimal("999999999999999999.99");
 const MAX_UNIT_COST = decimal("99999999999999999999.999999999999999999");
 
+function safeDecimal(value: string) {
+  try {
+    return decimal(value);
+  } catch {
+    return null;
+  }
+}
+
 const purchaseQuantity = z
   .string()
   .regex(/^\d+(?:\.\d{1,6})?$/, "Enter a quantity with up to 6 decimal places")
-  .refine((value) => decimal(value).gt(0), "Purchase quantity must be positive")
+  .refine((value) => safeDecimal(value)?.gt(0) ?? false, "Purchase quantity must be positive")
   .refine(
-    (value) => decimal(value).lte(MAX_PURCHASE_QUANTITY),
+    (value) => safeDecimal(value)?.lte(MAX_PURCHASE_QUANTITY) ?? false,
     "Purchase quantity exceeds database precision",
   );
 const purchasePrice = z
   .string()
   .regex(/^\d+(?:\.\d{1,2})?$/, "Enter a price with up to 2 decimal places")
-  .refine((value) => decimal(value).gt(0), "Purchase price must be positive")
+  .refine((value) => safeDecimal(value)?.gt(0) ?? false, "Purchase price must be positive")
   .refine(
-    (value) => decimal(value).lte(MAX_PURCHASE_PRICE),
+    (value) => safeDecimal(value)?.lte(MAX_PURCHASE_PRICE) ?? false,
     "Purchase price exceeds database precision",
   );
 
@@ -66,10 +74,15 @@ export const materialInputSchema = z
     }
   })
   .transform((value, context) => {
-    const unitCost = divide(
-      decimal(value.purchasePrice),
-      normalizeToBaseUnit(value.purchaseQuantity, value.purchaseUnit, value.baseUnit),
-    );
+    let unitCost;
+    try {
+      unitCost = divide(
+        decimal(value.purchasePrice),
+        normalizeToBaseUnit(value.purchaseQuantity, value.purchaseUnit, value.baseUnit),
+      );
+    } catch {
+      return z.NEVER;
+    }
     const normalizedUnitCost = unitCost.toDecimalPlaces(18, ROUNDING_MODE);
     if (unitCost.gt(MAX_UNIT_COST) || normalizedUnitCost.isZero()) {
       context.addIssue({

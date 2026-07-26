@@ -16,7 +16,7 @@ import {
 } from "../validation/materialSchema";
 
 const MATERIALS_PATH = "/materials";
-type MaterialField = keyof MaterialInput | "id";
+type MaterialField = keyof MaterialInput | "unitCost" | "id";
 
 export type MaterialActionState = {
   status: "idle" | "success" | "error";

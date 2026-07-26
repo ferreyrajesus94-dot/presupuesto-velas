@@ -21,7 +21,7 @@
     "db:check": "drizzle-kit check"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.5.7",
     "@neondatabase/serverless": "^1.1.0",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.2",

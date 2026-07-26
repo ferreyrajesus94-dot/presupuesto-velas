@@ -18,8 +18,6 @@ export function useMaterialArchiveFeedback(): FeedbackContextValue {
   return useContext(FeedbackContext) ?? NO_OP;
 }
 
-type FocusDestination = "next-row" | "show-archived";
-
 export function MaterialsArchiveFeedback({
   view,
   hasRemainingRows,
@@ -40,13 +38,23 @@ export function MaterialsArchiveFeedback({
   useEffect(() => {
     if (!result) return;
     if (view !== "active" || result.operation !== "archive") return;
-    const destination: FocusDestination = hasRemainingRows ? "next-row" : "show-archived";
-    const target = document.querySelector<HTMLElement>(
-      destination === "next-row"
-        ? '[data-archive-focus="next-row"]'
-        : '[data-archive-focus="show-archived"]',
+    if (!hasRemainingRows) {
+      // Last row archived: focus the "Show archived" affordance so keyboard
+      // users can navigate to the archived view from the empty state.
+      document.querySelector<HTMLElement>('[data-archive-focus="show-archived"]')?.focus();
+      return;
+    }
+    // Rows remain: focus the first archive button whose row is NOT the one
+    // that was just archived. The archived row's button is still in the DOM
+    // until revalidation commits, so we must filter it out explicitly to
+    // avoid leaving focus on a soon-to-be-unmounted element when the
+    // remaining-row count stays truthy across the transition.
+    const archivedLabel = `Archive ${result.materialName}`;
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-archive-focus="next-row"]'),
     );
-    target?.focus();
+    const surviving = candidates.find((el) => el.getAttribute("aria-label") !== archivedLabel);
+    surviving?.focus();
   }, [result, view, hasRemainingRows]);
 
   return (

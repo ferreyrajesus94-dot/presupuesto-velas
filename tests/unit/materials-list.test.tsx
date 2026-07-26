@@ -387,6 +387,56 @@ describe("R3-003 page-level lifecycle composition", () => {
     confirmSpy.mockRestore();
   });
 
+  it("moves focus to the remaining row's archive button after revalidation when one of two active rows is archived", async () => {
+    // JD-001 directed reproduction: the focus effect in MaterialsArchiveFeedback
+    // depends on [result, view, hasRemainingRows]. When the first of two
+    // active rows is archived, the effect runs while hasRemainingRows is
+    // still true and focuses the departing row's archive button. After
+    // revalidation that button is unmounted, and because hasRemainingRows
+    // stays true the effect does not re-run, so focus is left on the
+    // detached element. The remaining row's archive button must receive
+    // focus so keyboard users keep their place in the surviving list.
+    const user = userEvent.setup();
+    const confirmSpy = mockConfirm(true);
+    const otherActive = {
+      ...MATERIAL_BASE,
+      id: "material-other",
+      name: "Coconut wax",
+      purchasePrice: "8000",
+      unitCost: "8",
+      archivedAt: null,
+    };
+    mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE, otherActive]);
+    mocks.countArchivedMaterials.mockResolvedValue(0);
+    mocks.archiveMaterialAction.mockResolvedValue({
+      status: "success",
+      materialId: MATERIAL_ACTIVE.id,
+    });
+
+    const first = await MaterialsPage(pageProps());
+    const { rerender } = render(first);
+
+    expect(screen.getByRole("button", { name: "Archive Soy wax" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Coconut wax" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+
+    // Post-revalidation: Soy wax archived, Coconut wax remains active.
+    mocks.listMaterials.mockResolvedValue([otherActive]);
+    rerender(await MaterialsPage(pageProps()));
+
+    // Status persists across the transition.
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
+    // The first row was archived and removed; the remaining row's archive
+    // button must receive focus so the keyboard cursor does not get lost
+    // on the unmounted departing row.
+    const remaining = screen.getByRole("button", { name: "Archive Coconut wax" });
+    expect(remaining).toBeInTheDocument();
+    await waitFor(() => expect(remaining).toHaveFocus());
+    confirmSpy.mockRestore();
+  });
+
   it("does not move focus to Show archived when a row is restored in the all view", async () => {
     // Triangulation: restore keeps the row mounted, so the provider must
     // not move focus. The page-level composition must not break the

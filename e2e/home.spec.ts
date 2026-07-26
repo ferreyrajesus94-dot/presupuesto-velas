@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("home page renders default scaffold heading", async ({ page }) => {
+test("home redirects to /sign-in when unauthenticated (proxy optimistic check)", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /to get started/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/sign-in/);
+  await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 });

@@ -135,12 +135,14 @@ it("resets the form after a successful create without dispatching a duplicate ac
 
   expect(await screen.findByRole("status")).toHaveTextContent("Material created.");
   expect(mocks.createMaterialAction).toHaveBeenCalledTimes(1);
-  expect(screen.getByLabelText("Name")).toHaveValue("");
-  expect(screen.getByLabelText("Dimension")).toHaveValue("mass");
-  expect(screen.getByLabelText("Base unit")).toHaveValue("g");
-  expect(screen.getByLabelText("Purchase unit")).toHaveValue("g");
-  expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
-  expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+  await waitFor(() => {
+    expect(screen.getByLabelText("Name")).toHaveValue("");
+    expect(screen.getByLabelText("Dimension")).toHaveValue("mass");
+    expect(screen.getByLabelText("Base unit")).toHaveValue("g");
+    expect(screen.getByLabelText("Purchase unit")).toHaveValue("g");
+    expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
+    expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+  });
 });
 
 it("resets again after a later successful create", async () => {
@@ -158,9 +160,11 @@ it("resets again after a later successful create", async () => {
   await user.click(screen.getByRole("button", { name: "Create material" }));
   await waitFor(() => expect(mocks.createMaterialAction).toHaveBeenCalledTimes(2));
 
-  expect(screen.getByLabelText("Name")).toHaveValue("");
-  expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
-  expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+  await waitFor(() => {
+    expect(screen.getByLabelText("Name")).toHaveValue("");
+    expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
+    expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+  });
 });
 
 it("does not steal focus on unrelated rerenders after a server unit-cost error", async () => {

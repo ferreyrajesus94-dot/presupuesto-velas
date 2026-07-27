@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   class RepositoryError extends Error {
     constructor(
-      readonly code: "NOT_FOUND" | "DUPLICATE_NAME",
+      readonly code: "NOT_FOUND" | "DUPLICATE_NAME" | "BASE_UNIT_REFERENCED",
       message: string,
     ) {
       super(message);
@@ -168,6 +168,30 @@ describe("material Server Actions", () => {
     });
 
     expect(mocks.createMaterial).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("R3-001: maps BASE_UNIT_REFERENCED to a safe UI message without leaking the material id", async () => {
+    // The repository surfaces the typed error with the material id in the
+    // message. The Server Action must translate it into a non-disclosing
+    // user-facing sentence so the id never reaches the browser.
+    mocks.updateMaterial.mockRejectedValue(
+      new mocks.RepositoryError(
+        "BASE_UNIT_REFERENCED",
+        'Material "secret-material-id" base unit cannot change while referenced by recipes',
+      ),
+    );
+
+    const result = await updateMaterialAction(
+      INITIAL_STATE,
+      form({ ...Object.fromEntries(materialForm()), id: "secret-material-id", baseUnit: "g" }),
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Base unit cannot be changed while this material is used in recipes.",
+    });
+    expect(result.message).not.toContain("secret-material-id");
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });

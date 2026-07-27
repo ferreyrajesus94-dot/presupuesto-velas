@@ -74,6 +74,15 @@ function failure(error: unknown, operation: string): MaterialActionState {
     if (error.code === "DUPLICATE_NAME") {
       return { status: "error", message: "A material with that name already exists." };
     }
+    // R3-001 prerequisite guard. Non-disclosing: we tell the user the
+    // base unit cannot change while the material is referenced by
+    // recipes, but never leak the material id or any internal detail.
+    if (error.code === "BASE_UNIT_REFERENCED") {
+      return {
+        status: "error",
+        message: "Base unit cannot be changed while this material is used in recipes.",
+      };
+    }
     return { status: "error", message: "Material could not be found." };
   }
   return { status: "error", message: `Unable to ${operation} material.` };

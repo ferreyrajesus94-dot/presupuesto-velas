@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../../../db/client";
-import { materials } from "../../../db/schema";
+import { materials, recipeItems } from "../../../db/schema";
 import {
   materialInputSchema,
   type MaterialInput,
@@ -12,7 +12,7 @@ export type Material = typeof materials.$inferSelect;
 
 export class MaterialRepositoryError extends Error {
   constructor(
-    readonly code: "NOT_FOUND" | "DUPLICATE_NAME",
+    readonly code: "NOT_FOUND" | "DUPLICATE_NAME" | "BASE_UNIT_REFERENCED",
     message: string,
   ) {
     super(message);
@@ -28,6 +28,19 @@ function notFound(id: string): MaterialRepositoryError {
 
 function duplicateName(name: string): MaterialRepositoryError {
   return new MaterialRepositoryError("DUPLICATE_NAME", `Material name "${name}" is already used`);
+}
+
+// R3-001 prerequisite guard. Recipe items persist quantities normalized to
+// the material's baseUnit at write time (see recipeSchema). If a referenced
+// material's baseUnit flipped, every persisted quantity would silently
+// change meaning — recipes created against g would now resolve as if the
+// unit were kg. Both active and archived recipes count, because history
+// must remain semantically stable across the archive boundary.
+function baseUnitReferenced(id: string): MaterialRepositoryError {
+  return new MaterialRepositoryError(
+    "BASE_UNIT_REFERENCED",
+    `Material "${id}" base unit cannot change while referenced by recipes`,
+  );
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -122,15 +135,44 @@ export async function updateMaterial(
 ): Promise<Material> {
   const parsed = parseInput(input);
   try {
-    const [material] = await db
-      .update(materials)
-      .set(parsed)
-      .where(
-        and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
-      )
-      .returning();
-    if (!material) throw notFound(id);
-    return material;
+    return await db.transaction(async (tx) => {
+      // R3-001 prerequisite guard. Lock the owner-scoped active row FOR
+      // UPDATE so we can compare baseUnit and check recipe_items
+      // references safely without a TOCTOU window. Lock-order invariant:
+      // updateMaterial takes the material lock first; updateRecipe takes
+      // the recipe lock first then a shared material lock. Since neither
+      // path acquires the same lock type on (recipe, materials) in
+      // reverse order, deadlock is unreachable.
+      const [current] = await tx
+        .select({ baseUnit: materials.baseUnit })
+        .from(materials)
+        .where(
+          and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
+        )
+        .for("update");
+      if (!current) throw notFound(id);
+      if (parsed.baseUnit !== current.baseUnit) {
+        // Recipe history must remain semantically stable, so referenced
+        // materials (active or archived) cannot flip baseUnit. limit(1)
+        // is the existence probe — we only need to know whether at least
+        // one recipe_items row still points at this material.
+        const [ref] = await tx
+          .select({ id: recipeItems.id })
+          .from(recipeItems)
+          .where(eq(recipeItems.materialId, id))
+          .limit(1);
+        if (ref) throw baseUnitReferenced(id);
+      }
+      const [material] = await tx
+        .update(materials)
+        .set(parsed)
+        .where(
+          and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
+        )
+        .returning();
+      if (!material) throw notFound(id);
+      return material;
+    });
   } catch (error) {
     if (error instanceof MaterialRepositoryError) throw error;
     if (isUniqueViolation(error)) throw duplicateName(parsed.name);

@@ -1,4 +1,5 @@
 import type { Unit } from "@/domain/units";
+import { RecipeArchiveControl } from "./RecipeArchiveControl";
 import { RecipeEditForm, type RecipeMaterialOption } from "./RecipeEditForm";
 import { RecipeViewFilter, type RecipeView } from "./RecipeViewFilter";
 
@@ -25,6 +26,10 @@ export function RecipesList({
   materials: readonly RecipeMaterialOption[];
 }) {
   const hasRemainingRows = recipes.length > 0;
+  // PR3y next: RecipesArchiveFeedback will wrap the list and the empty-state
+  // branches so the polite role=status region survives the transition from a
+  // non-empty active list to an empty active list (mirrors the R3-003 finding
+  // on the materials lifecycle).
   return (
     <div className="flex flex-col gap-4">
       <RecipeViewFilter current={view} />
@@ -131,6 +136,17 @@ export function RecipesList({
                   />
                 </div>
               ) : null}
+              {/* PR3y: archive/restore controls. Active cards expose archive,
+                  archived cards expose restore. The success announcement lives
+                  on the control itself for now; PR3y next moves the polite
+                  status into a parent provider that survives row unmount. */}
+              <RecipeArchiveControl
+                recipe={{
+                  id: recipe.id,
+                  name: recipe.name,
+                  archived: recipe.archivedAt !== null,
+                }}
+              />
             </li>
           ))}
         </ul>

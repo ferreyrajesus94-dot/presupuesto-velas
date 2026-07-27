@@ -20,11 +20,10 @@ vi.mock("../../src/server/repositories/recipes", () => ({
 vi.mock("../../src/server/repositories/materials", () => ({
   listMaterials: mocks.listMaterials,
 }));
-// Page-level composition mounts the create + update forms but never invokes
-// the actions themselves. Archive/restore live on the same actions module
-// (transitively imported by the create/update forms), so a single stub covers
-// all four exports to keep the dependency graph intact while the page itself
-// only wires create + update at this slice.
+// Page-level composition mounts the create + update forms and the PR3y
+// lifecycle controls. The page itself never invokes an action, so a single
+// stub covers all four exports to keep the dependency graph intact while
+// keeping the page-level test surface focused on composition.
 vi.mock("../../src/server/actions/recipes", () => ({
   createRecipeAction: mocks.recipeActions,
   updateRecipeAction: mocks.recipeActions,
@@ -397,5 +396,47 @@ describe("/recipes page composition", () => {
     render(await RecipesPage(pageProps("all")));
     expect(mocks.countArchivedRecipes).not.toHaveBeenCalled();
     expect(screen.getByText("No recipes yet")).toBeInTheDocument();
+  });
+
+  // PR3y (recipe lifecycle controls): active cards expose archive, archived
+  // cards expose restore in the all view, archived cards never expose edit,
+  // and the parent feedback provider mounts around the list so the success
+  // announcement survives the row unmount triggered by revalidation.
+  // PR3y (recipe lifecycle controls): active cards expose archive, archived
+  // cards expose restore in the all view, and archived cards never expose
+  // the inline edit form. The persistent feedback provider is PR3y.next.
+  it("PR3y: exposes an Archive button per active card and never on archived cards", async () => {
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE]);
+    render(await RecipesPage(pageProps()));
+    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
+    // Restore is only exposed for archived recipes, not active ones.
+    expect(
+      screen.queryByRole("button", { name: "Restore Vanilla candle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("PR3y: exposes a Restore button per archived card in the all view and an Archive button per active card", async () => {
+    // One archived + one active: the active card keeps its archive control,
+    // each archived card exposes only the restore control, and the edit form
+    // stays out of archived cards (a separate invariant already proven but
+    // re-asserted here in the lifecycle context).
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ARCHIVED]);
+    render(await RecipesPage(pageProps("all")));
+    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore Citrus candle" })).toBeInTheDocument();
+    // Exactly one archive button (the active card) and exactly one restore
+    // button (the archived card).
+    const archiveButtons = screen.queryAllByRole("button", { name: /^Archive / });
+    expect(archiveButtons).toHaveLength(1);
+    expect(archiveButtons[0]).toHaveTextContent("Archive");
+    const restoreButtons = screen.queryAllByRole("button", { name: /^Restore / });
+    expect(restoreButtons).toHaveLength(1);
+    // Non-editable invariant: archived cards keep the badge but no form heading.
+    expect(
+      screen.queryByRole("heading", { name: "Edit recipe: Citrus candle" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
+    ).toBeInTheDocument();
   });
 });

@@ -1,3 +1,5 @@
+import type { Unit } from "@/domain/units";
+import { RecipeEditForm, type RecipeMaterialOption } from "./RecipeEditForm";
 import { RecipeViewFilter, type RecipeView } from "./RecipeViewFilter";
 
 export type RecipeListItem = {
@@ -6,16 +8,21 @@ export type RecipeListItem = {
   unitCost: string;
   archivedAt: Date | null;
   itemCount: number;
+  // Minimal serializable projection of the recipe's ordered items for
+  // the inline edit form. Dates/materialized objects stay server-side.
+  items: Array<{ materialId: string; quantity: string; unit: string }>;
 };
 
 export function RecipesList({
   recipes,
   view,
   archivedCount,
+  materials,
 }: {
   recipes: RecipeListItem[];
   view: RecipeView;
   archivedCount: number;
+  materials: readonly RecipeMaterialOption[];
 }) {
   const hasRemainingRows = recipes.length > 0;
   return (
@@ -71,6 +78,7 @@ export function RecipesList({
           {recipes.map((recipe) => (
             <li
               key={recipe.id}
+              data-testid="recipe-card"
               className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-white p-4 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
@@ -91,6 +99,38 @@ export function RecipesList({
                   </span>
                 ) : null}
               </div>
+              {recipe.archivedAt === null ? (
+                <div className="flex flex-col gap-2">
+                  {/* PR3v.next: stable per-recipe identity keeps the form's
+                      defaultValues isolated between siblings, and the
+                      hash anchor doubles as a deep-link for keyboard/screen
+                      reader users jumping straight to a card's editor. */}
+                  <a
+                    href={`#edit-recipe-${recipe.id}`}
+                    data-edit-link={recipe.id}
+                    className="self-start font-semibold text-rose-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                  >
+                    Edit {recipe.name}
+                  </a>
+                  <RecipeEditForm
+                    key={recipe.id}
+                    recipe={{
+                      id: recipe.id,
+                      name: recipe.name,
+                      items: recipe.items.map((item) => ({
+                        materialId: item.materialId,
+                        quantity: item.quantity,
+                        // Recipe items persist normalized quantities; the
+                        // original unit is projected from the catalog (or
+                        // falls back to a sentinel "g" for missing references)
+                        // and cast to the form's strict Unit union.
+                        unit: item.unit as Unit,
+                      })),
+                    }}
+                    materials={materials}
+                  />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

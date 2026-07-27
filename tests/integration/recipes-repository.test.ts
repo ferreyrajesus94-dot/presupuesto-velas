@@ -15,8 +15,15 @@ const [
   import("../../src/server/repositories/owner"),
   import("../../src/server/repositories/recipes"),
 ]);
-const { createRecipe, getRecipe, listRecipes, updateRecipe, RecipeRepositoryError } =
-  recipeRepository;
+const {
+  archiveRecipe,
+  createRecipe,
+  getRecipe,
+  listRecipes,
+  restoreRecipe,
+  updateRecipe,
+  RecipeRepositoryError,
+} = recipeRepository;
 
 const materialFixture = (ownerId: string, id: string, name: string, unitCost: string) => ({
   id,
@@ -649,6 +656,151 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     });
   });
 
-  // archive and restore are deferred to the next child slice (PR3p.lifecycle).
-  // This parent slice is intentionally update-only.
+  describe("archive and restore", () => {
+    const createdArchiveRecipeIds = new Set<string>();
+    const createdArchiveMaterialIds = new Set<string>();
+
+    afterEach(async () => {
+      const recipeIds = [...createdArchiveRecipeIds];
+      if (recipeIds.length > 0) {
+        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
+        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      }
+      createdArchiveRecipeIds.clear();
+      const materialIds = [...createdArchiveMaterialIds];
+      if (materialIds.length > 0) {
+        await db.delete(materials).where(inArray(materials.id, materialIds));
+      }
+      createdArchiveMaterialIds.clear();
+    });
+
+    it("archives a recipe (preserves items, hides from active list) and restores it (returns to active list)", async () => {
+      const waxId = crypto.randomUUID();
+      const scentId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values([
+          materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+          materialFixture(ownerId, scentId, `scent-${scentId}`, "20.000000000000000000"),
+        ]);
+      createdArchiveMaterialIds.add(waxId).add(scentId);
+
+      const created = await createRecipe(ownerId, {
+        name: `floral-${crypto.randomUUID()}`,
+        items: [
+          { materialId: waxId, quantity: "100", unit: "g" },
+          { materialId: scentId, quantity: "50", unit: "g" },
+        ],
+      });
+      createdArchiveRecipeIds.add(created.recipe.id);
+      expect(created.recipe.archivedAt).toBeNull();
+
+      // Archive — returns the recipe with archivedAt populated, items unchanged.
+      const archived = await archiveRecipe(ownerId, created.recipe.id);
+      expect(archived.id).toBe(created.recipe.id);
+      expect(archived.archivedAt).toBeInstanceOf(Date);
+      expect(archived.unitCost).toBe(created.recipe.unitCost);
+      expect(archived.name).toBe(created.recipe.name);
+
+      // Active list hides the archived recipe; all-visibility surfaces it.
+      expect((await listRecipes(ownerId)).map(({ recipe: row }) => row.id)).not.toContain(
+        created.recipe.id,
+      );
+      expect(
+        (await listRecipes(ownerId, { includeArchived: true })).map(({ recipe: row }) => row.id),
+      ).toContain(created.recipe.id);
+
+      // getRecipe mirrors the visibility: hidden by default, included when requested.
+      expect(await getRecipe(ownerId, created.recipe.id)).toBeNull();
+      const archivedView = await getRecipe(ownerId, created.recipe.id, { includeArchived: true });
+      expect(archivedView?.recipe.archivedAt).toBeInstanceOf(Date);
+      expect(archivedView?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
+      expect(archivedView?.items.map(({ quantity }) => quantity)).toEqual([
+        "100.000000",
+        "50.000000",
+      ]);
+
+      // Restore — clears archivedAt; items are preserved verbatim.
+      const restored = await restoreRecipe(ownerId, created.recipe.id);
+      expect(restored.id).toBe(created.recipe.id);
+      expect(restored.archivedAt).toBeNull();
+      expect(restored.unitCost).toBe(created.recipe.unitCost);
+
+      // Active list contains the restored recipe; all-visibility still surfaces it.
+      expect((await listRecipes(ownerId)).map(({ recipe: row }) => row.id)).toContain(
+        created.recipe.id,
+      );
+      const restoredView = await getRecipe(ownerId, created.recipe.id);
+      expect(restoredView?.recipe.archivedAt).toBeNull();
+      expect(restoredView?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
+      expect(restoredView?.items.map(({ quantity }) => quantity)).toEqual([
+        "100.000000",
+        "50.000000",
+      ]);
+    });
+
+    it("rejects archive and restore with NOT_FOUND for cross-owner, wrong-state, and missing recipes", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdArchiveMaterialIds.add(waxId);
+
+      const active = await createRecipe(ownerId, {
+        name: `active-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      createdArchiveRecipeIds.add(active.recipe.id);
+
+      const archived = await archiveRecipe(ownerId, active.recipe.id);
+      expect(archived.archivedAt).toBeInstanceOf(Date);
+
+      const otherOwnerId = crypto.randomUUID();
+      const missingId = crypto.randomUUID();
+
+      // archiveRecipe rejects:
+      // - cross-owner (recipe exists for another owner)
+      // - already archived (wrong state — FOR UPDATE only sees active rows)
+      // - missing recipe id
+      await expect(archiveRecipe(otherOwnerId, active.recipe.id)).rejects.toBeInstanceOf(
+        RecipeRepositoryError,
+      );
+      await expect(archiveRecipe(otherOwnerId, active.recipe.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(archiveRecipe(ownerId, active.recipe.id)).rejects.toBeInstanceOf(
+        RecipeRepositoryError,
+      );
+      await expect(archiveRecipe(ownerId, active.recipe.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(archiveRecipe(ownerId, missingId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+      // restoreRecipe rejects:
+      // - cross-owner (recipe exists for another owner)
+      // - already active (wrong state — FOR UPDATE only sees archived rows)
+      // - missing recipe id
+      await expect(restoreRecipe(otherOwnerId, active.recipe.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(restoreRecipe(ownerId, missingId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+      // Wrong-state restore on the still-archived recipe: the only currently
+      // valid transition is restore → active; re-archive while archived must
+      // also reject (already covered above), then restore flips state, then
+      // a second restore while now-active must reject with NOT_FOUND.
+      const restored = await restoreRecipe(ownerId, active.recipe.id);
+      expect(restored.archivedAt).toBeNull();
+      await expect(restoreRecipe(ownerId, active.recipe.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+
+      // The original recipe row must still exist with its items intact after
+      // every rejected call.
+      const finalView = await getRecipe(ownerId, active.recipe.id);
+      expect(finalView?.recipe.archivedAt).toBeNull();
+      expect(finalView?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
+      expect(finalView?.items.map(({ quantity }) => quantity)).toEqual(["100.000000"]);
+    });
+  });
 });

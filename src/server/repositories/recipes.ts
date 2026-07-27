@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { ZodError } from "zod";
 import { db } from "../../../db/client";
 import { materials, recipeItems, recipes } from "../../../db/schema";
@@ -224,7 +224,52 @@ export async function updateRecipe(
   });
 }
 
-// archiveRecipe and restoreRecipe are deferred to the next child slice
-// (PR3p.lifecycle). This parent slice is intentionally update-only so the
-// dedicated updateRecipe concurrency regression can land within the 400
-// authored-line hard budget.
+// archiveRecipe archives an active owner-scoped recipe and preserves its
+// items. The transaction takes FOR UPDATE on the active recipe row only:
+// - archived rows are excluded by `isNull(archivedAt)`, so re-archiving
+//   and cross-owner / missing ids both surface as NOT_FOUND;
+// - the items table is not touched, so any historical quote versions
+//   referencing the recipe keep their snapshots verbatim.
+// Materials are not touched, so no FOR SHARE on materials is required and
+// the global lock-order invariant (recipe before materials whenever both
+// are touched) does not apply on this path.
+export async function archiveRecipe(ownerId: string, id: string): Promise<Recipe> {
+  return db.transaction(async (tx) => {
+    const [recipe] = await tx
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.ownerId, ownerId), eq(recipes.id, id), isNull(recipes.archivedAt)))
+      .for("update");
+    if (!recipe) throw notFound(id);
+    const [archived] = await tx
+      .update(recipes)
+      .set({ archivedAt: new Date() })
+      .where(eq(recipes.id, id))
+      .returning();
+    if (!archived) throw notFound(id);
+    return archived;
+  });
+}
+
+// restoreRecipe restores an archived owner-scoped recipe and preserves its
+// items. Mirrors archiveRecipe: FOR UPDATE only on the archived row
+// (`isNotNull(archivedAt)`), so already-active rows and cross-owner /
+// missing ids surface as NOT_FOUND. Items stay intact across the
+// transition; only archivedAt flips to NULL.
+export async function restoreRecipe(ownerId: string, id: string): Promise<Recipe> {
+  return db.transaction(async (tx) => {
+    const [recipe] = await tx
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.ownerId, ownerId), eq(recipes.id, id), isNotNull(recipes.archivedAt)))
+      .for("update");
+    if (!recipe) throw notFound(id);
+    const [restored] = await tx
+      .update(recipes)
+      .set({ archivedAt: null })
+      .where(eq(recipes.id, id))
+      .returning();
+    if (!restored) throw notFound(id);
+    return restored;
+  });
+}

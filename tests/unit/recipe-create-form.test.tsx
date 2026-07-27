@@ -18,17 +18,18 @@ const MATERIALS = [
   { id: "wick", name: "Cotton wick", baseUnit: "unit", unitCost: "20" },
 ];
 
-function getRow() {
-  return screen.getByRole("listitem", { name: "Item 1" });
+function getRow(index = 1) {
+  return screen.getByRole("listitem", { name: `Item ${index}` });
 }
 
 async function fillRow(
   user: ReturnType<typeof userEvent.setup>,
+  index: number,
   materialLabel: string,
   quantity: string,
   unit: string,
 ) {
-  const row = getRow();
+  const row = getRow(index);
   await user.selectOptions(within(row).getByLabelText("Material"), materialLabel);
   await user.type(within(row).getByLabelText("Quantity"), quantity);
   await user.selectOptions(within(row).getByLabelText("Unit"), unit);
@@ -71,10 +72,40 @@ it("shows Zod field errors and never invokes the Server Action when fields are e
   expect(mocks.createRecipeAction).not.toHaveBeenCalled();
 });
 
+it("adds and removes rows, allowing zero rows with the schema error", async () => {
+  const user = userEvent.setup();
+  render(<RecipeCreateForm materials={MATERIALS} />);
+  await user.click(screen.getByRole("button", { name: "Add recipe item" }));
+  expect(screen.getByRole("listitem", { name: "Item 2" })).toBeInTheDocument();
+  expect(within(getRow(2)).getByLabelText("Material")).toHaveAttribute("aria-invalid", "false");
+  await user.click(within(getRow(1)).getByRole("button", { name: "Remove item 1" }));
+  await user.click(within(getRow(1)).getByRole("button", { name: "Remove item 1" }));
+  expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+  await user.click(screen.getByRole("button", { name: "Create recipe" }));
+  expect(await screen.findByText("Add at least one recipe item")).toBeInTheDocument();
+  expect(mocks.createRecipeAction).not.toHaveBeenCalled();
+});
+
+it("keeps unit choices and submitted rows independent and ordered", async () => {
+  const user = userEvent.setup();
+  render(<RecipeCreateForm materials={MATERIALS} />);
+  await user.click(screen.getByRole("button", { name: "Add recipe item" }));
+  await fillRow(user, 1, "Soy wax", "100", "g");
+  await fillRow(user, 2, "Cotton wick", "2", "unit");
+  expect(within(getRow(1)).getByLabelText("Unit")).toHaveValue("g");
+  expect(within(getRow(2)).getByLabelText("Unit")).toHaveValue("unit");
+  await user.type(screen.getByRole("textbox", { name: "Name" }), "Two item candle");
+  await user.click(screen.getByRole("button", { name: "Create recipe" }));
+  await waitFor(() => expect(mocks.createRecipeAction).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(String(mocks.createRecipeAction.mock.calls[0][1].get("items")))).toEqual([
+    { materialId: "wax", quantity: "100", unit: "g" },
+    { materialId: "wick", quantity: "2", unit: "unit" },
+  ]);
+});
 it("switches the unit options to match the selected material's dimension", async () => {
   const user = userEvent.setup();
   render(<RecipeCreateForm materials={MATERIALS} />);
-  const row = getRow();
+  const row = getRow(1);
   expect(within(row).getByLabelText("Unit")).toHaveValue("g");
   await user.selectOptions(within(row).getByLabelText("Material"), "Cotton wick");
   expect(within(row).getByLabelText("Unit")).toHaveValue("unit");
@@ -86,7 +117,7 @@ it("submits the name and items JSON to the Server Action, then announces success
   const user = userEvent.setup();
   render(<RecipeCreateForm materials={MATERIALS} />);
   await user.type(screen.getByRole("textbox", { name: "Name" }), "Vanilla candle");
-  await fillRow(user, "Soy wax", "100", "g");
+  await fillRow(user, 1, "Soy wax", "100", "g");
   await user.click(screen.getByRole("button", { name: "Create recipe" }));
   await waitFor(() => expect(mocks.createRecipeAction).toHaveBeenCalledTimes(1));
   const submitted = mocks.createRecipeAction.mock.calls[0][1] as FormData;
@@ -109,7 +140,7 @@ it("shows pending feedback while the Server Action is in flight", async () => {
   );
   render(<RecipeCreateForm materials={MATERIALS} />);
   await user.type(screen.getByRole("textbox", { name: "Name" }), "Vanilla candle");
-  await fillRow(user, "Soy wax", "100", "g");
+  await fillRow(user, 1, "Soy wax", "100", "g");
   await user.click(screen.getByRole("button", { name: "Create recipe" }));
   expect(await screen.findByRole("button", { name: "Creating recipe…" })).toBeDisabled();
   resolveAction({ status: "success", recipeId: "recipe-1" });
@@ -124,7 +155,7 @@ it("surfaces a server field error on the name input and keeps the form values in
   });
   render(<RecipeCreateForm materials={MATERIALS} />);
   await user.type(screen.getByRole("textbox", { name: "Name" }), "Vanilla candle");
-  await fillRow(user, "Soy wax", "100", "g");
+  await fillRow(user, 1, "Soy wax", "100", "g");
   await user.click(screen.getByRole("button", { name: "Create recipe" }));
   const alerts = await screen.findAllByRole("alert");
   expect(alerts.some((node) => /already exists/.test(node.textContent ?? ""))).toBe(true);

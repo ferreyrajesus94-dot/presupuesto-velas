@@ -2,36 +2,33 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { startTransition, useActionState, useEffect, useMemo, useRef } from "react";
-import { Controller, useForm, useWatch, type FieldErrors } from "react-hook-form";
-import { createRecipeAction } from "@/server/actions/recipes";
+import { useFieldArray, useForm, useWatch, type FieldErrors } from "react-hook-form";
+import { createRecipeAction, type RecipeActionState } from "@/server/actions/recipes";
 import { UNITS_BY_DIMENSION, getUnitDimension, type Unit } from "@/domain/units";
 import { recipeInputSchema, type RecipeInput } from "@/server/validation/recipeSchema";
 
-export type RecipeMaterialOption = {
-  id: string;
-  name: string;
-  baseUnit: string;
-  unitCost: string;
-};
-
+export type RecipeMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
 const controlClass =
   "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
 const selectClass = `${controlClass} bg-white`;
-
-const blankValues: RecipeInput = {
-  name: "",
-  items: [{ materialId: "", quantity: "", unit: "g" as Unit }],
-};
+const blankItem: RecipeInput["items"][number] = { materialId: "", quantity: "", unit: "g" as Unit };
+const blankValues: RecipeInput = { name: "", items: [blankItem] };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
-  // Rendered outside the field's <label> so the alert text does not pollute
-  // the input's accessible name; aria-describedby on the input keeps the
-  // error semantically associated with the field.
   return (
     <p id={id} role="alert" className="text-sm text-rose-800">
       {message}
     </p>
+  );
+}
+
+function serverItemMessage(state: RecipeActionState, index: number, field: string) {
+  const messages = state.fieldErrors?.items ?? [];
+  return (
+    messages
+      .find((message) => message.startsWith(`items[${index}].${field}`))
+      ?.replace(/^items\[\d+\]\.[^:]+:\s*/, "") ?? messages[index]
   );
 }
 
@@ -52,27 +49,8 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
     resolver: zodResolver(recipeInputSchema, undefined, { mode: "sync" }),
     defaultValues: blankValues,
   });
-  // The foundation slice ships a single item row. The dynamic add/remove
-  // array lives in the next autonomous child slice (PR3t.items).
-  const materialId = useWatch({ control, name: "items.0.materialId" }) ?? "";
-  const quantity = useWatch({ control, name: "items.0.quantity" }) ?? "";
-  const unit = (useWatch({ control, name: "items.0.unit" }) ?? "g") as Unit;
-  const selectedMaterial = sortedMaterials.find((m) => m.id === materialId);
-  const dimension = selectedMaterial ? getUnitDimension(selectedMaterial.baseUnit) : "mass";
-  const allowedUnits = UNITS_BY_DIMENSION[dimension] ?? UNITS_BY_DIMENSION.mass;
-
-  function handleMaterialChange(nextId: string) {
-    setValue("items.0.materialId", nextId, { shouldDirty: true });
-    const material = sortedMaterials.find((m) => m.id === nextId);
-    const nextUnit: Unit = material
-      ? ((UNITS_BY_DIMENSION[getUnitDimension(material.baseUnit)] ??
-          UNITS_BY_DIMENSION.mass)[0] as Unit)
-      : "g";
-    setValue("items.0.unit", nextUnit, { shouldDirty: true });
-  }
-
-  // Reset on a successful Server Action response. The ref guards against
-  // re-running on every render — only fires once per actual action result.
+  const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  const watchedItems = useWatch({ control, name: "items" }) ?? [];
   const handledActionState = useRef(state);
   useEffect(() => {
     if (handledActionState.current === state) return;
@@ -80,24 +58,24 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
     if (state.status === "success") reset(blankValues);
   }, [reset, state]);
 
-  const nameMessage = errors.name?.message?.toString() ?? state.fieldErrors?.name?.[0];
-  const itemErrors = errors.items as
-    Array<FieldErrors<RecipeInput["items"][number]> | undefined> | undefined;
-  const rowError = itemErrors?.[0];
-  const materialMessage = rowError?.materialId?.message?.toString();
-  const quantityMessage = rowError?.quantity?.message?.toString();
-  const unitMessage = rowError?.unit?.message?.toString();
-
+  function materialChange(index: number, nextId: string) {
+    setValue(`items.${index}.materialId`, nextId, { shouldDirty: true });
+    const material = sortedMaterials.find((item) => item.id === nextId);
+    const units = material
+      ? (UNITS_BY_DIMENSION[getUnitDimension(material.baseUnit)] ?? UNITS_BY_DIMENSION.mass)
+      : ["g"];
+    setValue(`items.${index}.unit`, units[0] as Unit, { shouldDirty: true });
+  }
   function submit(_values: RecipeInput, event?: React.BaseSyntheticEvent) {
     const form = event?.target;
     if (!(form instanceof HTMLFormElement)) return;
     const data = new FormData(form);
-    // Server Action expects a single `items` JSON entry decoded by
-    // readRecipeItems().
-    data.set("items", JSON.stringify([{ materialId, quantity, unit }]));
+    data.set("items", JSON.stringify(watchedItems));
     startTransition(() => formAction(data));
   }
-
+  const itemErrors = errors.items as
+    Array<FieldErrors<RecipeInput["items"][number]> | undefined> | undefined;
+  const nameMessage = errors.name?.message?.toString() ?? state.fieldErrors?.name?.[0];
   return (
     <section
       id="new-recipe"
@@ -121,86 +99,124 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
             id="recipe-name"
             {...register("name")}
             aria-describedby="recipe-name-error"
+            aria-invalid={Boolean(nameMessage)}
             className={controlClass}
           />
           <FieldError id="recipe-name-error" message={nameMessage} />
         </div>
-
         <ol aria-label="Recipe materials" className="flex flex-col gap-3">
-          <li
-            aria-label="Item 1"
-            data-testid="recipe-item-1"
-            className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/40 p-3"
-          >
-            <span className="text-sm font-semibold text-zinc-700">Item 1</span>
-            <Controller
-              control={control}
-              name="items.0.materialId"
-              render={({ field }) => (
+          {fields.map((field, index) => {
+            const item = watchedItems[index] ?? blankItem;
+            const material = sortedMaterials.find((option) => option.id === item.materialId);
+            const units = material
+              ? (UNITS_BY_DIMENSION[getUnitDimension(material.baseUnit)] ?? UNITS_BY_DIMENSION.mass)
+              : UNITS_BY_DIMENSION.mass;
+            const rowErrors = itemErrors?.[index];
+            const materialMessage =
+              rowErrors?.materialId?.message?.toString() ??
+              serverItemMessage(state, index, "materialId");
+            const quantityMessage =
+              rowErrors?.quantity?.message?.toString() ??
+              serverItemMessage(state, index, "quantity");
+            const unitMessage =
+              rowErrors?.unit?.message?.toString() ?? serverItemMessage(state, index, "unit");
+            return (
+              <li
+                key={field.id}
+                aria-label={`Item ${index + 1}`}
+                data-testid={`recipe-item-${index + 1}`}
+                className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/40 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-zinc-700">Item {index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    aria-label={`Remove item ${index + 1}`}
+                    className="font-semibold text-rose-900 underline"
+                  >
+                    Remove
+                  </button>
+                </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-medium" htmlFor="recipe-item-0-material">
+                  <label className="font-medium" htmlFor={`recipe-item-${index}-material`}>
                     Material
                   </label>
                   <select
-                    id="recipe-item-0-material"
-                    value={field.value ?? ""}
-                    onChange={(event) => {
-                      field.onChange(event.target.value);
-                      handleMaterialChange(event.target.value);
-                    }}
-                    aria-describedby="recipe-item-0-material-error"
+                    id={`recipe-item-${index}-material`}
+                    {...register(`items.${index}.materialId`)}
+                    onChange={(event) => materialChange(index, event.target.value)}
+                    aria-describedby={`recipe-item-${index}-material-error`}
+                    aria-invalid={Boolean(materialMessage)}
                     className={selectClass}
                   >
                     <option value="">Select a material</option>
-                    {sortedMaterials.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
+                    {sortedMaterials.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
                       </option>
                     ))}
                   </select>
-                  <FieldError id="recipe-item-0-material-error" message={materialMessage} />
+                  <FieldError
+                    id={`recipe-item-${index}-material-error`}
+                    message={materialMessage}
+                  />
                 </div>
-              )}
-            />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="font-medium" htmlFor="recipe-item-0-quantity">
-                  Quantity
-                </label>
-                <input
-                  id="recipe-item-0-quantity"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="any"
-                  {...register("items.0.quantity")}
-                  aria-describedby="recipe-item-0-quantity-error"
-                  className={controlClass}
-                />
-                <FieldError id="recipe-item-0-quantity-error" message={quantityMessage} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-medium" htmlFor="recipe-item-0-unit">
-                  Unit
-                </label>
-                <select
-                  id="recipe-item-0-unit"
-                  {...register("items.0.unit")}
-                  aria-describedby="recipe-item-0-unit-error"
-                  className={selectClass}
-                >
-                  {allowedUnits.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-                <FieldError id="recipe-item-0-unit-error" message={unitMessage} />
-              </div>
-            </div>
-          </li>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-medium" htmlFor={`recipe-item-${index}-quantity`}>
+                      Quantity
+                    </label>
+                    <input
+                      id={`recipe-item-${index}-quantity`}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      {...register(`items.${index}.quantity`)}
+                      aria-describedby={`recipe-item-${index}-quantity-error`}
+                      aria-invalid={Boolean(quantityMessage)}
+                      className={controlClass}
+                    />
+                    <FieldError
+                      id={`recipe-item-${index}-quantity-error`}
+                      message={quantityMessage}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-medium" htmlFor={`recipe-item-${index}-unit`}>
+                      Unit
+                    </label>
+                    <select
+                      id={`recipe-item-${index}-unit`}
+                      {...register(`items.${index}.unit`)}
+                      aria-describedby={`recipe-item-${index}-unit-error`}
+                      aria-invalid={Boolean(unitMessage)}
+                      className={selectClass}
+                    >
+                      {units.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError id={`recipe-item-${index}-unit-error`} message={unitMessage} />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ol>
-
+        {errors.items?.root?.message ? (
+          <FieldError id="recipe-items-error" message={errors.items.root.message.toString()} />
+        ) : null}
+        <button
+          type="button"
+          onClick={() => append(blankItem)}
+          className="self-start font-semibold text-rose-900 underline"
+        >
+          Add recipe item
+        </button>
         {state.message && state.status !== "success" ? (
           <p role="alert" aria-live="polite" className="text-sm text-rose-800">
             {state.message}

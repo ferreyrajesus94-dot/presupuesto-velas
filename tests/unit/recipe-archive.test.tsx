@@ -5,11 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   archiveRecipeAction: vi.fn(),
   restoreRecipeAction: vi.fn(),
+  reportLifecycle: vi.fn(),
 }));
 
 vi.mock("../../src/server/actions/recipes", () => ({
   archiveRecipeAction: mocks.archiveRecipeAction,
   restoreRecipeAction: mocks.restoreRecipeAction,
+}));
+
+vi.mock("../../src/app/recipes/RecipesArchiveFeedback", () => ({
+  useRecipeArchiveFeedback: () => ({ reportLifecycle: mocks.reportLifecycle }),
 }));
 
 import { RecipeArchiveControl } from "../../src/app/recipes/RecipeArchiveControl";
@@ -36,20 +41,21 @@ describe("RecipeArchiveControl", () => {
     expect(screen.getByRole("button", { name: accessibleName })).toBeInTheDocument();
   });
 
-  it("confirms before archiving and submits the recipe id only when confirmed", async () => {
+  it("confirms before archiving and skips dispatch on cancel", async () => {
     const user = userEvent.setup();
     const accepted = mockConfirm(true);
-    const { rerender } = render(<RecipeArchiveControl recipe={ACTIVE} />);
+    render(<RecipeArchiveControl recipe={ACTIVE} />);
     await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
     expect(accepted).toHaveBeenCalledWith("Archive Vanilla candle? You can restore it later.");
     expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
     expect((mocks.archiveRecipeAction.mock.calls[0][1] as FormData).get("id")).toBe("recipe-2");
     accepted.mockRestore();
+    mocks.reportLifecycle.mockClear();
     const cancelled = mockConfirm(false);
-    rerender(<RecipeArchiveControl recipe={ACTIVE} />);
     await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
     expect(cancelled).toHaveBeenCalled();
     expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
+    expect(mocks.reportLifecycle).not.toHaveBeenCalled();
     cancelled.mockRestore();
   });
 
@@ -64,26 +70,39 @@ describe("RecipeArchiveControl", () => {
     confirmSpy.mockRestore();
   });
 
-  it("reports archive then restore success on the same mounted card", async () => {
+  it("delegates successful lifecycle feedback to the parent provider", async () => {
     const user = userEvent.setup();
     const confirmSpy = mockConfirm(true);
-    const { rerender } = render(<RecipeArchiveControl recipe={ACTIVE} />);
-
+    render(<RecipeArchiveControl recipe={ACTIVE} />);
     await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
-    expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
-    expect((mocks.archiveRecipeAction.mock.calls[0][1] as FormData).get("id")).toBe("recipe-2");
+    await waitFor(() =>
+      expect(mocks.reportLifecycle).toHaveBeenCalledWith({
+        operation: "archive",
+        recipeId: "recipe-2",
+        recipeName: "Vanilla candle",
+      }),
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
 
+  it("discards a failed archive intent before reporting a successful restore", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = mockConfirm(true);
+    mocks.archiveRecipeAction.mockResolvedValueOnce({ status: "error", message: "not found" });
+    const { rerender } = render(<RecipeArchiveControl recipe={ACTIVE} />);
+    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("not found");
     rerender(<RecipeArchiveControl recipe={{ ...ACTIVE, archived: true }} />);
     await user.click(screen.getByRole("button", { name: "Restore Vanilla candle" }));
-
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle restored."),
+      expect(mocks.reportLifecycle).toHaveBeenCalledWith({
+        operation: "restore",
+        recipeId: "recipe-2",
+        recipeName: "Vanilla candle",
+      }),
     );
-    expect(screen.getByRole("status")).not.toHaveTextContent("Vanilla candle archived.");
-    expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
-    expect(mocks.restoreRecipeAction).toHaveBeenCalledTimes(1);
-    expect((mocks.restoreRecipeAction.mock.calls[0][1] as FormData).get("id")).toBe("recipe-2");
+    expect(mocks.reportLifecycle).toHaveBeenCalledTimes(1);
     confirmSpy.mockRestore();
   });
 

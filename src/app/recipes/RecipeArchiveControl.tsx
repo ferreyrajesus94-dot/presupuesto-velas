@@ -1,12 +1,13 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 import {
   archiveRecipeAction,
   restoreRecipeAction,
   type RecipeActionState,
 } from "@/server/actions/recipes";
-import { buildRecipeLifecycleCopy, type RecipeLifecycleOperation } from "./recipeLifecycle";
+import { useRecipeArchiveFeedback } from "./RecipesArchiveFeedback";
+import type { RecipeLifecycleOperation } from "./recipeLifecycle";
 
 const IDLE: RecipeActionState = { status: "idle" };
 const CONFIRM = (name: string) => `Archive ${name}? You can restore it later.`;
@@ -20,27 +21,24 @@ function intentFor(archived: boolean): RecipeLifecycleOperation {
 export function RecipeArchiveControl({ recipe }: Props) {
   const action = recipe.archived ? restoreRecipeAction : archiveRecipeAction;
   const [state, formAction, pending] = useActionState(action, IDLE);
-  // Capture the user intent at dispatch. The prop's `archived` flag may flip
-  // after revalidation, but the verb in the success copy must reflect the
-  // operation the user actually performed.
-  const intentRef = useRef<RecipeLifecycleOperation>(intentFor(recipe.archived));
-  // PR3y slice: the control renders a row-scoped status when the action
-  // succeeds. PR3y.next moves the announcement into a parent provider so the
-  // status survives the row unmount triggered by revalidation.
-  const [rowStatus, setRowStatus] = useState<RecipeLifecycleOperation | null>(null);
+  // PR3z R3-001: FIFO queue pushed AFTER confirm; cancellations never enqueue.
+  const intentQueueRef = useRef<RecipeLifecycleOperation[]>([]);
   const lastReportedRef = useRef(state);
+  const { reportLifecycle } = useRecipeArchiveFeedback();
   useEffect(() => {
     if (lastReportedRef.current === state) return;
     lastReportedRef.current = state;
-    if (state.status === "success") {
-      setRowStatus(intentRef.current);
-    }
-  }, [state]);
+    if (state.status === "idle") return;
+    const intent = intentQueueRef.current.shift();
+    if (state.status !== "success" || !intent) return;
+    reportLifecycle({ operation: intent, recipeId: recipe.id, recipeName: recipe.name });
+  }, [state, reportLifecycle, recipe.id, recipe.name]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    intentRef.current = intentFor(recipe.archived);
+    const intent = intentFor(recipe.archived);
     if (!recipe.archived && !window.confirm(CONFIRM(recipe.name))) return;
+    intentQueueRef.current.push(intent);
     startTransition(() => formAction(new FormData(event.currentTarget)));
   }
 
@@ -62,11 +60,6 @@ export function RecipeArchiveControl({ recipe }: Props) {
       {state.status === "error" && state.message ? (
         <p role="alert" className="text-sm text-rose-800">
           {state.message}
-        </p>
-      ) : null}
-      {rowStatus && state.status === "success" ? (
-        <p role="status" aria-live="polite" className="text-sm text-emerald-800">
-          {buildRecipeLifecycleCopy({ operation: rowStatus, recipeName: recipe.name })}
         </p>
       ) : null}
     </form>

@@ -17,6 +17,7 @@ const [
 ]);
 const {
   archiveRecipe,
+  countArchivedRecipes,
   createRecipe,
   getRecipe,
   listRecipes,
@@ -167,6 +168,41 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     expect(
       (await listRecipes(ownerId, { includeArchived: true })).map(({ recipe: row }) => row.id),
     ).toContain(recipeId);
+  });
+
+  it("counts archived recipes per owner without surfacing other owners' archived rows", async () => {
+    const materialId = crypto.randomUUID();
+    await db
+      .insert(materials)
+      .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
+    createdMaterialIds.add(materialId);
+
+    const archivedAId = crypto.randomUUID();
+    const archivedBId = crypto.randomUUID();
+    const activeId = crypto.randomUUID();
+    for (const recipeId of [archivedAId, archivedBId, activeId]) {
+      await insertRecipeFixture({
+        ownerId,
+        materialId,
+        recipeId,
+        recipeName: `count-${recipeId}`,
+        unitCost: "100.000000000000000000",
+        quantity: "10",
+        position: 1,
+      });
+      createdRecipeIds.add(recipeId);
+    }
+    await db
+      .update(recipes)
+      .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
+      .where(and(inArray(recipes.id, [archivedAId, archivedBId]), eq(recipes.ownerId, ownerId)));
+
+    // Two archived rows for the owner: count must be exactly 2.
+    expect(await countArchivedRecipes(ownerId)).toBe(2);
+
+    // A foreign owner with no rows must see 0 — and the prior owner count
+    // stays 2 (the function must not double-count or include other scopes).
+    expect(await countArchivedRecipes(crypto.randomUUID())).toBe(0);
   });
 
   describe("create", () => {

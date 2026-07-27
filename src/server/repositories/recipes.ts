@@ -38,6 +38,18 @@ function notFound(id: string): RecipeRepositoryError {
   return new RecipeRepositoryError("NOT_FOUND", `Recipe "${id}" was not found`);
 }
 
+// Lets the page decide between the truly-empty empty state and the
+// "no active recipes, archived exist" empty state without a second full
+// recipe fetch. Mirrors countArchivedMaterials so the page-level wiring
+// is symmetric across the two catalogs.
+export async function countArchivedRecipes(ownerId: string): Promise<number> {
+  const rows = await db
+    .select({ id: recipes.id })
+    .from(recipes)
+    .where(and(eq(recipes.ownerId, ownerId), isNotNull(recipes.archivedAt)));
+  return rows.length;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 4 && current; depth += 1) {

@@ -42,13 +42,16 @@ export type QuoteVisibility = { includeArchived?: boolean; includeTerminal?: boo
 // Errors -----------------------------------------------------------------
 
 /**
- * Typed error codes thrown by the quote repository. PR4b (CRUD) only
- * throws `NOT_FOUND` and `INVALID_INPUT`; PR4b.append will introduce
- * `LOCK_VERSION_MISMATCH` and `TERMINAL_STATUS` alongside `appendQuoteVersion`.
+ * Typed error codes thrown by the quote repository. PR4b (CRUD) throws
+ * `NOT_FOUND` and `INVALID_INPUT`. PR4b.append introduces
+ * `LOCK_VERSION_MISMATCH` and `TERMINAL_STATUS` alongside the
+ * `appendQuoteVersion` transaction. The factories below are exported so
+ * `quotes.append.ts` (and future slices) can throw without re-declaring
+ * the code/message conventions.
  */
 export class QuoteRepositoryError extends Error {
   constructor(
-    readonly code: "NOT_FOUND" | "INVALID_INPUT",
+    readonly code: "NOT_FOUND" | "INVALID_INPUT" | "LOCK_VERSION_MISMATCH" | "TERMINAL_STATUS",
     message: string,
   ) {
     super(message);
@@ -56,10 +59,22 @@ export class QuoteRepositoryError extends Error {
   }
 }
 
-const notFound = (id: string) =>
+export const notFound = (id: string) =>
   new QuoteRepositoryError("NOT_FOUND", `Quote "${id}" was not found`);
 
-const invalidInput = (message: string) => new QuoteRepositoryError("INVALID_INPUT", message);
+export const invalidInput = (message: string) => new QuoteRepositoryError("INVALID_INPUT", message);
+
+export const lockVersionMismatch = (expected: number, actual: number) =>
+  new QuoteRepositoryError(
+    "LOCK_VERSION_MISMATCH",
+    `expected lockVersion ${expected} but found ${actual}`,
+  );
+
+export const terminalStatus = (current: string) =>
+  new QuoteRepositoryError(
+    "TERMINAL_STATUS",
+    `quote status "${current}" is terminal; duplicate to create a new version`,
+  );
 
 const EXPIRATION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -215,3 +230,9 @@ export async function createQuoteDraft(
     return { quote, versions: [], models: [], materials: [], indirectCosts: [] };
   });
 }
+
+// Re-export the version-append transaction from its dedicated module so
+// ergonomic consumers can import every quote repository call from one
+// path. PR4b.append owns the transaction; PR4c (status FSM) and PR4e
+// (server actions) will import `appendQuoteVersion` via this re-export.
+export { appendQuoteVersion } from "./quotes.append";

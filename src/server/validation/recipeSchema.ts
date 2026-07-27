@@ -22,7 +22,7 @@ const quantitySchema = z
     "Item quantity exceeds database precision",
   );
 
-const recipeInputSchema = z.strictObject({
+export const recipeInputSchema = z.strictObject({
   name: z.string().trim().min(1, "Name is required").max(120),
   items: z
     .array(

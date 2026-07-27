@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireOwner: vi.fn(),
   listRecipes: vi.fn(),
   countArchivedRecipes: vi.fn(),
+  listMaterials: vi.fn(),
 }));
 
 vi.mock("../../src/server/auth/requireOwner", () => ({
@@ -13,6 +14,9 @@ vi.mock("../../src/server/auth/requireOwner", () => ({
 vi.mock("../../src/server/repositories/recipes", () => ({
   listRecipes: mocks.listRecipes,
   countArchivedRecipes: mocks.countArchivedRecipes,
+}));
+vi.mock("../../src/server/repositories/materials", () => ({
+  listMaterials: mocks.listMaterials,
 }));
 
 import RecipesPage from "../../src/app/recipes/page";
@@ -40,6 +44,8 @@ const RECIPE_RECORD_ARCHIVED = {
   items: [{ id: "item-3" }],
 };
 
+const ACTIVE_MATERIALS = [{ id: "wax", name: "Soy wax", baseUnit: "g", unitCost: "10" }];
+
 function listRecipesHonoringVisibility() {
   mocks.listRecipes.mockImplementation(
     async (_ownerId: string, visibility: { includeArchived?: boolean } = {}) => {
@@ -55,10 +61,11 @@ beforeEach(() => {
   mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
   mocks.listRecipes.mockResolvedValue([]);
   mocks.countArchivedRecipes.mockResolvedValue(0);
+  mocks.listMaterials.mockResolvedValue(ACTIVE_MATERIALS);
 });
 
 describe("/recipes page composition", () => {
-  it("renders the page heading and the empty state for the authenticated owner", async () => {
+  it("renders the page heading, the empty state, and the create form anchored at #new-recipe", async () => {
     render(await RecipesPage(pageProps()));
     expect(screen.getByRole("heading", { name: "Recipes" })).toBeInTheDocument();
     expect(screen.getByText("No recipes yet")).toBeInTheDocument();
@@ -66,14 +73,19 @@ describe("/recipes page composition", () => {
       "href",
       "#new-recipe",
     );
+    // PR3t: the empty-state CTA now points at a real section in the DOM.
+    expect(document.getElementById("new-recipe")).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Create recipe" })).toBeInTheDocument();
     expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
+    expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
   });
 
   it("defaults to active visibility, excludes archived recipes, and exposes the active view as current", async () => {
     listRecipesHonoringVisibility();
     render(await RecipesPage(pageProps()));
     expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1", { includeArchived: false });
-    const items = screen.getAllByRole("listitem");
+    const list = screen.getByRole("list", { name: "Recipes" });
+    const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent("Vanilla candle");
     expect(items[0]).toHaveTextContent("ARS 1100");
@@ -90,7 +102,8 @@ describe("/recipes page composition", () => {
     listRecipesHonoringVisibility();
     render(await RecipesPage(pageProps("all")));
     expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1", { includeArchived: true });
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    const list = screen.getByRole("list", { name: "Recipes" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archived");
     const nav = screen.getByRole("navigation", { name: "Recipe view filter" });
     expect(within(nav).getByRole("link", { name: /Show archived/ })).toHaveAttribute(
@@ -102,7 +115,8 @@ describe("/recipes page composition", () => {
   it("uses singular copy when only one item belongs to a recipe", async () => {
     mocks.listRecipes.mockResolvedValue([{ ...RECIPE_RECORD_ACTIVE, items: [{ id: "x" }] }]);
     render(await RecipesPage(pageProps()));
-    expect(screen.getByRole("listitem")).toHaveTextContent("1 item");
+    const list = screen.getByRole("list", { name: "Recipes" });
+    expect(within(list).getByRole("listitem")).toHaveTextContent("1 item");
   });
 
   it("shows a view-aware empty state when the active list is empty but archived recipes exist", async () => {

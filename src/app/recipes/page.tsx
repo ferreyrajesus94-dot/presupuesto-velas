@@ -1,5 +1,7 @@
 import { requireOwner } from "@/server/auth/requireOwner";
+import { listMaterials } from "@/server/repositories/materials";
 import { countArchivedRecipes, listRecipes } from "@/server/repositories/recipes";
+import { RecipeCreateForm, type RecipeMaterialOption } from "./RecipeCreateForm";
 import { RecipesList, type RecipeListItem } from "./RecipesList";
 import { resolveRecipeView, type RecipeView } from "./RecipeViewFilter";
 
@@ -33,6 +35,17 @@ export default async function RecipesPage({
     itemCount: items.length,
   }));
 
+  // The create form only accepts active materials. We fetch the catalog
+  // here so the Client Component receives a stable, owner-scoped list and
+  // stays decoupled from the server repository layer.
+  const activeMaterials = await listMaterials(owner.id, { includeArchived: false });
+  const materialOptions: RecipeMaterialOption[] = activeMaterials.map((m) => ({
+    id: m.id,
+    name: m.name,
+    baseUnit: m.baseUnit,
+    unitCost: m.unitCost,
+  }));
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-[#fffaf5] px-4 py-8 text-zinc-900 sm:px-6 lg:px-8">
       <header>
@@ -42,7 +55,10 @@ export default async function RecipesPage({
         <h1 className="mt-2 text-3xl font-semibold text-wrap-balance">Recipes</h1>
       </header>
 
-      <RecipesList recipes={items} view={view} archivedCount={archivedCount} />
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
+        <RecipesList recipes={items} view={view} archivedCount={archivedCount} />
+        <RecipeCreateForm materials={materialOptions} />
+      </div>
     </main>
   );
 }

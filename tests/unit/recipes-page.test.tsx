@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -438,5 +438,124 @@ describe("/recipes page composition", () => {
     expect(
       screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
     ).toBeInTheDocument();
+  });
+});
+
+// PR3z.focus: page-level composition verifies that the
+// `data-archive-focus` / `data-archive-source` markers on the archive
+// button + the `useEffect` inside the RecipesArchiveFeedback provider land
+// focus on the right destination across the revalidation transition. The
+// component-level tests in recipe-archive-feedback.test.tsx cover the
+// provider in isolation; these two tests cover the wired-up production
+// composition (RecipeArchiveControl markers + RecipesList wrap + provider
+// useEffect).
+describe("PR3z.focus page-level composition", () => {
+  function confirm(value: boolean) {
+    return vi.spyOn(window, "confirm").mockReturnValue(value);
+  }
+
+  it("moves focus to the remaining row's archive button after revalidation when one of two active rows is archived", async () => {
+    // Active view, two active recipes, archive the first. The provider
+    // effect must filter the source by data-archive-source and land focus
+    // on the surviving sibling — the page-level wiring is the only
+    // composition where both markers are real production attributes.
+    const user = userEvent.setup();
+    const confirmSpy = confirm(true);
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ACTIVE_OTHER]);
+    mocks.countArchivedRecipes.mockResolvedValue(0);
+    mocks.recipeActions.mockResolvedValue({
+      status: "success",
+      recipeId: RECIPE_RECORD_ACTIVE.recipe.id,
+    });
+
+    const first = await RecipesPage(pageProps());
+    const { rerender } = render(first);
+
+    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Cinnamon candle" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
+
+    // Post-revalidation: Vanilla candle archived, Cinnamon candle remains.
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE_OTHER]);
+    rerender(await RecipesPage(pageProps()));
+
+    // Status persists across the transition.
+    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    // The first row was archived and removed; the remaining row's archive
+    // button must receive focus so the keyboard cursor does not get lost
+    // on the unmounted departing row.
+    const remaining = screen.getByRole("button", { name: "Archive Cinnamon candle" });
+    expect(remaining).toBeInTheDocument();
+    await waitFor(() => expect(remaining).toHaveFocus());
+    confirmSpy.mockRestore();
+  });
+
+  it("moves focus to the Show archived affordance when the last active row is archived", async () => {
+    // Active view, single active recipe, archive it. The next-row
+    // destination does not exist after revalidation, so the effect must
+    // fall back to the pre-slice data-archive-focus="show-archived" seam
+    // (nav + empty-state link both qualify). The status must also survive
+    // the transition to the empty state.
+    const user = userEvent.setup();
+    const confirmSpy = confirm(true);
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE]);
+    mocks.countArchivedRecipes.mockResolvedValue(0);
+    mocks.recipeActions.mockResolvedValue({
+      status: "success",
+      recipeId: RECIPE_RECORD_ACTIVE.recipe.id,
+    });
+
+    const first = await RecipesPage(pageProps());
+    const { rerender } = render(first);
+
+    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
+
+    // Post-revalidation: active list is empty and one recipe is archived.
+    mocks.listRecipes.mockResolvedValue([]);
+    mocks.countArchivedRecipes.mockResolvedValue(1);
+    rerender(await RecipesPage(pageProps()));
+
+    // The persistent success announcement must survive the transition.
+    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    // Focus must move to a "Show archived" affordance (nav or empty-state
+    // link), not be lost on body.
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    expect(showArchivedLinks.length).toBeGreaterThan(0);
+    expect(showArchivedLinks.some((link) => link === document.activeElement)).toBe(true);
+    confirmSpy.mockRestore();
+  });
+
+  it("does not move focus to Show archived when a row is restored in the all view", async () => {
+    // Triangulation: restore keeps the row mounted and the view is "all",
+    // so the focus effect must early-return on both gates. The status
+    // announcement is the only side effect of the operation.
+    const user = userEvent.setup();
+    mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ARCHIVED]);
+    mocks.recipeActions.mockResolvedValue({
+      status: "success",
+      recipeId: RECIPE_RECORD_ARCHIVED.recipe.id,
+    });
+
+    const first = await RecipesPage(pageProps("all"));
+    const { rerender } = render(first);
+
+    await user.click(screen.getByRole("button", { name: "Restore Citrus candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restored.");
+
+    // The list is unchanged in the all view (restore doesn't remove rows).
+    rerender(await RecipesPage(pageProps("all")));
+
+    // Status persists.
+    expect(screen.getByRole("status")).toHaveTextContent("Citrus candle restored.");
+    // Focus must NOT be on a "Show archived" link — restore keeps the row
+    // mounted and the all view does not gate the effect through the
+    // active branch.
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    showArchivedLinks.forEach((link) => {
+      expect(link).not.toBe(document.activeElement);
+    });
   });
 });

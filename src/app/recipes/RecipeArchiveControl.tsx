@@ -52,6 +52,8 @@ export function RecipeArchiveControl({ recipe }: Props) {
       <button
         type="submit"
         disabled={pending}
+        data-archive-focus={recipe.archived ? undefined : "next-row"}
+        data-archive-source={recipe.id}
         aria-label={accessible}
         className="self-start rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-semibold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
       >

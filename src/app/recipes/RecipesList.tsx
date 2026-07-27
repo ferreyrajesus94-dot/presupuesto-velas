@@ -28,10 +28,11 @@ export function RecipesList({
 }) {
   const hasRemainingRows = recipes.length > 0;
   // PR3z: wrap list + empty branches in RecipesArchiveFeedback so polite status survives revalidation.
+  // PR3z.focus: pass `view` so the focus effect can gate on the active view.
   return (
     <div className="flex flex-col gap-4">
       <RecipeViewFilter current={view} />
-      <RecipesArchiveFeedback>
+      <RecipesArchiveFeedback view={view}>
         {recipes.length === 0 ? (
           view === "active" && archivedCount > 0 ? (
             <section

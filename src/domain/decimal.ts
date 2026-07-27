@@ -63,3 +63,35 @@ export function toMoneyString(value: Decimal): string {
 export function isPositiveDecimal(value: Decimal): boolean {
   return value.isPositive() && !value.isZero();
 }
+
+/**
+ * Canonical decimal-string contract shared by every money/quantity call site:
+ * optional leading minus, integer part, optional fractional part. No
+ * whitespace, exponent, leading plus, or thousands separator — this is the
+ * shape `Neon NUMERIC` returns over the wire and the shape every Zod
+ * validator accepts.
+ */
+export const CANONICAL_DECIMAL_REGEX = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Parse a canonical decimal string into a Decimal. Throws a typed error on
+ * non-canonical input so callers (Zod refinements, Server Actions, the
+ * deposit helper) surface a clear validation failure rather than letting
+ * Decimal.js silently accept `1e3` or `1,5`.
+ */
+export function parseStrictDecimal(value: string): Decimal {
+  if (typeof value !== "string" || !CANONICAL_DECIMAL_REGEX.test(value)) {
+    throw new Error(`decimal: "${String(value)}" is not a canonical decimal string`);
+  }
+  return new Decimal(value);
+}
+
+/**
+ * Idempotent factory: pass a `Decimal` through unchanged, parse a canonical
+ * string, or throw. Used by money helpers that want a single entry point
+ * regardless of caller input shape.
+ */
+export function ensureDecimal(value: Decimal | string): Decimal {
+  if (value instanceof Decimal) return value;
+  return parseStrictDecimal(value);
+}

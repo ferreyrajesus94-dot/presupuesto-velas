@@ -29,6 +29,10 @@ test-results/
 
 # Runtime / tooling caches
 .atl/
+.codegraph/
+.agents/
+.neon
+skills-lock.json
 
 # OS / editor noise
 .DS_Store

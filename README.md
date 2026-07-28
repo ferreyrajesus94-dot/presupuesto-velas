@@ -65,6 +65,72 @@ If you want system libraries installed alongside the browser, run `npx playwrigh
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Calculadora Flor is a single-owner Next.js 16 app with a serverless Postgres backend (Neon) and managed auth (Neon Auth). Production deployment uses Vercel with the environment variables declared in `.env.example`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Prerequisites
+
+1. **Neon project** in region `aws-sa-east-1` (São Paulo). Neon region is immutable post-create — verify before production.
+2. **Neon Auth** provisioned on the project (Better Auth, branch-scoped base URL + JWKS URL).
+3. **Single owner account** already created in Neon Auth; capture `OWNER_USER_ID` and `OWNER_EMAIL` from the auth dashboard.
+4. **Vercel account** with this repo imported (or `vercel link` from a local clone).
+
+### Region selection
+
+Vercel project region **must be `gru1`** (São Paulo) to minimize latency from Argentina. The pairing is intentional:
+
+- Neon region `aws-sa-east-1` ↔ Vercel region `gru1` (same metro, ~10 ms RTT).
+- Lower Argentina p50/p95 is an assumption to validate with pre-prod metrics before general availability.
+
+### Vercel project settings
+
+| Setting          | Value                       |
+| ---------------- | --------------------------- |
+| Framework Preset | Next.js                     |
+| Build Command    | `npm run build`             |
+| Install Command  | `npm ci`                    |
+| Output Directory | (Next.js default — `.next`) |
+| Node Version     | 22.x (matches `.nvmrc`)     |
+| Region           | `gru1`                      |
+
+### Environment variables
+
+Configure the following in the Vercel project (Settings → Environment Variables). All values are **server-only**; never prefix any of them with `NEXT_PUBLIC_`.
+
+| Variable             | Environment         | Required for                                                                                                                 |
+| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `APP_BASE_URL`       | Production, Preview | Server-side auth callbacks (use the canonical Vercel URL, e.g. `https://presupuesto-velas.vercel.app`)                       |
+| `DATABASE_URL`       | Production, Preview | Runtime queries (use the **pooled** endpoint — hostname ends in `-pooler`)                                                   |
+| `DIRECT_URL`         | Production, Preview | Migrations only (use the **direct/unpooled** endpoint; `drizzle.config.ts` also reads `DATABASE_URL_UNPOOLED` as a fallback) |
+| `NEON_AUTH_BASE_URL` | Production, Preview | Neon Auth (Better Auth) base URL — branch-scoped                                                                             |
+| `NEON_AUTH_JWKS_URL` | Production, Preview | Neon Auth JWKS endpoint for session validation                                                                               |
+| `OWNER_USER_ID`      | Production, Preview | Single-owner allowlist (server-side `requireOwner()` check)                                                                  |
+| `OWNER_EMAIL`        | Production, Preview | Single-owner allowlist (server-side `requireOwner()` check)                                                                  |
+
+Local development uses `.env.local` (never committed) with the same keys.
+
+### Production smoke test
+
+After the first deploy succeeds:
+
+1. Visit the production URL (e.g. `https://presupuesto-velas.vercel.app/`).
+2. Confirm the root redirects to `/sign-in` when unauthenticated.
+3. Sign in with the owner credentials.
+4. Confirm redirect to the dashboard (`/`).
+5. Create a draft quote at `/quotes/new`.
+6. Transition the draft to `sent` then `accepted`.
+7. Download the PDF from `/api/quotes/{id}/pdf` and confirm `application/pdf` content-type.
+8. Open the WhatsApp share link and confirm it contains a `wa.me/?text=...` URL with the customer name and total.
+9. Trigger the Playwright E2E suite against the preview URL with `E2E_OWNER_EMAIL` + `E2E_OWNER_PASSWORD` set.
+
+### HC-B checklist
+
+- [ ] Neon project exists in `aws-sa-east-1`.
+- [ ] Neon Auth provisioned on the project.
+- [ ] Owner account created; `OWNER_USER_ID` and `OWNER_EMAIL` captured.
+- [ ] Vercel project created in region `gru1`.
+- [ ] All seven environment variables from the table above are set in Vercel (Production + Preview environments).
+- [ ] No env var is prefixed with `NEXT_PUBLIC_`.
+- [ ] First production deploy succeeded (`vercel --prod` or via Git integration).
+- [ ] Production smoke test (9 steps above) all pass.
+
+For automated deploys, see [Vercel CLI with tokens](https://github.com/anthropics/skills/tree/main/skills/vercel-cli-with-tokens); for human-friendly setup, use the Vercel dashboard.

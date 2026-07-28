@@ -3,9 +3,27 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ requireOwner: vi.fn(), listRecipes: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  requireOwner: vi.fn(),
+  listRecipes: vi.fn(),
+  createQuoteDraftAction: vi.fn(),
+  appendQuoteVersionAction: vi.fn(),
+}));
 vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
 vi.mock("@/server/repositories/recipes", () => ({ listRecipes: mocks.listRecipes }));
+// PR4g.3 — `QuoteCreateForm` now imports the server actions; mock them so the
+// module load does not transitively require `DATABASE_URL` (the quotes repo
+// pulls `db/client.ts` at import time). Same module also pulls `useRouter`
+// from `next/navigation`, which requires an app router context — stub it.
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+  redirect: vi.fn(),
+}));
+vi.mock("@/server/actions/quotes", () => ({
+  createQuoteDraftAction: mocks.createQuoteDraftAction,
+  appendQuoteVersionAction: mocks.appendQuoteVersionAction,
+}));
 
 import NewQuotePage from "@/app/quotes/new/page";
 import { QuoteCreateForm } from "@/app/quotes/new/QuoteCreateForm";

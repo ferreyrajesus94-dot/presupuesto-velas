@@ -252,3 +252,58 @@ export async function createQuoteDraft(
 // actions) will import both via these re-exports.
 export { appendQuoteVersion } from "./quotes.append";
 export { transitionQuoteStatus } from "./quotes.status";
+
+// PR4h — Delete-on-draft. Discriminated-union result so the action layer
+// can map success/failure to its `ActionResult<T>` envelope 1:1.
+export type DeleteQuoteDraftResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: { code: "NOT_FOUND" | "TERMINAL_STATUS" | "INVALID_INPUT"; message: string };
+    };
+
+/**
+ * Delete a draft quote and all of its child rows. Owner-scoped + status-checked
+ * (only `draft` quotes can be deleted; `sent`, `accepted`, `rejected` must
+ * either transition or be archived). CASCADE FKs on `quote_versions`,
+ * `quote_version_models`, `quote_version_materials`, `quote_version_indirect_costs`,
+ * and `quote_status_events` clean up children in the same transaction.
+ */
+export async function deleteQuoteDraft(
+  ownerId: string,
+  id: string,
+): Promise<DeleteQuoteDraftResult> {
+  if (typeof ownerId !== "string" || ownerId.length === 0) {
+    return {
+      ok: false,
+      error: { code: "INVALID_INPUT", message: "ownerId must be a non-empty string" },
+    };
+  }
+  if (typeof id !== "string" || id.length === 0) {
+    return {
+      ok: false,
+      error: { code: "INVALID_INPUT", message: "quoteId must be a non-empty string" },
+    };
+  }
+  return db.transaction(async (tx) => {
+    const [quote] = await tx
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.ownerId, ownerId), eq(quotes.id, id)))
+      .for("update");
+    if (!quote) {
+      return { ok: false, error: { code: "NOT_FOUND", message: `Quote "${id}" was not found` } };
+    }
+    if (quote.status !== "draft") {
+      return {
+        ok: false,
+        error: {
+          code: "TERMINAL_STATUS",
+          message: `quote status "${quote.status}" is not draft; delete is only allowed on drafts`,
+        },
+      };
+    }
+    await tx.delete(quotes).where(eq(quotes.id, id));
+    return { ok: true };
+  });
+}

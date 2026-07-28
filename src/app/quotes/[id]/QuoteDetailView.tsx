@@ -7,6 +7,7 @@ import { projectQuote, type ProjectionVisibility } from "@/domain/projection";
 import { formatArsFromDecimalString } from "@/lib/moneyFormat";
 import type { QuoteRecord } from "@/server/repositories/quotes";
 import { QuoteLifecycleControls } from "./QuoteLifecycleControls";
+import { QuoteShareLinks } from "./QuoteShareLinks";
 
 type Status = "draft" | "sent" | "accepted" | "rejected" | "expired";
 
@@ -208,6 +209,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
 
       <footer className="flex flex-col gap-3">
         <QuoteLifecycleControls quote={quote} now={now} />
+        {version ? <QuoteShareLinks quote={quote} visibility={visibility} /> : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/quotes" className="font-semibold text-rose-900 underline">
             ← Volver

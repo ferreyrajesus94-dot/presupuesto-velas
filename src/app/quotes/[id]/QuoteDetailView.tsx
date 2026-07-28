@@ -6,6 +6,7 @@ import { isExpiredSent } from "@/domain/quoteExpired";
 import { projectQuote, type ProjectionVisibility } from "@/domain/projection";
 import { formatArsFromDecimalString } from "@/lib/moneyFormat";
 import type { QuoteRecord } from "@/server/repositories/quotes";
+import { QuoteLifecycleControls } from "./QuoteLifecycleControls";
 
 type Status = "draft" | "sent" | "accepted" | "rejected" | "expired";
 
@@ -205,23 +206,28 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
         </section>
       ) : null}
 
-      <footer className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/quotes" className="font-semibold text-rose-900 underline">
-          ← Volver
-        </Link>
-        {isDraft ? (
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/quotes/${quote.quote.id}/edit`}
-              className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white"
-            >
-              Editar
-            </Link>
-            <DeleteDraftButton id={quote.quote.id} />
-          </div>
-        ) : (
-          <p className="text-sm text-zinc-700">Solo lectura — esta cotización no puede editarse.</p>
-        )}
+      <footer className="flex flex-col gap-3">
+        <QuoteLifecycleControls quote={quote} now={now} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/quotes" className="font-semibold text-rose-900 underline">
+            ← Volver
+          </Link>
+          {isDraft ? (
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={`/quotes/${quote.quote.id}/edit`}
+                className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white"
+              >
+                Editar
+              </Link>
+              <DeleteDraftButton id={quote.quote.id} />
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-700">
+              Solo lectura — esta cotización no puede editarse.
+            </p>
+          )}
+        </div>
       </footer>
     </section>
   );

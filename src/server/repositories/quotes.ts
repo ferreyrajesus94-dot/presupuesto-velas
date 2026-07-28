@@ -42,16 +42,22 @@ export type QuoteVisibility = { includeArchived?: boolean; includeTerminal?: boo
 // Errors -----------------------------------------------------------------
 
 /**
- * Typed error codes thrown by the quote repository. PR4b (CRUD) throws
- * `NOT_FOUND` and `INVALID_INPUT`. PR4b.append introduces
- * `LOCK_VERSION_MISMATCH` and `TERMINAL_STATUS` alongside the
- * `appendQuoteVersion` transaction. The factories below are exported so
- * `quotes.append.ts` (and future slices) can throw without re-declaring
+ * Typed error codes thrown by the quote repository.
+ * PR4b (CRUD): `NOT_FOUND`, `INVALID_INPUT`. PR4b.append adds
+ * `LOCK_VERSION_MISMATCH`, `TERMINAL_STATUS`. PR4c adds
+ * `INVALID_STATUS`, `EXPIRED_SENT_CANNOT_ACCEPT`. The factories below
+ * are exported so every transaction file can throw without re-declaring
  * the code/message conventions.
  */
 export class QuoteRepositoryError extends Error {
   constructor(
-    readonly code: "NOT_FOUND" | "INVALID_INPUT" | "LOCK_VERSION_MISMATCH" | "TERMINAL_STATUS",
+    readonly code:
+      | "NOT_FOUND"
+      | "INVALID_INPUT"
+      | "LOCK_VERSION_MISMATCH"
+      | "TERMINAL_STATUS"
+      | "INVALID_STATUS"
+      | "EXPIRED_SENT_CANNOT_ACCEPT",
     message: string,
   ) {
     super(message);
@@ -74,6 +80,15 @@ export const terminalStatus = (current: string) =>
   new QuoteRepositoryError(
     "TERMINAL_STATUS",
     `quote status "${current}" is terminal; duplicate to create a new version`,
+  );
+
+export const invalidStatus = (message: string) =>
+  new QuoteRepositoryError("INVALID_STATUS", message);
+
+export const expiredSentCannotAccept = () =>
+  new QuoteRepositoryError(
+    "EXPIRED_SENT_CANNOT_ACCEPT",
+    "an expired sent quote cannot transition directly to accepted; duplicate it into a new draft",
   );
 
 const EXPIRATION_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -231,8 +246,9 @@ export async function createQuoteDraft(
   });
 }
 
-// Re-export the version-append transaction from its dedicated module so
-// ergonomic consumers can import every quote repository call from one
-// path. PR4b.append owns the transaction; PR4c (status FSM) and PR4e
-// (server actions) will import `appendQuoteVersion` via this re-export.
+// Re-export the version-append (PR4b.append) and status-FSM (PR4c)
+// transactions from their dedicated modules so ergonomic consumers can
+// import every quote repository call from one path. PR4e (server
+// actions) will import both via these re-exports.
 export { appendQuoteVersion } from "./quotes.append";
+export { transitionQuoteStatus } from "./quotes.status";

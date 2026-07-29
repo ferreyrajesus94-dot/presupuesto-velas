@@ -125,9 +125,9 @@ beforeEach(() => {
 describe("/recipes page composition", () => {
   it("renders the page heading, the empty state, and the create form anchored at #new-recipe", async () => {
     render(await RecipesPage(pageProps()));
-    expect(screen.getByRole("heading", { name: "Recipes" })).toBeInTheDocument();
-    expect(screen.getByText("No recipes yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Create your first recipe" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Recetas" })).toBeInTheDocument();
+    expect(screen.getByText("No hay recetas todavía")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Creá tu primera receta" })).toHaveAttribute(
       "href",
       "#new-recipe",
     );
@@ -142,15 +142,15 @@ describe("/recipes page composition", () => {
     listRecipesHonoringVisibility();
     render(await RecipesPage(pageProps()));
     expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1", { includeArchived: false });
-    const list = screen.getByRole("list", { name: "Recipes" });
+    const list = screen.getByRole("list", { name: "Recetas" });
     const cards = within(list).getAllByTestId("recipe-card");
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent("Vanilla candle");
     expect(cards[0]).toHaveTextContent("ARS 1100");
-    expect(cards[0]).toHaveTextContent("2 items");
+    expect(cards[0]).toHaveTextContent("2 elementos");
     expect(screen.queryByTestId("archived-badge")).not.toBeInTheDocument();
-    const nav = screen.getByRole("navigation", { name: "Recipe view filter" });
-    expect(within(nav).getByRole("link", { name: /Active/ })).toHaveAttribute(
+    const nav = screen.getByRole("navigation", { name: "Filtro de vista de recetas" });
+    expect(within(nav).getByRole("link", { name: /Activas/ })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -160,11 +160,11 @@ describe("/recipes page composition", () => {
     listRecipesHonoringVisibility();
     render(await RecipesPage(pageProps("all")));
     expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1", { includeArchived: true });
-    const list = screen.getByRole("list", { name: "Recipes" });
+    const list = screen.getByRole("list", { name: "Recetas" });
     expect(within(list).getAllByTestId("recipe-card")).toHaveLength(3);
-    expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archived");
-    const nav = screen.getByRole("navigation", { name: "Recipe view filter" });
-    expect(within(nav).getByRole("link", { name: /Show archived/ })).toHaveAttribute(
+    expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archivada");
+    const nav = screen.getByRole("navigation", { name: "Filtro de vista de recetas" });
+    expect(within(nav).getByRole("link", { name: /Mostrar archivadas/ })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -207,7 +207,7 @@ describe("/recipes page composition", () => {
       screen.queryByRole("heading", { name: "Edit recipe: Citrus candle" }),
     ).not.toBeInTheDocument();
     expect(document.getElementById("edit-recipe-recipe-archived")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Edit Citrus candle" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Editar Citrus candle" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
     ).toBeInTheDocument();
@@ -241,11 +241,11 @@ describe("/recipes page composition", () => {
     // form's section id so keyboard users can deep-link without scrolling.
     mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ACTIVE_OTHER]);
     render(await RecipesPage(pageProps()));
-    expect(screen.getByRole("link", { name: "Edit Vanilla candle" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Editar Vanilla candle" })).toHaveAttribute(
       "href",
       "#edit-recipe-recipe-1",
     );
-    expect(screen.getByRole("link", { name: "Edit Cinnamon candle" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Editar Cinnamon candle" })).toHaveAttribute(
       "href",
       "#edit-recipe-recipe-other",
     );
@@ -361,18 +361,20 @@ describe("/recipes page composition", () => {
   it("uses singular copy when only one item belongs to a recipe", async () => {
     mocks.listRecipes.mockResolvedValue([{ ...RECIPE_RECORD_ACTIVE, items: [{ id: "x" }] }]);
     render(await RecipesPage(pageProps()));
-    const list = screen.getByRole("list", { name: "Recipes" });
-    expect(within(list).getByTestId("recipe-card")).toHaveTextContent("1 item");
+    const list = screen.getByRole("list", { name: "Recetas" });
+    expect(within(list).getByTestId("recipe-card")).toHaveTextContent("1 elemento");
   });
 
   it("shows a view-aware empty state when the active list is empty but archived recipes exist", async () => {
     mocks.countArchivedRecipes.mockResolvedValue(3);
     render(await RecipesPage(pageProps()));
-    expect(screen.getByRole("heading", { name: "No active recipes" })).toBeInTheDocument();
-    expect(screen.getByText("3 recipes are archived and hidden in this view.")).toBeInTheDocument();
-    // Two "Show archived" affordances exist (nav + empty state body); both must
+    expect(screen.getByRole("heading", { name: "No hay recetas activas" })).toBeInTheDocument();
+    expect(
+      screen.getByText("3 recetas están archivadas y ocultas en esta vista."),
+    ).toBeInTheDocument();
+    // Two "Mostrar archivadas" affordances exist (nav + empty state body); both must
     // point to /recipes?view=all.
-    const showArchived = screen.getAllByRole("link", { name: "Show archived" });
+    const showArchived = screen.getAllByRole("link", { name: "Mostrar archivadas" });
     expect(showArchived.length).toBeGreaterThanOrEqual(1);
     expect(showArchived.every((link) => link.getAttribute("href") === "/recipes?view=all")).toBe(
       true,
@@ -383,7 +385,7 @@ describe("/recipes page composition", () => {
   it("uses singular copy when only one archived recipe exists", async () => {
     mocks.countArchivedRecipes.mockResolvedValue(1);
     render(await RecipesPage(pageProps()));
-    expect(screen.getByText("1 recipe is archived and hidden in this view.")).toBeInTheDocument();
+    expect(screen.getByText("1 receta está archivada y oculta en esta vista.")).toBeInTheDocument();
   });
 
   it("does not query the archived count when the active list is non-empty", async () => {
@@ -395,7 +397,7 @@ describe("/recipes page composition", () => {
   it("does not query the archived count in the all view even when the list is empty", async () => {
     render(await RecipesPage(pageProps("all")));
     expect(mocks.countArchivedRecipes).not.toHaveBeenCalled();
-    expect(screen.getByText("No recipes yet")).toBeInTheDocument();
+    expect(screen.getByText("No hay recetas todavía")).toBeInTheDocument();
   });
 
   // PR3y (recipe lifecycle controls): active cards expose archive, archived
@@ -408,10 +410,10 @@ describe("/recipes page composition", () => {
   it("PR3y: exposes an Archive button per active card and never on archived cards", async () => {
     mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE]);
     render(await RecipesPage(pageProps()));
-    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Vanilla candle" })).toBeInTheDocument();
     // Restore is only exposed for archived recipes, not active ones.
     expect(
-      screen.queryByRole("button", { name: "Restore Vanilla candle" }),
+      screen.queryByRole("button", { name: "Restaurar Vanilla candle" }),
     ).not.toBeInTheDocument();
   });
 
@@ -422,14 +424,14 @@ describe("/recipes page composition", () => {
     // re-asserted here in the lifecycle context).
     mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ARCHIVED]);
     render(await RecipesPage(pageProps("all")));
-    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Restore Citrus candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Vanilla candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restaurar Citrus candle" })).toBeInTheDocument();
     // Exactly one archive button (the active card) and exactly one restore
     // button (the archived card).
-    const archiveButtons = screen.queryAllByRole("button", { name: /^Archive / });
+    const archiveButtons = screen.queryAllByRole("button", { name: /^Archivar / });
     expect(archiveButtons).toHaveLength(1);
-    expect(archiveButtons[0]).toHaveTextContent("Archive");
-    const restoreButtons = screen.queryAllByRole("button", { name: /^Restore / });
+    expect(archiveButtons[0]).toHaveTextContent("Archivar");
+    const restoreButtons = screen.queryAllByRole("button", { name: /^Restaurar / });
     expect(restoreButtons).toHaveLength(1);
     // Non-editable invariant: archived cards keep the badge but no form heading.
     expect(
@@ -471,22 +473,22 @@ describe("PR3z.focus page-level composition", () => {
     const first = await RecipesPage(pageProps());
     const { rerender } = render(first);
 
-    expect(screen.getByRole("button", { name: "Archive Vanilla candle" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Archive Cinnamon candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Vanilla candle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Cinnamon candle" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archivada.");
 
     // Post-revalidation: Vanilla candle archived, Cinnamon candle remains.
     mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE_OTHER]);
     rerender(await RecipesPage(pageProps()));
 
     // Status persists across the transition.
-    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archivada.");
     // The first row was archived and removed; the remaining row's archive
     // button must receive focus so the keyboard cursor does not get lost
     // on the unmounted departing row.
-    const remaining = screen.getByRole("button", { name: "Archive Cinnamon candle" });
+    const remaining = screen.getByRole("button", { name: "Archivar Cinnamon candle" });
     expect(remaining).toBeInTheDocument();
     await waitFor(() => expect(remaining).toHaveFocus());
     confirmSpy.mockRestore();
@@ -510,8 +512,8 @@ describe("PR3z.focus page-level composition", () => {
     const first = await RecipesPage(pageProps());
     const { rerender } = render(first);
 
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archivada.");
 
     // Post-revalidation: active list is empty and one recipe is archived.
     mocks.listRecipes.mockResolvedValue([]);
@@ -519,10 +521,10 @@ describe("PR3z.focus page-level composition", () => {
     rerender(await RecipesPage(pageProps()));
 
     // The persistent success announcement must survive the transition.
-    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archived.");
-    // Focus must move to a "Show archived" affordance (nav or empty-state
+    expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle archivada.");
+    // Focus must move to a "Mostrar archivadas" affordance (nav or empty-state
     // link), not be lost on body.
-    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Mostrar archivadas/ });
     expect(showArchivedLinks.length).toBeGreaterThan(0);
     expect(showArchivedLinks.some((link) => link === document.activeElement)).toBe(true);
     confirmSpy.mockRestore();
@@ -542,18 +544,18 @@ describe("PR3z.focus page-level composition", () => {
     const first = await RecipesPage(pageProps("all"));
     const { rerender } = render(first);
 
-    await user.click(screen.getByRole("button", { name: "Restore Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restored.");
+    await user.click(screen.getByRole("button", { name: "Restaurar Citrus candle" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restaurada.");
 
     // The list is unchanged in the all view (restore doesn't remove rows).
     rerender(await RecipesPage(pageProps("all")));
 
     // Status persists.
-    expect(screen.getByRole("status")).toHaveTextContent("Citrus candle restored.");
-    // Focus must NOT be on a "Show archived" link — restore keeps the row
+    expect(screen.getByRole("status")).toHaveTextContent("Citrus candle restaurada.");
+    // Focus must NOT be on a "Mostrar archivadas" link — restore keeps the row
     // mounted and the all view does not gate the effect through the
     // active branch.
-    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Mostrar archivadas/ });
     showArchivedLinks.forEach((link) => {
       expect(link).not.toBe(document.activeElement);
     });

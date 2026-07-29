@@ -40,18 +40,19 @@ export default async function MaterialsPage({
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-[#fffaf5] px-4 py-8 text-zinc-900 sm:px-6 lg:px-8">
+    // Root layout owns <main id="main">; this page must not nest another one.
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-800">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold text-wrap-balance">Materials</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Materiales</h1>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
         <MaterialsList materials={items} view={view} archivedCount={archivedCount} />
         <MaterialCreateForm />
       </div>
-    </main>
+    </div>
   );
 }

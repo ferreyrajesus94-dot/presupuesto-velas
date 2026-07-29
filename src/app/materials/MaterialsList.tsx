@@ -45,37 +45,37 @@ export function MaterialsList({
           // catalog is empty. Offer a semantic link to the archived/all view.
           <section
             aria-labelledby="empty-materials"
-            className="rounded-2xl border border-dashed border-rose-300 bg-rose-50 p-6"
+            className="rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
           >
-            <h2 id="empty-materials" className="text-xl font-semibold text-zinc-900">
-              No active materials
+            <h2 id="empty-materials" className="text-xl font-semibold text-ink">
+              No hay materiales activos
             </h2>
-            <p className="mt-2 text-sm text-zinc-700">
+            <p className="mt-2 text-sm text-ink-muted">
               {archivedCount === 1
-                ? "1 material is archived and hidden in this view."
-                : `${archivedCount} materials are archived and hidden in this view.`}
+                ? "1 material está archivado y oculto en esta vista."
+                : `${archivedCount} materiales están archivados y ocultos en esta vista.`}
             </p>
             <Link
               href="/materials?view=all"
               data-archive-focus="show-archived"
-              className="mt-4 inline-block font-semibold text-rose-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+              className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
             >
-              Show archived
+              Mostrar archivados
             </Link>
           </section>
         ) : (
           <section
             aria-labelledby="empty-materials"
-            className="rounded-2xl border border-dashed border-rose-300 bg-rose-50 p-6"
+            className="rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
           >
-            <h2 id="empty-materials" className="text-xl font-semibold text-zinc-900">
-              No materials yet
+            <h2 id="empty-materials" className="text-xl font-semibold text-ink">
+              No hay materiales todavía
             </h2>
             <a
               href="#new-material"
-              className="mt-4 inline-block font-semibold text-rose-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+              className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
             >
-              Add your first material
+              Agregá tu primer material
             </a>
           </section>
         )
@@ -84,22 +84,22 @@ export function MaterialsList({
           {materials.map((material) => (
             <li
               key={material.id}
-              className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-white p-4 shadow-sm"
+              className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-semibold text-zinc-900">{material.name}</h3>
-                  <p className="mt-1 text-sm text-zinc-700">
-                    ARS {material.unitCost} per {material.baseUnit}
+                  <h3 className="font-semibold text-ink">{material.name}</h3>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    ARS {material.unitCost} por {material.baseUnit}
                   </p>
                 </div>
                 {material.archived ? (
                   <span
                     data-testid="archived-badge"
-                    aria-label={`${material.name} is archived`}
-                    className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-700"
+                    aria-label={`${material.name} está archivado`}
+                    className="inline-flex min-h-7 items-center rounded-full bg-surface-soft px-2.5 text-xs font-semibold uppercase tracking-wide text-ink-muted"
                   >
-                    Archived
+                    Archivado
                   </span>
                 ) : null}
               </div>

@@ -30,12 +30,12 @@ function mockConfirm(value: boolean) {
 
 it("renders the archive button with an accessible name for an active material", () => {
   render(<MaterialArchiveControl material={ACTIVE} />);
-  expect(screen.getByRole("button", { name: "Archive Coconut wax" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Archivar Coconut wax" })).toBeInTheDocument();
 });
 
 it("renders the restore button with an accessible name for an archived material", () => {
   render(<MaterialArchiveControl material={ARCHIVED} />);
-  expect(screen.getByRole("button", { name: "Restore Soy wax" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Restaurar Soy wax" })).toBeInTheDocument();
 });
 
 it("confirms before archiving and submits the material id only when confirmed", async () => {
@@ -43,15 +43,15 @@ it("confirms before archiving and submits the material id only when confirmed", 
   const accepted = mockConfirm(true);
   const { rerender } = render(<MaterialArchiveControl material={ACTIVE} />);
 
-  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
-  expect(accepted).toHaveBeenCalledWith("Archive Coconut wax? You can restore it later.");
+  await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
+  expect(accepted).toHaveBeenCalledWith("¿Archivar Coconut wax? Podés restaurarlo después.");
   expect(mocks.archiveMaterialAction).toHaveBeenCalledTimes(1);
   expect((mocks.archiveMaterialAction.mock.calls[0][1] as FormData).get("id")).toBe("material-2");
   accepted.mockRestore();
 
   const cancelled = mockConfirm(false);
   rerender(<MaterialArchiveControl material={ACTIVE} />);
-  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
+  await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
   expect(cancelled).toHaveBeenCalled();
   expect(mocks.archiveMaterialAction).toHaveBeenCalledTimes(1);
   cancelled.mockRestore();
@@ -62,7 +62,7 @@ it("restores without confirmation when the material is archived", async () => {
   const confirmSpy = mockConfirm(false);
   render(<MaterialArchiveControl material={ARCHIVED} />);
 
-  await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
+  await user.click(screen.getByRole("button", { name: "Restaurar Soy wax" }));
   expect(confirmSpy).not.toHaveBeenCalled();
   expect(mocks.unarchiveMaterialAction).toHaveBeenCalledTimes(1);
   expect((mocks.unarchiveMaterialAction.mock.calls[0][1] as FormData).get("id")).toBe("material-1");
@@ -78,8 +78,8 @@ it("disables the button and shows pending copy while the action is in flight", a
   const confirmSpy = mockConfirm(true);
   render(<MaterialArchiveControl material={ACTIVE} />);
 
-  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
-  expect(await screen.findByRole("button", { name: "Archiving Coconut wax…" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
+  expect(await screen.findByRole("button", { name: "Archivando Coconut wax…" })).toBeDisabled();
   resolveAction({ status: "success", materialId: "material-2" });
   await waitFor(() => expect(mocks.archiveMaterialAction).toHaveBeenCalledTimes(1));
   confirmSpy.mockRestore();
@@ -94,7 +94,7 @@ it("surfaces a server error returned by the archive action", async () => {
   });
   render(<MaterialArchiveControl material={ACTIVE} />);
 
-  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
+  await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Material could not be found.");
   confirmSpy.mockRestore();
 });
@@ -107,7 +107,7 @@ it("surfaces a server error returned by the restore action", async () => {
   });
   render(<MaterialArchiveControl material={ARCHIVED} />);
 
-  await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
+  await user.click(screen.getByRole("button", { name: "Restaurar Soy wax" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Unable to restore material.");
 });
 
@@ -122,8 +122,8 @@ it("reports a successful archive with a polite status message rendered by the pa
     </MaterialsArchiveFeedback>,
   );
 
-  await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
-  expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archived.");
+  await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archivado.");
   confirmSpy.mockRestore();
 });
 
@@ -135,6 +135,6 @@ it("reports a successful restore with a polite status message rendered by the pa
     </MaterialsArchiveFeedback>,
   );
 
-  await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
-  expect(await screen.findByRole("status")).toHaveTextContent("Soy wax restored.");
+  await user.click(screen.getByRole("button", { name: "Restaurar Soy wax" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Soy wax restaurado.");
 });

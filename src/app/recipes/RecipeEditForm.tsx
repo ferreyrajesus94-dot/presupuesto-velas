@@ -11,15 +11,14 @@ export type RecipeEditItem = { materialId: string; quantity: string; unit: Unit 
 export type RecipeEditValue = { id: string; name: string; items: RecipeEditItem[] };
 export type RecipeMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
-const selectClass = `${controlClass} bg-white`;
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
+const selectClass = controlClass;
 const blankItem: RecipeEditItem = { materialId: "", quantity: "", unit: "g" };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="text-sm text-rose-800">
+    <p id={id} role="alert" className="text-sm text-status-danger">
       {message}
     </p>
   );
@@ -48,8 +47,15 @@ function rowErrorFor(
   field: "materialId" | "quantity" | "unit",
   index: number,
 ): { aria: boolean; message: string | undefined } {
-  const message = rowErrors?.[field]?.message?.toString() ?? rowServerMessage(state, index, field);
-  return { aria: Boolean(message), message };
+  const hasError = Boolean(rowErrors?.[field]?.message ?? rowServerMessage(state, index, field));
+  const message = hasError
+    ? field === "materialId"
+      ? "Seleccioná un material disponible."
+      : field === "quantity"
+        ? "Ingresá una cantidad válida mayor que cero, con hasta 6 decimales."
+        : "Seleccioná una unidad válida para el material."
+    : undefined;
+  return { aria: hasError, message };
 }
 
 export function RecipeEditForm({
@@ -114,7 +120,8 @@ export function RecipeEditForm({
 
   const itemErrors = errors.items as
     Array<FieldErrors<RecipeInput["items"][number]> | undefined> | undefined;
-  const nameMessage = errors.name?.message?.toString() ?? state.fieldErrors?.name?.[0];
+  const hasNameError = Boolean(errors.name?.message ?? state.fieldErrors?.name?.[0]);
+  const nameMessage = hasNameError ? "Ingresá un nombre para la receta." : undefined;
 
   function renderRow(field: (typeof fields)[number], index: number): React.ReactElement {
     const item = watchedItems[index] ?? blankItem;
@@ -129,23 +136,23 @@ export function RecipeEditForm({
     return (
       <li
         key={field.id}
-        aria-label={`Item ${index + 1}`}
+        aria-label={`Ingrediente ${index + 1}`}
         data-testid={`recipe-edit-item-${index + 1}`}
-        className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-white p-3"
+        className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised p-3"
       >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-zinc-700">Item {index + 1}</span>
+          <span className="text-sm font-semibold text-ink-muted">Ingrediente {index + 1}</span>
           <button
             type="button"
             onClick={() => remove(index)}
-            aria-label={`Remove item ${index + 1}`}
-            className="font-semibold text-rose-900 underline"
+            aria-label={`Quitar ingrediente ${index + 1}`}
+            className="font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
           >
-            Remove
+            Quitar
           </button>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="font-medium" htmlFor={`${sectionId}-item-${index}-material`}>
+          <label className="font-medium text-ink" htmlFor={`${sectionId}-item-${index}-material`}>
             Material
           </label>
           <select
@@ -156,7 +163,7 @@ export function RecipeEditForm({
             aria-invalid={materialErr.aria}
             className={selectClass}
           >
-            <option value="">Select a material</option>
+            <option value="">Seleccioná un material</option>
             {sortedMaterials.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
@@ -170,8 +177,8 @@ export function RecipeEditForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <label className="font-medium" htmlFor={`${sectionId}-item-${index}-quantity`}>
-              Quantity
+            <label className="font-medium text-ink" htmlFor={`${sectionId}-item-${index}-quantity`}>
+              Cantidad
             </label>
             <input
               id={`${sectionId}-item-${index}-quantity`}
@@ -190,8 +197,8 @@ export function RecipeEditForm({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="font-medium" htmlFor={`${sectionId}-item-${index}-unit`}>
-              Unit
+            <label className="font-medium text-ink" htmlFor={`${sectionId}-item-${index}-unit`}>
+              Unidad
             </label>
             <select
               id={`${sectionId}-item-${index}-unit`}
@@ -217,10 +224,10 @@ export function RecipeEditForm({
     <section
       id={sectionId}
       aria-labelledby={`${sectionId}-heading`}
-      className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50/40 p-3"
+      className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-soft p-3"
     >
-      <h3 id={`${sectionId}-heading`} className="text-base font-semibold text-zinc-900">
-        Edit recipe: {recipe.name}
+      <h3 id={`${sectionId}-heading`} className="text-base font-semibold text-ink">
+        Editar receta: {recipe.name}
       </h3>
       <form
         onSubmit={handleSubmit(submit)}
@@ -230,8 +237,8 @@ export function RecipeEditForm({
       >
         <input type="hidden" name="id" value={recipe.id} />
         <div className="flex flex-col gap-1">
-          <label className="font-medium" htmlFor={`${sectionId}-name`}>
-            Name for {recipe.name}
+          <label className="font-medium text-ink" htmlFor={`${sectionId}-name`}>
+            Nombre de {recipe.name}
           </label>
           <input
             id={`${sectionId}-name`}
@@ -242,38 +249,35 @@ export function RecipeEditForm({
           />
           <FieldError id={`${sectionId}-name-error`} message={nameMessage} />
         </div>
-        <ol aria-label="Recipe materials" className="flex flex-col gap-3">
+        <ol aria-label="Ingredientes de la receta" className="flex flex-col gap-3">
           {fields.map((field, index) => renderRow(field, index))}
         </ol>
         {errors.items?.root?.message ? (
-          <FieldError
-            id={`${sectionId}-items-error`}
-            message={errors.items.root.message.toString()}
-          />
+          <FieldError id={`${sectionId}-items-error`} message="Agregá al menos un ingrediente." />
         ) : null}
         <button
           type="button"
           onClick={() => append(blankItem)}
-          className="self-start font-semibold text-rose-900 underline"
+          className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
-          Add recipe item
+          Agregar ingrediente
         </button>
         {state.message && state.status !== "success" ? (
-          <p role="alert" aria-live="polite" className="text-sm text-rose-800">
-            {state.message}
+          <p role="alert" aria-live="polite" className="text-sm text-status-danger">
+            No se pudo actualizar la receta.
           </p>
         ) : null}
         {state.status === "success" ? (
-          <p role="status" aria-live="polite" className="text-sm text-emerald-800">
-            Recipe updated.
+          <p role="status" aria-live="polite" className="text-sm text-status-success">
+            Receta actualizada.
           </p>
         ) : null}
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
+          className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
         >
-          {pending ? "Saving recipe…" : "Save recipe"}
+          {pending ? "Guardando receta…" : "Guardar receta"}
         </button>
       </form>
     </section>

@@ -2,7 +2,11 @@
 import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getNeonAuthBaseUrl, getOwnerEmail, getOwnerId } from "../auth/ownerEnv";
-import { setSessionCookie } from "../auth/session";
+import {
+  NEON_SESSION_COOKIE_NAMES,
+  setSessionCookie,
+  type NeonSessionCookieName,
+} from "../auth/session";
 import { SignInSchema } from "../auth/signInSchema";
 import { upsertOwner } from "../repositories/owner";
 
@@ -39,16 +43,14 @@ export async function signInAction(_prev: SignInState, formData: FormData): Prom
       values: { email },
     };
   }
-  const setCookie = res.headers.get("set-cookie") ?? "";
-  const m = setCookie.match(/(?:^|,\s*)better-auth\.session_token=([^;]+)/i);
-  const raw = m?.[1];
-  if (!raw) {
+  const sessionCookie = extractNeonSessionCookie(res.headers.get("set-cookie") ?? "");
+  if (!sessionCookie) {
     return {
       errors: { _form: ["Sign-in did not return a session cookie."] },
       values: { email },
     };
   }
-  const value = decodeURIComponent(raw);
+  const value = decodeURIComponent(sessionCookie.rawValue);
   const body = (await res.json().catch(() => null)) as {
     user?: { id?: unknown; email?: unknown };
   } | null;
@@ -67,6 +69,17 @@ export async function signInAction(_prev: SignInState, formData: FormData): Prom
     redirect("/403");
   }
   await upsertOwner({ id: user.id, email: user.email });
-  await setSessionCookie(value);
+  await setSessionCookie(value, sessionCookie.name);
   redirect("/");
+}
+
+function extractNeonSessionCookie(
+  setCookie: string,
+): { name: NeonSessionCookieName; rawValue: string } | null {
+  for (const name of NEON_SESSION_COOKIE_NAMES) {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = setCookie.match(new RegExp(`(?:^|,\\s*)${escapedName}=([^;,]+)`));
+    if (match) return { name, rawValue: match[1] };
+  }
+  return null;
 }

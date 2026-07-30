@@ -3,7 +3,41 @@ import { notFound } from "next/navigation";
 import { requireOwner } from "@/server/auth/requireOwner";
 import { getQuote } from "@/server/repositories/quotes";
 import { listRecipes } from "@/server/repositories/recipes";
+import { isExpiredSent } from "@/domain/quoteExpired";
 import QuoteEditForm from "./QuoteEditForm";
+
+/**
+ * U7b — page-localized status labels. The status logic (`isDraft`, etc.)
+ * remains English/typed; only the visible label is translated so the
+ * non-draft page never leaks raw enum tokens to the user. `expired` is a
+ * presentation-only derived key (never stored) for `sent` quotes whose
+ * `expirationDate` is past — see `displayEditStatus()` below.
+ */
+const STATUS_LABEL: Record<"draft" | "sent" | "expired" | "accepted" | "rejected", string> = {
+  draft: "Borrador",
+  sent: "Enviada",
+  expired: "Vencida",
+  accepted: "Aceptada",
+  rejected: "Rechazada",
+};
+
+/**
+ * U7b — derive the visible status at the presentation boundary. The
+ * persisted `quote.quote.status` stays untouched (no schema/action/payload
+ * changes); only the visible enum key is mapped. Drafts never enter this
+ * path because the page renders `QuoteEditForm` for them, but the helper is
+ * shaped to take the full persisted status type to keep the call site clean.
+ */
+function displayEditStatus(
+  quoteStatus: "draft" | "sent" | "accepted" | "rejected",
+  expirationDate: string,
+  now: Date,
+): "draft" | "sent" | "expired" | "accepted" | "rejected" {
+  if (quoteStatus === "sent" && isExpiredSent({ status: "sent", expirationDate }, now)) {
+    return "expired";
+  }
+  return quoteStatus;
+}
 
 /**
  * PR4h — `/quotes/[id]/edit` Server Component loader. Only `draft`
@@ -47,8 +81,14 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
         <section className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm">
           <p className="text-sm text-ink-muted">
             Solo borradores editables. Esta cotización está en estado{" "}
-            <span className="font-semibold text-ink">{quote.quote.status}</span> y no puede
-            modificarse.
+            <span className="font-semibold text-ink">
+              {
+                STATUS_LABEL[
+                  displayEditStatus(quote.quote.status, quote.quote.expirationDate, new Date())
+                ]
+              }
+            </span>{" "}
+            y no puede modificarse.
           </p>
         </section>
       )}

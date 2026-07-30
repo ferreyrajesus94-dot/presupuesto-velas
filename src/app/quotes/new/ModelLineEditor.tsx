@@ -82,7 +82,7 @@ function ModelRow({
     <li
       aria-label={`Modelo ${index + 1}`}
       data-testid={`quote-model-${index + 1}`}
-      className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
+      className="flex min-w-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-ink-muted">Modelo {index + 1}</span>
@@ -104,7 +104,7 @@ function ModelRow({
           {...control.register(recipeName)}
           aria-describedby={`quote-model-${index}-recipe-error`}
           aria-invalid={Boolean(rowErrors?.recipeId)}
-          className={selectClass}
+          className={`${selectClass} min-w-0`}
         >
           <option value="">Elegí un modelo</option>
           {recipes.map((recipe) => (

@@ -122,11 +122,22 @@ export default function QuoteEditForm({
     setSubmitError("No se pudo eliminar el borrador.");
   }
 
-  const modelErrors = errors.models as
+  const rawModelErrors = errors.models as
     | Array<{ recipeId?: { message?: string }; quantity?: { message?: string } } | undefined>
     | undefined;
-  const indirectErrors = errors.indirectCosts as
+  const rawIndirectErrors = errors.indirectCosts as
     Array<{ name?: { message?: string }; amount?: { message?: string } } | undefined> | undefined;
+  // U7b — translate raw Zod field errors into direct Spanish fallbacks at the
+  // presentation boundary so the user always sees a localized message while
+  // the schema (and the FormData payload it ships) stays unchanged.
+  const modelErrors = rawModelErrors?.map((row) => ({
+    recipeId: row?.recipeId?.message ? { message: "Seleccioná un modelo." } : undefined,
+    quantity: row?.quantity?.message ? { message: "La cantidad debe ser mayor que 0." } : undefined,
+  }));
+  const indirectErrors = rawIndirectErrors?.map((row) => ({
+    name: row?.name?.message ? { message: "Ingresá un nombre para el costo." } : undefined,
+    amount: row?.amount?.message ? { message: "Ingresá un monto válido." } : undefined,
+  }));
 
   return (
     <section

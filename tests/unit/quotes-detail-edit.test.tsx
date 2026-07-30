@@ -1,5 +1,5 @@
 /** PR4h — Quote detail view + edit (draft-only) + delete-on-draft (Strict TDD). */
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -167,7 +167,7 @@ describe("QuoteDetailView — render", () => {
     render(<QuoteDetailView quote={record} now={NOW} />);
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
     expect(screen.getByText(/01\/05\/2026/)).toBeInTheDocument();
-    expect(screen.getByTestId("quote-status")).toHaveTextContent("draft");
+    expect(screen.getByTestId("quote-status")).toHaveTextContent("Borrador");
   });
 
   it("uses 'Sin cliente' when the customer name is null", () => {
@@ -251,7 +251,7 @@ describe("QuoteDetailView — draft-only actions", () => {
   it("shows the 'expired' status for a past-expiration sent quote", () => {
     const record = buildQuoteRecord("sent", "2026-03-10");
     render(<QuoteDetailView quote={record} now={NOW} />);
-    expect(screen.getByTestId("quote-status")).toHaveTextContent("expired");
+    expect(screen.getByTestId("quote-status")).toHaveTextContent("Vencida");
   });
 });
 
@@ -329,7 +329,7 @@ describe("QuoteEditForm — submit", () => {
     expect(mocks.push).toHaveBeenCalledWith(`/quotes/${QUOTE_ID}`);
   });
 
-  it("shows the error in the live region when appendQuoteVersionAction fails", async () => {
+  it("shows the Spanish fallback 'No se pudo actualizar la cotización.' when appendQuoteVersionAction fails", async () => {
     mocks.appendQuoteVersionAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
@@ -339,7 +339,7 @@ describe("QuoteEditForm — submit", () => {
     render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent(/stale lock/);
+    expect(liveRegion).toHaveTextContent("No se pudo actualizar la cotización.");
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(mocks.push).not.toHaveBeenCalled();
   });
@@ -353,6 +353,22 @@ describe("QuoteEditForm — submit", () => {
     await vi.waitFor(() => expect(mocks.deleteQuoteDraft).toHaveBeenCalledTimes(1));
     expect(mocks.deleteQuoteDraft).toHaveBeenCalledWith(OWNER.id, QUOTE_ID);
     expect(mocks.push).toHaveBeenCalledWith("/quotes");
+    confirmSpy.mockRestore();
+  });
+
+  it("shows the Spanish fallback 'No se pudo eliminar el borrador.' when deleteQuoteDraftAction fails", async () => {
+    mocks.deleteQuoteDraft.mockResolvedValueOnce({
+      ok: false,
+      error: { code: "NOT_FOUND", message: "missing" },
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    const user = userEvent.setup();
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    await user.click(screen.getByRole("button", { name: /Eliminar borrador/ }));
+    const liveRegion = screen.getByRole("status");
+    await waitFor(() => expect(liveRegion).toHaveTextContent("No se pudo eliminar el borrador."));
+    expect(mocks.push).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
 });

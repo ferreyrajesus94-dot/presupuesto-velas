@@ -227,7 +227,7 @@ describe("QuoteCreateForm — submit wiring", () => {
     expect(push).toHaveBeenCalledWith("/quotes/q1");
   });
 
-  it("shows the error message in a polite live region when createQuoteDraftAction fails", async () => {
+  it("shows the Spanish fallback 'No se pudo crear la cotización.' when createQuoteDraftAction fails", async () => {
     mocks.createQuoteDraftAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "INVALID_INPUT", message: "fecha inválida" },
@@ -237,13 +237,13 @@ describe("QuoteCreateForm — submit wiring", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent(/fecha inválida/);
+    expect(liveRegion).toHaveTextContent("No se pudo crear la cotización.");
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(push).not.toHaveBeenCalled();
     expect(mocks.appendQuoteVersionAction).not.toHaveBeenCalled();
   });
 
-  it("shows the error message when appendQuoteVersionAction fails after a successful draft", async () => {
+  it("shows the Spanish fallback 'No se pudo crear la cotización.' when appendQuoteVersionAction fails after a successful draft", async () => {
     mocks.appendQuoteVersionAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
@@ -253,7 +253,7 @@ describe("QuoteCreateForm — submit wiring", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent(/stale lock/);
+    expect(liveRegion).toHaveTextContent("No se pudo crear la cotización.");
     expect(push).not.toHaveBeenCalled();
   });
 });

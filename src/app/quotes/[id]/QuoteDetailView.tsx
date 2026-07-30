@@ -11,6 +11,14 @@ import { QuoteShareLinks } from "./QuoteShareLinks";
 
 type Status = "draft" | "sent" | "accepted" | "rejected" | "expired";
 
+const STATUS_LABEL: Record<Status, string> = {
+  draft: "Borrador",
+  sent: "Enviada",
+  accepted: "Aceptada",
+  rejected: "Rechazada",
+  expired: "Vencida",
+};
+
 function displayStatus(quote: QuoteRecord, now: Date): Status {
   const status = quote.quote.status;
   if (isExpiredSent({ status, expirationDate: quote.quote.expirationDate }, now)) {
@@ -42,6 +50,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
   });
 
   const status = displayStatus(quote, now);
+  const statusLabel = STATUS_LABEL[status];
   const isDraft = quote.quote.status === "draft";
   const customerName = quote.quote.customerName?.trim() || "Sin cliente";
 
@@ -77,37 +86,38 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
   return (
     <section
       aria-label="Detalle de cotización"
-      className="flex flex-col gap-6 rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
+      className="flex flex-col gap-6 rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-zinc-700">Cliente</p>
-          <p className="text-xl font-semibold">{customerName}</p>
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm font-semibold text-ink-muted">Cliente</p>
+          <p className="min-w-0 break-words text-xl font-semibold text-ink">{customerName}</p>
         </div>
         <div className="flex items-center gap-2">
           <span
             data-testid="quote-status"
-            className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-950"
+            aria-label={`Estado ${statusLabel}`}
+            className="inline-flex min-h-7 items-center rounded-full bg-surface-soft px-2.5 text-xs font-semibold uppercase tracking-wide text-ink-muted"
           >
-            {status}
+            {statusLabel}
           </span>
-          <span className="text-sm text-zinc-700">
+          <span className="text-sm text-ink-muted">
             Vence: {formatDate(quote.quote.expirationDate)}
           </span>
         </div>
       </header>
 
       <section aria-label="Modelos" className="flex flex-col gap-2">
-        <h2 className="font-medium">Modelos</h2>
+        <h2 className="font-medium text-ink">Modelos</h2>
         <ol aria-label="Modelos" className="flex flex-col gap-2">
           {models.map((m) => (
             <li
               key={`${m.quoteId}-${m.versionNo}-${m.position}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-100 bg-rose-50/40 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-surface-soft px-3 py-2"
             >
-              <span className="font-medium">{m.recipeName}</span>
-              <span className="text-sm text-zinc-700">Cantidad: {m.quantity}</span>
-              <span className="text-sm font-semibold">
+              <span className="font-medium text-ink">{m.recipeName}</span>
+              <span className="text-sm text-ink-muted">Cantidad: {m.quantity}</span>
+              <span className="min-w-0 break-words text-sm font-semibold text-ink">
                 {formatArsFromDecimalString(m.lineTotal)}
               </span>
             </li>
@@ -117,9 +127,9 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
 
       <section
         aria-label="Visibilidad"
-        className="flex flex-wrap gap-4 rounded-xl border border-rose-100 bg-rose-50/40 p-3"
+        className="flex flex-wrap gap-4 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm"
       >
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-ink">
           <input
             type="checkbox"
             checked={visibility.internalCost ?? true}
@@ -127,7 +137,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
           />
           <span>Mostrar costo interno</span>
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-ink">
           <input
             type="checkbox"
             checked={visibility.profitMargin ?? true}
@@ -139,15 +149,17 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
 
       {visibility.internalCost && indirects.length > 0 ? (
         <section aria-label="Costos indirectos" className="flex flex-col gap-2">
-          <h2 className="font-medium">Costos indirectos</h2>
+          <h2 className="font-medium text-ink">Costos indirectos</h2>
           <ol aria-label="Costos indirectos" className="flex flex-col gap-1">
             {indirects.map((ic) => (
               <li
                 key={`${ic.quoteId}-${ic.versionNo}-${ic.position}`}
-                className="flex items-center justify-between gap-2 rounded-lg border border-rose-100 bg-rose-50/30 px-3 py-1 text-sm"
+                className="flex items-center justify-between gap-2 rounded-lg border border-border-subtle bg-surface-soft px-3 py-1 text-sm"
               >
-                <span>{ic.name}</span>
-                <span className="font-semibold">{formatArsFromDecimalString(ic.amount)}</span>
+                <span className="text-ink">{ic.name}</span>
+                <span className="font-semibold text-ink">
+                  {formatArsFromDecimalString(ic.amount)}
+                </span>
               </li>
             ))}
           </ol>
@@ -157,35 +169,37 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
       {projected ? (
         <section
           aria-label="Totales"
-          className="flex flex-col gap-1 rounded-xl border border-rose-100 bg-rose-50/40 p-4 text-sm"
+          className="flex flex-col gap-1 rounded-xl border border-border-subtle bg-surface-soft p-4 text-sm"
         >
           {visibility.internalCost && projected.materialsTotal ? (
-            <p>
+            <p className="text-ink-muted">
               Materiales:{" "}
-              <span className="font-semibold">
+              <span className="font-semibold text-ink">
                 {formatArsFromDecimalString(projected.materialsTotal)}
               </span>
             </p>
           ) : null}
           {visibility.internalCost && projected.indirectTotal ? (
-            <p>
+            <p className="text-ink-muted">
               Indirectos:{" "}
-              <span className="font-semibold">
+              <span className="font-semibold text-ink">
                 {formatArsFromDecimalString(projected.indirectTotal)}
               </span>
             </p>
           ) : null}
           {visibility.profitMargin && projected.profitValue ? (
-            <p>
+            <p className="text-ink-muted">
               Ganancia:{" "}
-              <span className="font-semibold">
+              <span className="font-semibold text-ink">
                 {formatArsFromDecimalString(projected.profitValue)}
               </span>
             </p>
           ) : null}
-          <p className="text-base">
+          <p className="text-base text-ink-muted">
             Total:{" "}
-            <span className="font-semibold">{formatArsFromDecimalString(projected.total)}</span>
+            <span className="min-w-0 break-words overflow-wrap-anywhere font-semibold text-ink">
+              {formatArsFromDecimalString(projected.total)}
+            </span>
           </p>
         </section>
       ) : null}
@@ -193,14 +207,15 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
       {projected ? (
         <section
           aria-label="Seña"
-          className="flex flex-wrap gap-4 rounded-xl border border-rose-100 bg-rose-50/40 p-4 text-sm"
+          className="flex flex-wrap gap-4 rounded-xl border border-border-subtle bg-surface-soft p-4 text-sm"
         >
-          <p>
-            Porcentaje de seña: <span className="font-semibold">{projected.depositPercent}%</span>
+          <p className="text-ink-muted">
+            Porcentaje de seña:{" "}
+            <span className="font-semibold text-ink">{projected.depositPercent}%</span>
           </p>
-          <p>
+          <p className="text-ink-muted">
             Monto de seña:{" "}
-            <span className="font-semibold">
+            <span className="font-semibold text-ink">
               {formatArsFromDecimalString(projected.depositAmount)}
             </span>
           </p>
@@ -211,21 +226,24 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
         <QuoteLifecycleControls quote={quote} now={now} />
         {version ? <QuoteShareLinks quote={quote} visibility={visibility} /> : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/quotes" className="font-semibold text-rose-900 underline">
+          <Link
+            href="/quotes"
+            className="inline-flex min-h-11 min-w-0 items-center break-words font-semibold text-brand underline underline-offset-4"
+          >
             ← Volver
           </Link>
           {isDraft ? (
             <div className="flex flex-wrap gap-3">
               <Link
                 href={`/quotes/${quote.quote.id}/edit`}
-                className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white"
+                className="inline-flex min-h-11 min-w-0 items-center break-words rounded-md bg-brand px-4 font-semibold text-on-brand hover:opacity-90"
               >
                 Editar
               </Link>
               <DeleteDraftButton id={quote.quote.id} />
             </div>
           ) : (
-            <p className="text-sm text-zinc-700">
+            <p className="text-sm text-ink-muted">
               Solo lectura — esta cotización no puede editarse.
             </p>
           )}
@@ -250,7 +268,7 @@ function DeleteDraftButton({ id }: { id: string }) {
       window.location.href = "/quotes";
       return;
     }
-    setError(result.error.message);
+    setError("No se pudo eliminar el borrador.");
   }
   return (
     <div className="flex flex-col items-end gap-1">
@@ -258,11 +276,11 @@ function DeleteDraftButton({ id }: { id: string }) {
         type="button"
         onClick={onClick}
         disabled={pending}
-        className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-60"
+        className="inline-flex min-h-11 items-center rounded-md border border-border-subtle bg-surface-raised px-4 font-semibold text-brand disabled:opacity-60"
       >
         {pending ? "Eliminando..." : "Eliminar"}
       </button>
-      <p role="alert" className="text-sm text-rose-800">
+      <p role="alert" className="text-sm text-status-danger">
         {error ?? ""}
       </p>
     </div>

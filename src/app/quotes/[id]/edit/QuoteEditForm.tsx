@@ -14,8 +14,7 @@ import { ModelLineEditor } from "@/app/quotes/new/ModelLineEditor";
 import { IndirectCostEditor } from "@/app/quotes/new/IndirectCostEditor";
 import { QuoteVisibilityToggles } from "@/app/quotes/new/QuoteVisibilityToggles";
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 
 const formSchema = quoteDraftInputSchema;
 export type QuoteEditFormValues = z.input<typeof formSchema>;
@@ -102,7 +101,7 @@ export default function QuoteEditForm({
         quote.quote.lockVersion,
       );
       if (!result.ok) {
-        setSubmitError(result.error.message);
+        setSubmitError("No se pudo actualizar la cotización.");
         return;
       }
       router.push(`/quotes/${quote.quote.id}`);
@@ -120,7 +119,7 @@ export default function QuoteEditForm({
       router.push("/quotes");
       return;
     }
-    setSubmitError(result.error.message);
+    setSubmitError("No se pudo eliminar el borrador.");
   }
 
   const modelErrors = errors.models as
@@ -132,7 +131,7 @@ export default function QuoteEditForm({
   return (
     <section
       aria-label="Editar cotización"
-      className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -141,7 +140,7 @@ export default function QuoteEditForm({
         className="flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor="quote-customer" className="font-medium">
+          <label htmlFor="quote-customer" className="font-medium text-ink">
             Cliente
           </label>
           <input
@@ -155,7 +154,7 @@ export default function QuoteEditForm({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="quote-expiration" className="font-medium">
+          <label htmlFor="quote-expiration" className="font-medium text-ink">
             Vencimiento
           </label>
           <input
@@ -173,14 +172,14 @@ export default function QuoteEditForm({
           onAppend={() => modelsFieldArray.append({ recipeId: "", quantity: "1" })}
           errorBag={modelErrors}
         />
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
-          <legend className="px-1 font-medium">Ganancia</legend>
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-4">
+          <legend className="px-1 font-medium text-ink">Ganancia</legend>
           <Controller
             name="profit.mode"
             control={control}
             render={({ field }) => (
               <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-ink">
                   <input
                     type="radio"
                     value="percentage"
@@ -192,7 +191,7 @@ export default function QuoteEditForm({
                   />
                   Porcentaje
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-ink">
                   <input
                     type="radio"
                     value="fixed"
@@ -209,7 +208,7 @@ export default function QuoteEditForm({
           />
           {profitMode === "percentage" ? (
             <div className="flex flex-col gap-1">
-              <label htmlFor="quote-profit-percent" className="font-medium">
+              <label htmlFor="quote-profit-percent" className="font-medium text-ink">
                 Porcentaje de ganancia (%)
               </label>
               <input
@@ -224,7 +223,7 @@ export default function QuoteEditForm({
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <label htmlFor="quote-profit-amount" className="font-medium">
+              <label htmlFor="quote-profit-amount" className="font-medium text-ink">
                 Monto fijo de ganancia (ARS)
               </label>
               <input
@@ -245,7 +244,7 @@ export default function QuoteEditForm({
           errorBag={indirectErrors}
         />
         <div className="flex flex-col gap-1">
-          <label htmlFor="quote-deposit-percent" className="font-medium">
+          <label htmlFor="quote-deposit-percent" className="font-medium text-ink">
             Porcentaje de seña (%)
           </label>
           <input
@@ -259,14 +258,14 @@ export default function QuoteEditForm({
           />
         </div>
         <QuoteVisibilityToggles register={register} />
-        <div role="status" aria-live="polite" className="text-sm text-rose-800">
+        <div role="status" aria-live="polite" className="text-sm text-status-danger">
           {submitError ? submitError : null}
         </div>
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             {isPending ? "Guardando..." : "Guardar cambios"}
           </button>
@@ -274,7 +273,7 @@ export default function QuoteEditForm({
             type="button"
             onClick={onDelete}
             disabled={deletePending}
-            className="rounded-lg border border-rose-900 px-4 py-2.5 font-semibold text-rose-900 disabled:opacity-60"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2.5 font-semibold text-brand disabled:opacity-60"
           >
             {deletePending ? "Eliminando..." : "Eliminar borrador"}
           </button>

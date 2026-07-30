@@ -66,7 +66,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "accepted" || status === "rejected") {
     return (
       <Wrapper>
-        <p>Inmutable — esta cotización no puede modificarse.</p>
+        <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
         <FeedbackRegion feedback={feedback} />
       </Wrapper>
     );
@@ -77,22 +77,25 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "sent" && expired) {
     return (
       <Wrapper>
-        <p>Vencida — esta cotización ya pasó su fecha de vencimiento.</p>
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+        <p className="text-ink">Vencida — esta cotización ya pasó su fecha de vencimiento.</p>
+        <div
+          role="alert"
+          className="rounded-lg border border-border-subtle bg-surface-soft px-3 py-2 text-ink"
+        >
           Esta cotización está vencida. Duplicar para aceptar.
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-50"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-50"
           >
             Marcar como aceptado
           </button>
           <button
             type="button"
             disabled
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-50"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-50"
           >
             Marcar como rechazado
           </button>
@@ -113,7 +116,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             onClick={(event) =>
               runTransition(event.currentTarget, "draft", "sent", "Cotización enviada")
             }
-            className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             Marcar como enviado
           </button>
@@ -134,7 +137,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             onClick={(event) =>
               runTransition(event.currentTarget, "sent", "accepted", "Cotización aceptada")
             }
-            className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             Marcar como aceptado
           </button>
@@ -144,7 +147,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             onClick={(event) =>
               runTransition(event.currentTarget, "sent", "rejected", "Cotización rechazada")
             }
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-60"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-60"
           >
             Marcar como rechazado
           </button>
@@ -159,14 +162,14 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   // message so the page never renders action buttons we can't fulfill.
   return (
     <Wrapper>
-      <p>Inmutable — esta cotización no puede modificarse.</p>
+      <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
       <FeedbackRegion feedback={feedback} />
     </Wrapper>
   );
 }
 
 const SECTION_CLASS =
-  "flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-3 text-sm";
+  "flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm";
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -186,7 +189,7 @@ function FeedbackRegion({
     <p
       role="status"
       aria-live="polite"
-      className={feedback.kind === "success" ? "text-emerald-800" : "text-rose-800"}
+      className={feedback.kind === "success" ? "text-status-success" : "text-status-danger"}
     >
       {feedback.message}
     </p>

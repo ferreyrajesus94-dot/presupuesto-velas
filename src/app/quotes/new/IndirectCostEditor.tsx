@@ -5,8 +5,7 @@ import Decimal from "decimal.js";
 import { formatArsFromDecimalString } from "@/lib/moneyFormat";
 import type { QuoteDraftFormValues } from "./QuoteCreateForm";
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 
 type RowErrors = { name?: { message?: string }; amount?: { message?: string } };
 
@@ -38,10 +37,10 @@ export function IndirectCostEditor({
     }
   }, new Decimal(0));
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
+    <section className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-soft p-4">
       <header className="flex items-center justify-between">
-        <h3 className="font-medium">Costos indirectos</h3>
-        <span className="text-sm text-zinc-700">{fields.length} conceptos</span>
+        <h3 className="font-medium text-ink">Costos indirectos</h3>
+        <span className="text-sm text-ink-muted">{fields.length} conceptos</span>
       </header>
       <ol aria-label="Costos indirectos" className="flex flex-col gap-3">
         {fields.map((field, index) => (
@@ -54,16 +53,16 @@ export function IndirectCostEditor({
           />
         ))}
       </ol>
-      <p className="text-sm text-zinc-700">
+      <p className="text-sm text-ink-muted">
         Total indirectos:{" "}
-        <span className="font-semibold" data-testid="indirect-total">
+        <span className="font-semibold text-ink" data-testid="indirect-total">
           {formatArsFromDecimalString(total.toString())}
         </span>
       </p>
       <button
         type="button"
         onClick={() => append({ name: "", amount: "0" })}
-        className="self-start font-semibold text-rose-900 underline"
+        className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
       >
         Agregar concepto
       </button>
@@ -90,22 +89,22 @@ function IndirectRow({
     <li
       aria-label={`Concepto ${index + 1}`}
       data-testid={`quote-indirect-${index + 1}`}
-      className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-white p-3"
+      className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-zinc-700">Concepto {index + 1}</span>
+        <span className="text-sm font-semibold text-ink-muted">Concepto {index + 1}</span>
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Quitar concepto ${index + 1}`}
-          className="font-semibold text-rose-900 underline"
+          className="font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
           Quitar
         </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={nameId} className="font-medium">
+          <label htmlFor={nameId} className="font-medium text-ink">
             Concepto
           </label>
           <input
@@ -119,13 +118,13 @@ function IndirectRow({
             className={controlClass}
           />
           {rowErrors?.name?.message ? (
-            <p id={`${nameId}-error`} role="alert" className="text-sm text-rose-800">
+            <p id={`${nameId}-error`} role="alert" className="text-sm text-status-danger">
               {rowErrors.name.message}
             </p>
           ) : null}
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={amountId} className="font-medium">
+          <label htmlFor={amountId} className="font-medium text-ink">
             Monto (ARS)
           </label>
           <input
@@ -140,7 +139,7 @@ function IndirectRow({
             className={controlClass}
           />
           {rowErrors?.amount?.message ? (
-            <p id={`${amountId}-error`} role="alert" className="text-sm text-rose-800">
+            <p id={`${amountId}-error`} role="alert" className="text-sm text-status-danger">
               {rowErrors.amount.message}
             </p>
           ) : null}

@@ -89,7 +89,7 @@ function IndirectRow({
     <li
       aria-label={`Concepto ${index + 1}`}
       data-testid={`quote-indirect-${index + 1}`}
-      className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
+      className="flex min-w-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-ink-muted">Concepto {index + 1}</span>
@@ -115,7 +115,7 @@ function IndirectRow({
             aria-describedby={`${nameId}-error`}
             aria-invalid={Boolean(rowErrors?.name)}
             {...control.register(nameField)}
-            className={controlClass}
+            className={`${controlClass} min-w-0`}
           />
           {rowErrors?.name?.message ? (
             <p id={`${nameId}-error`} role="alert" className="text-sm text-status-danger">

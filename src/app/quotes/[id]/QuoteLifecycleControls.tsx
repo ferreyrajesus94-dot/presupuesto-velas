@@ -8,6 +8,26 @@ import { transitionQuoteStatusAction } from "@/server/actions/quotes";
 import type { QuoteRecord } from "@/server/repositories/quotes";
 
 /**
+ * U7b — Spanish presentation fallback for each lifecycle transition. The
+ * action/repository keeps its English payloads (and `error.code`); the
+ * component maps the *operation* the user attempted to a localized message.
+ * The key shape mirrors the `from → to` pairs the FSM allows
+ * (`draft → sent`, `sent → accepted`, `sent → rejected`) plus the unique
+ * lockVersion it captures via `transitionQuoteStatusAction`.
+ */
+const ERROR_FALLBACK: Record<"draft->sent" | "sent->accepted" | "sent->rejected", string> = {
+  "draft->sent": "No se pudo enviar la cotización.",
+  "sent->accepted": "No se pudo aceptar la cotización.",
+  "sent->rejected": "No se pudo rechazar la cotización.",
+};
+
+/**
+ * U7b — extracted so the past-expiration alert div wraps to 1 line under
+ * `printWidth: 100` instead of the 7-line inline ternary the U7a diff shipped.
+ */
+const ALERT_CLASS = "rounded-lg border border-border-subtle bg-surface-soft px-3 py-2 text-ink";
+
+/**
  * PR4i — Lifecycle controls for the quote detail view. Renders status-aware
  * action buttons (or immutability messaging) and calls the PR4e FSM server
  * action (`transitionQuoteStatusAction`) inside a `useTransition`. Success
@@ -35,6 +55,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
     from: QuoteStatus,
     to: QuoteStatus,
     successMessage: string,
+    fallbackKey: keyof typeof ERROR_FALLBACK,
   ): void {
     triggeredRef.current = button;
     setFeedback(null);
@@ -44,7 +65,11 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
         setFeedback({ kind: "success", message: successMessage });
         router.refresh();
       } else {
-        setFeedback({ kind: "error", message: result.error.message });
+        // Presentation maps the attempted transition to a localized fallback;
+        // the action's English `result.error.message` is intentionally NOT
+        // surfaced so the user always sees Spanish regardless of which code
+        // the repository returned.
+        setFeedback({ kind: "error", message: ERROR_FALLBACK[fallbackKey] });
       }
     });
   }
@@ -66,7 +91,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "accepted" || status === "rejected") {
     return (
       <Wrapper>
-        <p>Inmutable — esta cotización no puede modificarse.</p>
+        <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
         <FeedbackRegion feedback={feedback} />
       </Wrapper>
     );
@@ -77,22 +102,22 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "sent" && expired) {
     return (
       <Wrapper>
-        <p>Vencida — esta cotización ya pasó su fecha de vencimiento.</p>
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+        <p className="text-ink">Vencida — esta cotización ya pasó su fecha de vencimiento.</p>
+        <div role="alert" className={ALERT_CLASS}>
           Esta cotización está vencida. Duplicar para aceptar.
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-50"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-50"
           >
             Marcar como aceptado
           </button>
           <button
             type="button"
             disabled
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-50"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-50"
           >
             Marcar como rechazado
           </button>
@@ -111,9 +136,15 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             type="button"
             disabled={isPending}
             onClick={(event) =>
-              runTransition(event.currentTarget, "draft", "sent", "Cotización enviada")
+              runTransition(
+                event.currentTarget,
+                "draft",
+                "sent",
+                "Cotización enviada",
+                "draft->sent",
+              )
             }
-            className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             Marcar como enviado
           </button>
@@ -132,9 +163,15 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             type="button"
             disabled={isPending}
             onClick={(event) =>
-              runTransition(event.currentTarget, "sent", "accepted", "Cotización aceptada")
+              runTransition(
+                event.currentTarget,
+                "sent",
+                "accepted",
+                "Cotización aceptada",
+                "sent->accepted",
+              )
             }
-            className="rounded-lg bg-rose-900 px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             Marcar como aceptado
           </button>
@@ -142,9 +179,15 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
             type="button"
             disabled={isPending}
             onClick={(event) =>
-              runTransition(event.currentTarget, "sent", "rejected", "Cotización rechazada")
+              runTransition(
+                event.currentTarget,
+                "sent",
+                "rejected",
+                "Cotización rechazada",
+                "sent->rejected",
+              )
             }
-            className="rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900 disabled:opacity-60"
+            className="rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand disabled:opacity-60"
           >
             Marcar como rechazado
           </button>
@@ -159,14 +202,14 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   // message so the page never renders action buttons we can't fulfill.
   return (
     <Wrapper>
-      <p>Inmutable — esta cotización no puede modificarse.</p>
+      <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
       <FeedbackRegion feedback={feedback} />
     </Wrapper>
   );
 }
 
 const SECTION_CLASS =
-  "flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-3 text-sm";
+  "flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm";
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -186,7 +229,7 @@ function FeedbackRegion({
     <p
       role="status"
       aria-live="polite"
-      className={feedback.kind === "success" ? "text-emerald-800" : "text-rose-800"}
+      className={feedback.kind === "success" ? "text-status-success" : "text-status-danger"}
     >
       {feedback.message}
     </p>

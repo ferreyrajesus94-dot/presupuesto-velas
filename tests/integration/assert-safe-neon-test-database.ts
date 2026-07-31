@@ -1,6 +1,13 @@
 import { execFileSync } from "node:child_process";
 
-const REQUIRED_BRANCH_NAME = "dev-pr2-auth-schema";
+// The safe branch name can be overridden by the NEON_INTEGRATION_REQUIRED_BRANCH_NAME
+// environment variable for isolated test runs (for example, a temporary branch cloned
+// from the canonical integration parent). When the env var is unset, empty, or
+// whitespace-only, the canonical parent name remains the required target so the
+// production-style integration suite still proves it cannot accidentally run against
+// production or default branches.
+const REQUIRED_BRANCH_NAME =
+  process.env.NEON_INTEGRATION_REQUIRED_BRANCH_NAME?.trim() || "dev-pr2-auth-schema";
 const SAFETY_ERROR = "Integration database safety check failed: target branch could not be proven";
 
 type NeonBranch = {

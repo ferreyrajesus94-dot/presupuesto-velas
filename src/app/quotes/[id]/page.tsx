@@ -15,17 +15,20 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const quote = await getQuote(owner.id, id);
   if (!quote) notFound();
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-[#fffaf5] px-4 py-8 text-zinc-900 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav>
-        <Link href="/quotes" className="font-semibold text-rose-900 underline">
+        <Link
+          href="/quotes"
+          className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+        >
           ← Cotizaciones
         </Link>
       </nav>
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-800">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold">Detalle de cotización</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink">Detalle de cotización</h1>
       </header>
       <QuoteDetailView quote={quote} now={new Date()} />
     </main>

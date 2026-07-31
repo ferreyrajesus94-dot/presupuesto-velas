@@ -197,15 +197,16 @@ describe("QuoteCreateForm — interactive inputs", () => {
 });
 
 describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
-  it("shows an error when the recipe id is empty on submit", async () => {
+  it("shows the Spanish 'Seleccioná un modelo.' error when the recipe id is empty on submit", async () => {
     const user = userEvent.setup();
     render(<QuoteCreateForm recipes={RECIPES} />);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
+    expect(within(row).getByText("Seleccioná un modelo.")).toBeInTheDocument();
     expect(within(row).getAllByRole("alert").length).toBeGreaterThan(0);
   });
 
-  it("shows a 'Quantity must be > 0' error when the user sets quantity to zero", async () => {
+  it("shows a Spanish 'La cantidad debe ser mayor que 0.' error when the user sets quantity to zero", async () => {
     const user = userEvent.setup();
     render(<QuoteCreateForm recipes={RECIPES} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
@@ -213,9 +214,7 @@ describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
     await user.clear(qty);
     await user.type(qty, "0");
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
-    expect(
-      await within(row).findByText(/Quantity must be > 0|mayor a 0|mayor que 0/i),
-    ).toBeInTheDocument();
+    expect(await within(row).findByText("La cantidad debe ser mayor que 0.")).toBeInTheDocument();
   });
 
   it("shows an error when the expiration date is in the past on submit", async () => {

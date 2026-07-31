@@ -133,7 +133,7 @@ describe("/recipes page composition", () => {
     );
     // PR3t: the empty-state CTA now points at a real section in the DOM.
     expect(document.getElementById("new-recipe")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "Create recipe" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nueva receta" })).toBeInTheDocument();
     expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
     expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
   });
@@ -179,13 +179,13 @@ describe("/recipes page composition", () => {
     render(await RecipesPage(pageProps()));
     expect(document.getElementById("edit-recipe-recipe-1")).not.toBeNull();
     expect(
-      screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
+      screen.getByRole("heading", { name: "Editar receta: Vanilla candle" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Name for Vanilla candle" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Nombre de Vanilla candle" })).toHaveValue(
       "Vanilla candle",
     );
     const card = screen.getByTestId("recipe-card");
-    const itemList = within(card).getByRole("list", { name: "Recipe materials" });
+    const itemList = within(card).getByRole("list", { name: "Ingredientes de la receta" });
     expect(within(itemList).getAllByRole("listitem")).toHaveLength(2);
     // The form's material select is sourced from the page-projected
     // active-material catalog, sorted alphabetically.
@@ -194,7 +194,7 @@ describe("/recipes page composition", () => {
     const firstMaterialOptions = Array.from(materialSelects[0].querySelectorAll("option")).map(
       (opt) => opt.textContent,
     );
-    expect(firstMaterialOptions).toEqual(["Select a material", "Cotton wick", "Soy wax"]);
+    expect(firstMaterialOptions).toEqual(["Seleccioná un material", "Cotton wick", "Soy wax"]);
   });
 
   it("PR3v.next: never mounts the RecipeEditForm or its affordance for archived recipe cards", async () => {
@@ -204,12 +204,12 @@ describe("/recipes page composition", () => {
     listRecipesHonoringVisibility();
     render(await RecipesPage(pageProps("all")));
     expect(
-      screen.queryByRole("heading", { name: "Edit recipe: Citrus candle" }),
+      screen.queryByRole("heading", { name: "Editar receta: Citrus candle" }),
     ).not.toBeInTheDocument();
     expect(document.getElementById("edit-recipe-recipe-archived")).toBeNull();
     expect(screen.queryByRole("link", { name: "Editar Citrus candle" })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
+      screen.getByRole("heading", { name: "Editar receta: Vanilla candle" }),
     ).toBeInTheDocument();
   });
 
@@ -220,15 +220,15 @@ describe("/recipes page composition", () => {
     mocks.listRecipes.mockResolvedValue([RECIPE_RECORD_ACTIVE, RECIPE_RECORD_ACTIVE_OTHER]);
     render(await RecipesPage(pageProps()));
     expect(
-      screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
+      screen.getByRole("heading", { name: "Editar receta: Vanilla candle" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Edit recipe: Cinnamon candle" }),
+      screen.getByRole("heading", { name: "Editar receta: Cinnamon candle" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Name for Vanilla candle" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Nombre de Vanilla candle" })).toHaveValue(
       "Vanilla candle",
     );
-    expect(screen.getByRole("textbox", { name: "Name for Cinnamon candle" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Nombre de Cinnamon candle" })).toHaveValue(
       "Cinnamon candle",
     );
     // Vanilla has two preloaded items and Cinnamon has one — the total of
@@ -263,7 +263,7 @@ describe("/recipes page composition", () => {
     const first = await RecipesPage(pageProps());
     const { rerender } = render(first);
 
-    const vanillaName = screen.getByRole("textbox", { name: "Name for Vanilla candle" });
+    const vanillaName = screen.getByRole("textbox", { name: "Nombre de Vanilla candle" });
     await user.clear(vanillaName);
     await user.type(vanillaName, "Vanilla candle (draft)");
 
@@ -272,11 +272,11 @@ describe("/recipes page composition", () => {
     rerender(await RecipesPage(pageProps()));
 
     // Vanilla's draft survives on Vanilla — keyed identity.
-    expect(screen.getByRole("textbox", { name: "Name for Vanilla candle" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Nombre de Vanilla candle" })).toHaveValue(
       "Vanilla candle (draft)",
     );
     // Cinnamon's form is now first and is still its own preloaded value.
-    expect(screen.getByRole("textbox", { name: "Name for Cinnamon candle" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Nombre de Cinnamon candle" })).toHaveValue(
       "Cinnamon candle",
     );
   });
@@ -330,8 +330,8 @@ describe("/recipes page composition", () => {
     for (const expected of expectedProjection) {
       const rowScope = within(screen.getByTestId(`recipe-edit-item-${expected.rowNumber}`));
       const materialSelect = rowScope.getByLabelText("Material") as HTMLSelectElement;
-      const quantityInput = rowScope.getByLabelText("Quantity") as HTMLInputElement;
-      const unitSelect = rowScope.getByLabelText("Unit") as HTMLSelectElement;
+      const quantityInput = rowScope.getByLabelText("Cantidad") as HTMLInputElement;
+      const unitSelect = rowScope.getByLabelText("Unidad") as HTMLSelectElement;
       // Selected materialId matches the position-sorted row + the selected
       // option text matches the material name (catches a regression that
       // renders the right id under the wrong label).
@@ -353,9 +353,15 @@ describe("/recipes page composition", () => {
     // Sorted row order is also visible at the row's semantic label, which
     // forms are NOT supposed to override — this catches row reordering that
     // a position-blind projection would cause.
-    expect(within(card).getByLabelText("Item 1")).toBe(screen.getByTestId("recipe-edit-item-1"));
-    expect(within(card).getByLabelText("Item 2")).toBe(screen.getByTestId("recipe-edit-item-2"));
-    expect(within(card).getByLabelText("Item 3")).toBe(screen.getByTestId("recipe-edit-item-3"));
+    expect(within(card).getByLabelText("Ingrediente 1")).toBe(
+      screen.getByTestId("recipe-edit-item-1"),
+    );
+    expect(within(card).getByLabelText("Ingrediente 2")).toBe(
+      screen.getByTestId("recipe-edit-item-2"),
+    );
+    expect(within(card).getByLabelText("Ingrediente 3")).toBe(
+      screen.getByTestId("recipe-edit-item-3"),
+    );
   });
 
   it("uses singular copy when only one item belongs to a recipe", async () => {
@@ -435,10 +441,10 @@ describe("/recipes page composition", () => {
     expect(restoreButtons).toHaveLength(1);
     // Non-editable invariant: archived cards keep the badge but no form heading.
     expect(
-      screen.queryByRole("heading", { name: "Edit recipe: Citrus candle" }),
+      screen.queryByRole("heading", { name: "Editar receta: Citrus candle" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Edit recipe: Vanilla candle" }),
+      screen.getByRole("heading", { name: "Editar receta: Vanilla candle" }),
     ).toBeInTheDocument();
   });
 });

@@ -34,8 +34,8 @@ function mockConfirm(value: boolean) {
 
 describe("RecipeArchiveControl", () => {
   it.each([
-    ["active", ACTIVE, "Archive Vanilla candle"],
-    ["archived", ARCHIVED, "Restore Citrus candle"],
+    ["active", ACTIVE, "Archivar Vanilla candle"],
+    ["archived", ARCHIVED, "Restaurar Citrus candle"],
   ])("%s card renders the %s button with an accessible name", (_label, recipe, accessibleName) => {
     render(<RecipeArchiveControl recipe={recipe} />);
     expect(screen.getByRole("button", { name: accessibleName })).toBeInTheDocument();
@@ -45,14 +45,14 @@ describe("RecipeArchiveControl", () => {
     const user = userEvent.setup();
     const accepted = mockConfirm(true);
     render(<RecipeArchiveControl recipe={ACTIVE} />);
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
-    expect(accepted).toHaveBeenCalledWith("Archive Vanilla candle? You can restore it later.");
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
+    expect(accepted).toHaveBeenCalledWith("¿Archivar Vanilla candle? Podés restaurarla después.");
     expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
     expect((mocks.archiveRecipeAction.mock.calls[0][1] as FormData).get("id")).toBe("recipe-2");
     accepted.mockRestore();
     mocks.reportLifecycle.mockClear();
     const cancelled = mockConfirm(false);
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
     expect(cancelled).toHaveBeenCalled();
     expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1);
     expect(mocks.reportLifecycle).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe("RecipeArchiveControl", () => {
     const user = userEvent.setup();
     const confirmSpy = mockConfirm(false);
     render(<RecipeArchiveControl recipe={ARCHIVED} />);
-    await user.click(screen.getByRole("button", { name: "Restore Citrus candle" }));
+    await user.click(screen.getByRole("button", { name: "Restaurar Citrus candle" }));
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(mocks.restoreRecipeAction).toHaveBeenCalledTimes(1);
     expect((mocks.restoreRecipeAction.mock.calls[0][1] as FormData).get("id")).toBe("recipe-1");
@@ -74,7 +74,7 @@ describe("RecipeArchiveControl", () => {
     const user = userEvent.setup();
     const confirmSpy = mockConfirm(true);
     render(<RecipeArchiveControl recipe={ACTIVE} />);
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
     await waitFor(() =>
       expect(mocks.reportLifecycle).toHaveBeenCalledWith({
         operation: "archive",
@@ -91,10 +91,10 @@ describe("RecipeArchiveControl", () => {
     const confirmSpy = mockConfirm(true);
     mocks.archiveRecipeAction.mockResolvedValueOnce({ status: "error", message: "not found" });
     const { rerender } = render(<RecipeArchiveControl recipe={ACTIVE} />);
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("not found");
     rerender(<RecipeArchiveControl recipe={{ ...ACTIVE, archived: true }} />);
-    await user.click(screen.getByRole("button", { name: "Restore Vanilla candle" }));
+    await user.click(screen.getByRole("button", { name: "Restaurar Vanilla candle" }));
     await waitFor(() =>
       expect(mocks.reportLifecycle).toHaveBeenCalledWith({
         operation: "restore",
@@ -114,8 +114,10 @@ describe("RecipeArchiveControl", () => {
     );
     const confirmSpy = mockConfirm(true);
     render(<RecipeArchiveControl recipe={ACTIVE} />);
-    await user.click(screen.getByRole("button", { name: "Archive Vanilla candle" }));
-    expect(await screen.findByRole("button", { name: "Archiving Vanilla candle…" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Archivar Vanilla candle" }));
+    expect(
+      await screen.findByRole("button", { name: "Archivando Vanilla candle…" }),
+    ).toBeDisabled();
     resolveAction({ status: "success", recipeId: "recipe-2" });
     await waitFor(() => expect(mocks.archiveRecipeAction).toHaveBeenCalledTimes(1));
     confirmSpy.mockRestore();
@@ -125,14 +127,14 @@ describe("RecipeArchiveControl", () => {
     [
       "archive",
       ACTIVE,
-      "Archive Vanilla candle",
+      "Archivar Vanilla candle",
       mocks.archiveRecipeAction,
       "Recipe could not be found.",
     ],
     [
       "restore",
       ARCHIVED,
-      "Restore Citrus candle",
+      "Restaurar Citrus candle",
       mocks.restoreRecipeAction,
       "Unable to restore recipe.",
     ],

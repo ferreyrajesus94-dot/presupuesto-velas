@@ -58,10 +58,10 @@ describe("RecipesArchiveFeedback", () => {
     }
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
     await user.click(screen.getByRole("button", { name: "Revalidate" }));
     expect(screen.queryByRole("button", { name: "archive Citrus candle" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Citrus candle archived.");
+    expect(screen.getByRole("status")).toHaveTextContent("Citrus candle archivada.");
   });
 
   it("replaces the previous announcement on a later operation", async () => {
@@ -73,12 +73,12 @@ describe("RecipesArchiveFeedback", () => {
       </RecipesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
     await user.click(screen.getByRole("button", { name: "restore Vanilla candle" }));
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle restored."),
+      expect(screen.getByRole("status")).toHaveTextContent("Vanilla candle restaurada."),
     );
-    expect(screen.getByRole("status")).not.toHaveTextContent("Citrus candle archived.");
+    expect(screen.getByRole("status")).not.toHaveTextContent("Citrus candle archivada.");
   });
 });
 
@@ -114,7 +114,7 @@ describe("RecipesArchiveFeedback focus", () => {
       </RecipesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
     const surviving = screen.getByRole("button", { name: "archive Vanilla candle" });
     await waitFor(() => expect(surviving).toHaveFocus());
     // The source button must never receive focus — it is the one that
@@ -139,7 +139,7 @@ describe("RecipesArchiveFeedback focus", () => {
       </RecipesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Vanilla candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archivada.");
     const first = screen.getByRole("button", { name: "archive Citrus candle" });
     await waitFor(() => expect(first).toHaveFocus());
     const source = screen.getByRole("button", { name: "archive Vanilla candle" });
@@ -160,7 +160,7 @@ describe("RecipesArchiveFeedback focus", () => {
       </RecipesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
     const showArchived = screen.getByRole("link", { name: "Show archived" });
     await waitFor(() => expect(showArchived).toHaveFocus());
   });
@@ -180,7 +180,7 @@ describe("RecipesArchiveFeedback focus", () => {
       </RecipesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "restore Citrus candle" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restored.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restaurada.");
     // Focus must NOT be on a "Show archived" affordance — the focus effect
     // early-returns on restore AND on view !== "active".
     const showArchived = screen.getByRole("link", { name: "Show archived" });

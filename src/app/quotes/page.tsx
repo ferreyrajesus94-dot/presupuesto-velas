@@ -72,17 +72,18 @@ export default async function QuotesPage({
     .filter((item): item is QuoteListItem => item !== null);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-[#fffaf5] px-4 py-8 text-zinc-900 sm:px-6 lg:px-8">
+    // Root layout owns <main id="main">; this page must not nest another one.
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-800">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
             Calculadora Flor
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">Cotizaciones</h1>
+          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Cotizaciones</h1>
         </div>
         <Link
           href="/quotes/new"
-          className="rounded-full bg-rose-900 px-4 py-2 font-semibold text-white"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand"
         >
           + Nueva cotización
         </Link>
@@ -91,6 +92,6 @@ export default async function QuotesPage({
         <QuoteViewFilter current={view} />
       </Suspense>
       <QuotesList quotes={quotes} view={view} now={new Date()} />
-    </main>
+    </div>
   );
 }

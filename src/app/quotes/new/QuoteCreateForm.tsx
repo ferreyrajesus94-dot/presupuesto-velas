@@ -23,8 +23,7 @@ import { ModelLineEditor, computeLineTotal } from "./ModelLineEditor";
 import { QuoteVisibilityToggles } from "./QuoteVisibilityToggles";
 import { IndirectCostEditor } from "./IndirectCostEditor";
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 const defaultExpirationDate = (): string => {
@@ -171,13 +170,12 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
     startTransition(async () => {
       const draft = await createQuoteDraftAction(data);
       if (!draft.ok) {
-        setSubmitError(draft.error.message);
+        setSubmitError("No se pudo crear la cotización.");
         return;
       }
       const quoteId = draft.value.quote.id;
       const lockVersion = draft.value.quote.lockVersion;
-      // Inject each model's `perUnitCostDecimal` from the recipes catalog
-      // (the Zod schema doesn't carry it; the snapshot builder needs it).
+      // Inject each model's `perUnitCostDecimal` from the recipes catalog.
       const enrichedModels = data.models.map((m) => {
         const recipe = recipeById.get(m.recipeId);
         return {
@@ -192,7 +190,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
         lockVersion,
       );
       if (!version.ok) {
-        setSubmitError(version.error.message);
+        setSubmitError("No se pudo crear la cotización.");
         return;
       }
       router.push(`/quotes/${quoteId}`);
@@ -200,17 +198,26 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
   };
 
   const expirationError = errors.expirationDate?.message;
-  const modelErrors = errors.models as
+  const rawModelErrors = errors.models as
     | Array<{ recipeId?: { message?: string }; quantity?: { message?: string } } | undefined>
     | undefined;
-  const indirectErrors = errors.indirectCosts as
+  const rawIndirectErrors = errors.indirectCosts as
     Array<{ name?: { message?: string }; amount?: { message?: string } } | undefined> | undefined;
+  // Translate raw Zod field errors into direct Spanish fallbacks.
+  const modelErrors = rawModelErrors?.map((row) => ({
+    recipeId: row?.recipeId?.message ? { message: "Seleccioná un modelo." } : undefined,
+    quantity: row?.quantity?.message ? { message: "La cantidad debe ser mayor que 0." } : undefined,
+  }));
+  const indirectErrors = rawIndirectErrors?.map((row) => ({
+    name: row?.name?.message ? { message: "Ingresá un nombre para el costo." } : undefined,
+    amount: row?.amount?.message ? { message: "Ingresá un monto válido." } : undefined,
+  }));
 
   return (
     <section
       id="new-quote"
       aria-label="Nueva cotización"
-      className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -219,7 +226,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
         className="flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor="quote-customer" className="font-medium">
+          <label htmlFor="quote-customer" className="font-medium text-ink">
             Cliente
           </label>
           <input
@@ -231,12 +238,12 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
             {...register("customerName" as keyof QuoteDraftFormValues)}
             className={controlClass}
           />
-          <p id="quote-customer-hint" className="text-xs text-zinc-600">
+          <p id="quote-customer-hint" className="text-xs text-ink-muted">
             Opcional, hasta 50 caracteres.
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="quote-expiration" className="font-medium">
+          <label htmlFor="quote-expiration" className="font-medium text-ink">
             Vencimiento
           </label>
           <input
@@ -248,7 +255,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
             className={controlClass}
           />
           {expirationError ? (
-            <p id="quote-expiration-error" role="alert" className="text-sm text-rose-800">
+            <p id="quote-expiration-error" role="alert" className="text-sm text-status-danger">
               {expirationError}
             </p>
           ) : null}
@@ -260,14 +267,14 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
           onAppend={() => modelsFieldArray.append(blankModel())}
           errorBag={modelErrors}
         />
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
-          <legend className="px-1 font-medium">Ganancia</legend>
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-4">
+          <legend className="px-1 font-medium text-ink">Ganancia</legend>
           <Controller
             name="profit.mode"
             control={control}
             render={({ field }) => (
               <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-ink">
                   <input
                     type="radio"
                     value="percentage"
@@ -279,7 +286,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
                   />
                   Porcentaje
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-ink">
                   <input
                     type="radio"
                     value="fixed"
@@ -296,7 +303,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
           />
           {profitMode === "percentage" ? (
             <div className="flex flex-col gap-1">
-              <label htmlFor="quote-profit-percent" className="font-medium">
+              <label htmlFor="quote-profit-percent" className="font-medium text-ink">
                 Porcentaje de ganancia (%)
               </label>
               <input
@@ -311,7 +318,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <label htmlFor="quote-profit-amount" className="font-medium">
+              <label htmlFor="quote-profit-amount" className="font-medium text-ink">
                 Monto fijo de ganancia (ARS)
               </label>
               <input
@@ -333,38 +340,38 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
         />
         <section
           aria-label="Totales"
-          className="flex flex-col gap-1 rounded-xl border border-rose-100 bg-rose-50/40 p-4 text-sm"
+          className="flex flex-col gap-1 rounded-xl border border-border-subtle bg-surface-soft p-4 text-sm"
         >
-          <h3 className="font-medium">Totales</h3>
+          <h3 className="font-medium text-ink">Totales</h3>
           <p>
             Materiales:{" "}
-            <span className="font-semibold" data-testid="materials-total">
+            <span className="font-semibold text-ink" data-testid="materials-total">
               {formatArsFromDecimalString(materialsTotal.toString())}
             </span>
           </p>
           <p>
             Indirectos:{" "}
-            <span className="font-semibold" data-testid="grand-indirect-total">
+            <span className="font-semibold text-ink" data-testid="grand-indirect-total">
               {formatArsFromDecimalString(indirectTotal.toString())}
             </span>
           </p>
           <p>
             Ganancia:{" "}
-            <span className="font-semibold" data-testid="profit-total">
+            <span className="font-semibold text-ink" data-testid="profit-total">
               {formatArsFromDecimalString(profitTotal.toString())}
             </span>
           </p>
           <p>
             Total:{" "}
-            <span className="font-semibold" data-testid="grand-total">
+            <span className="font-semibold text-ink" data-testid="grand-total">
               {formatArsFromDecimalString(total.toString())}
             </span>
           </p>
         </section>
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
-          <legend className="px-1 font-medium">Seña</legend>
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-4">
+          <legend className="px-1 font-medium text-ink">Seña</legend>
           <div className="flex flex-col gap-1">
-            <label htmlFor="quote-deposit-percent" className="font-medium">
+            <label htmlFor="quote-deposit-percent" className="font-medium text-ink">
               Porcentaje de seña (%)
             </label>
             <input
@@ -377,31 +384,31 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
               className={controlClass}
             />
           </div>
-          <p className="text-sm text-zinc-700">
+          <p className="text-sm text-ink-muted">
             Sugerencia para cubrir materiales:{" "}
-            <span className="font-semibold" data-testid="suggested-percent">
+            <span className="font-semibold text-ink" data-testid="suggested-percent">
               {suggestedPercent}%
             </span>{" "}
-            <span className="text-xs text-zinc-600">
+            <span className="text-xs text-ink-muted">
               ({formatArsFromDecimalString(depositAmount.toString())} con el porcentaje actual)
             </span>
           </p>
           <button
             type="button"
             onClick={() => setValue("depositPercent", suggestedPercent, { shouldDirty: true })}
-            className="self-start font-semibold text-rose-900 underline"
+            className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
           >
             Aplicar sugerencia
           </button>
         </fieldset>
         <QuoteVisibilityToggles register={register} />
-        <div role="status" aria-live="polite" className="text-sm text-rose-800">
+        <div role="status" aria-live="polite" className="text-sm text-status-danger">
           {submitError ? submitError : null}
         </div>
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-60"
+          className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
         >
           {isPending ? "Creando..." : "Crear borrador"}
         </button>

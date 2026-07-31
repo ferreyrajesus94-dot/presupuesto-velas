@@ -10,7 +10,7 @@ import { useRecipeArchiveFeedback } from "./RecipesArchiveFeedback";
 import type { RecipeLifecycleOperation } from "./recipeLifecycle";
 
 const IDLE: RecipeActionState = { status: "idle" };
-const CONFIRM = (name: string) => `Archive ${name}? You can restore it later.`;
+const CONFIRM = (name: string) => `¿Archivar ${name}? Podés restaurarla después.`;
 
 type Props = { recipe: { id: string; name: string; archived: boolean } };
 
@@ -42,8 +42,8 @@ export function RecipeArchiveControl({ recipe }: Props) {
     startTransition(() => formAction(new FormData(event.currentTarget)));
   }
 
-  const v = recipe.archived ? "Restore" : "Archive";
-  const pv = recipe.archived ? "Restoring" : "Archiving";
+  const v = recipe.archived ? "Restaurar" : "Archivar";
+  const pv = recipe.archived ? "Restaurando" : "Archivando";
   const accessible = pending ? `${pv} ${recipe.name}…` : `${v} ${recipe.name}`;
 
   return (
@@ -55,12 +55,12 @@ export function RecipeArchiveControl({ recipe }: Props) {
         data-archive-focus={recipe.archived ? undefined : "next-row"}
         data-archive-source={recipe.id}
         aria-label={accessible}
-        className="self-start rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-semibold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center rounded-md border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand transition-colors hover:bg-surface-soft disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? `${pv} ${recipe.name}…` : v}
       </button>
       {state.status === "error" && state.message ? (
-        <p role="alert" className="text-sm text-rose-800">
+        <p role="alert" className="text-sm text-status-danger">
           {state.message}
         </p>
       ) : null}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 const VIEWS = [
-  { key: "active", label: "Active", href: "/recipes" },
-  { key: "all", label: "Show archived", href: "/recipes?view=all" },
+  { key: "active", label: "Activas", href: "/recipes" },
+  { key: "all", label: "Mostrar archivadas", href: "/recipes?view=all" },
 ] as const;
 
 export type RecipeView = (typeof VIEWS)[number]["key"];
@@ -14,7 +14,7 @@ export function resolveRecipeView(raw: string | string[] | undefined): RecipeVie
 
 export function RecipeViewFilter({ current }: { current: RecipeView }) {
   return (
-    <nav aria-label="Recipe view filter" className="flex flex-wrap gap-2">
+    <nav aria-label="Filtro de vista de recetas" className="flex flex-wrap gap-2">
       {VIEWS.map((view) => {
         const isCurrent = view.key === current;
         return (
@@ -25,8 +25,8 @@ export function RecipeViewFilter({ current }: { current: RecipeView }) {
             data-archive-focus={view.key === "all" ? "show-archived" : undefined}
             className={
               isCurrent
-                ? "rounded-full bg-rose-900 px-3 py-1.5 text-sm font-semibold text-white"
-                : "rounded-full border border-rose-300 bg-white px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                ? "inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand"
+                : "inline-flex min-h-11 items-center rounded-full border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand hover:bg-surface-soft"
             }
           >
             {view.label}

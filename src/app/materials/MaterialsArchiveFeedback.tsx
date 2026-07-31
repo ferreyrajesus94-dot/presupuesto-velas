@@ -49,7 +49,8 @@ export function MaterialsArchiveFeedback({
     // until revalidation commits, so we must filter it out explicitly to
     // avoid leaving focus on a soon-to-be-unmounted element when the
     // remaining-row count stays truthy across the transition.
-    const archivedLabel = `Archive ${result.materialName}`;
+    // U4: the visible verb is `Archivar` (es-AR); the filter must match it.
+    const archivedLabel = `Archivar ${result.materialName}`;
     const candidates = Array.from(
       document.querySelectorAll<HTMLElement>('[data-archive-focus="next-row"]'),
     );
@@ -65,7 +66,7 @@ export function MaterialsArchiveFeedback({
           role="status"
           aria-live="polite"
           data-testid="lifecycle-status"
-          className="text-sm text-emerald-800"
+          className="text-sm text-status-success"
         >
           {buildMaterialLifecycleCopy(result)}
         </p>

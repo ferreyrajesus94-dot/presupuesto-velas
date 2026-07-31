@@ -57,7 +57,7 @@ export function RecipesArchiveFeedback({
     <FeedbackContext.Provider value={{ reportLifecycle }}>
       {children}
       {result ? (
-        <p role="status" aria-live="polite" className="text-sm text-emerald-800">
+        <p role="status" aria-live="polite" className="text-sm text-status-success">
           {buildRecipeLifecycleCopy({ operation: result.operation, recipeName: result.recipeName })}
         </p>
       ) : null}

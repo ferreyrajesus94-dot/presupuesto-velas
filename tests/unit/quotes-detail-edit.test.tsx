@@ -1,5 +1,5 @@
 /** PR4h — Quote detail view + edit (draft-only) + delete-on-draft (Strict TDD). */
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -167,7 +167,7 @@ describe("QuoteDetailView — render", () => {
     render(<QuoteDetailView quote={record} now={NOW} />);
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
     expect(screen.getByText(/01\/05\/2026/)).toBeInTheDocument();
-    expect(screen.getByTestId("quote-status")).toHaveTextContent("draft");
+    expect(screen.getByTestId("quote-status")).toHaveTextContent("Borrador");
   });
 
   it("uses 'Sin cliente' when the customer name is null", () => {
@@ -251,7 +251,7 @@ describe("QuoteDetailView — draft-only actions", () => {
   it("shows the 'expired' status for a past-expiration sent quote", () => {
     const record = buildQuoteRecord("sent", "2026-03-10");
     render(<QuoteDetailView quote={record} now={NOW} />);
-    expect(screen.getByTestId("quote-status")).toHaveTextContent("expired");
+    expect(screen.getByTestId("quote-status")).toHaveTextContent("Vencida");
   });
 });
 
@@ -306,6 +306,31 @@ describe("QuoteEditForm — pre-fill", () => {
     const indirects = screen.getByRole("list", { name: "Costos indirectos" });
     expect(within(indirects).getAllByRole("listitem")).toHaveLength(2);
   });
+
+  // U7b — width safeguards on the model row <li>, recipe <select>, and
+  // indirect name <input> so long recipe names + currency labels wrap safely
+  // at 375px without overflowing the form column.
+  it("carries `min-w-0` on the model row, recipe select, and indirect name input for 375px safety", () => {
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    const row = screen.getByRole("listitem", { name: "Modelo 1" });
+    expect(row.className.split(/\s+/)).toContain("min-w-0");
+    const select = within(row).getByLabelText("Receta");
+    expect(select.className.split(/\s+/)).toContain("min-w-0");
+    const firstName = screen.getAllByLabelText("Concepto")[0];
+    expect(firstName.className.split(/\s+/)).toContain("min-w-0");
+  });
+
+  // U7b — width safeguard on the indirect row <li> for 375px safety. The
+  // pre-existing `min-w-0` test above asserts the name `<input>`; this one
+  // asserts the row `<li>` itself so the row container can shrink instead of
+  // pushing currency labels out of the form column at 375px.
+  it("carries `min-w-0` on the indirect cost row <li> for 375px safety", () => {
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    const indirectRow = screen.getByTestId("quote-indirect-1");
+    expect(indirectRow.className.split(/\s+/)).toContain("min-w-0");
+  });
 });
 
 describe("QuoteEditForm — submit", () => {
@@ -329,7 +354,7 @@ describe("QuoteEditForm — submit", () => {
     expect(mocks.push).toHaveBeenCalledWith(`/quotes/${QUOTE_ID}`);
   });
 
-  it("shows the error in the live region when appendQuoteVersionAction fails", async () => {
+  it("shows the Spanish fallback 'No se pudo actualizar la cotización.' when appendQuoteVersionAction fails", async () => {
     mocks.appendQuoteVersionAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
@@ -339,7 +364,7 @@ describe("QuoteEditForm — submit", () => {
     render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent(/stale lock/);
+    expect(liveRegion).toHaveTextContent("No se pudo actualizar la cotización.");
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(mocks.push).not.toHaveBeenCalled();
   });
@@ -354,6 +379,66 @@ describe("QuoteEditForm — submit", () => {
     expect(mocks.deleteQuoteDraft).toHaveBeenCalledWith(OWNER.id, QUOTE_ID);
     expect(mocks.push).toHaveBeenCalledWith("/quotes");
     confirmSpy.mockRestore();
+  });
+
+  it("shows the Spanish fallback 'No se pudo eliminar el borrador.' when deleteQuoteDraftAction fails", async () => {
+    mocks.deleteQuoteDraft.mockResolvedValueOnce({
+      ok: false,
+      error: { code: "NOT_FOUND", message: "missing" },
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    const user = userEvent.setup();
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    await user.click(screen.getByRole("button", { name: /Eliminar borrador/ }));
+    const liveRegion = screen.getByRole("status");
+    await waitFor(() => expect(liveRegion).toHaveTextContent("No se pudo eliminar el borrador."));
+    expect(mocks.push).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+});
+
+// =====================================================================
+// QuoteEditForm — U7b Spanish field-error mapping at presentation boundary
+// =====================================================================
+
+describe("QuoteEditForm — U7b Spanish field-error mapping", () => {
+  it("shows 'Seleccioná un modelo.' when the recipe id is cleared on submit (empty recipeId in the model row)", async () => {
+    // The pre-filled record carries `RECIPE_ID`; clearing the `<select>` +
+    // submitting forces Zod to reject and the presentation boundary maps the
+    // raw Zod message to the direct Spanish fallback.
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    const user = userEvent.setup();
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    const row = screen.getByRole("listitem", { name: "Modelo 1" });
+    await user.selectOptions(within(row).getByLabelText("Receta"), "");
+    await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
+    expect(await within(row).findByText("Seleccioná un modelo.")).toBeInTheDocument();
+    // The raw Zod English payload never reaches the user.
+    expect(within(row).queryByText(/Invalid uuid/i)).not.toBeInTheDocument();
+    expect(mocks.appendQuoteVersionAction).not.toHaveBeenCalled();
+  });
+
+  it("shows 'Ingresá un nombre para el costo.' when an indirect cost name is cleared on submit", async () => {
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    const user = userEvent.setup();
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    const firstName = screen.getAllByLabelText("Concepto")[0] as HTMLInputElement;
+    await user.clear(firstName);
+    await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
+    expect(await screen.findByText("Ingresá un nombre para el costo.")).toBeInTheDocument();
+    expect(mocks.appendQuoteVersionAction).not.toHaveBeenCalled();
+  });
+
+  it("shows 'Ingresá un monto válido.' when an indirect cost amount is cleared on submit", async () => {
+    const record = buildQuoteRecord("draft", "2026-05-01");
+    const user = userEvent.setup();
+    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    const firstAmount = screen.getAllByLabelText("Monto (ARS)")[0] as HTMLInputElement;
+    await user.clear(firstAmount);
+    await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
+    expect(await screen.findByText("Ingresá un monto válido.")).toBeInTheDocument();
+    expect(mocks.appendQuoteVersionAction).not.toHaveBeenCalled();
   });
 });
 
@@ -385,6 +470,51 @@ describe("/quotes/[id]/edit page loader", () => {
       "href",
       `/quotes/${QUOTE_ID}`,
     );
+  });
+
+  // U7b — page-localized status labels. The page loader still computes
+  // `status === "draft"`; the localized label belongs to the presentation
+  // boundary only. The test fixture uses a clearly future `expirationDate`
+  // (`2030-12-31`) so the `sent` row stays non-expired and the cached label
+  // remains `Enviada`. The `accepted` / `rejected` rows pass the same date
+  // for symmetry, but `isExpiredSent` returns `false` for those statuses.
+  it.each([
+    ["sent", "Enviada"],
+    ["accepted", "Aceptada"],
+    ["rejected", "Rechazada"],
+  ] as const)(
+    "renders the Spanish '%s' status label inside 'Solo borradores editables' for a %s quote",
+    async (status, expectedLabel) => {
+      const record = buildQuoteRecord(status, "2030-12-31");
+      mocks.getQuote.mockResolvedValue(record);
+      const element = await QuoteEditPage({
+        params: Promise.resolve({ id: QUOTE_ID }),
+      });
+      render(element);
+      expect(screen.getByText(new RegExp(expectedLabel))).toBeInTheDocument();
+      // The raw English enum token never reaches the user.
+      expect(screen.queryByText(new RegExp(`\\b${status}\\b`))).not.toBeInTheDocument();
+    },
+  );
+
+  // U7b — presentation-only derived `Vencida` for a `sent` quote past its
+  // expiration date. The page loader keeps the persisted `status === "sent"`
+  // shape; the `isExpiredSent` derivation runs at the presentation boundary
+  // only and the visible label is mapped via the existing `STATUS_LABEL`
+  // table. Schema/actions/payloads are unchanged.
+  it("renders the Spanish 'Vencida' status label inside 'Solo borradores editables' for a sent quote past expiration", async () => {
+    // Use a "very old" expiration date so the calendar date is strictly past
+    // the test run time, regardless of when this test executes.
+    const record = buildQuoteRecord("sent", "2010-01-01");
+    mocks.getQuote.mockResolvedValue(record);
+    const element = await QuoteEditPage({
+      params: Promise.resolve({ id: QUOTE_ID }),
+    });
+    render(element);
+    expect(screen.getByText(new RegExp("Vencida"))).toBeInTheDocument();
+    // The raw English enum tokens (`sent`, `expired`) never reach the user.
+    expect(screen.queryByText(/\bsent\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bexpired\b/)).not.toBeInTheDocument();
   });
 });
 

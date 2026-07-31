@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --pv-canvas: #fff8f8;
+  --pv-surface: #fffdfd;
+  --pv-surface-raised: #ffffff;
+  --pv-surface-soft: #fceef0;
+  --pv-ink: #33272a;
+  --pv-ink-muted: #67565a;
+  --pv-border-subtle: #e8cdd2;
+  --pv-control: #a87981;
+  --pv-brand: #6f3540;
+  --pv-on-brand: #ffffff;
+  --pv-focus: #7c3a47;
+  --pv-status-success: #365f49;
+  --pv-status-danger: #842f42;
+}
+
+@theme inline {
+  --color-canvas: var(--pv-canvas);
+  --color-surface: var(--pv-surface);
+  --color-surface-raised: var(--pv-surface-raised);
+  --color-surface-soft: var(--pv-surface-soft);
+  --color-ink: var(--pv-ink);
+  --color-ink-muted: var(--pv-ink-muted);
+  --color-border-subtle: var(--pv-border-subtle);
+  --color-control: var(--pv-control);
+  --color-brand: var(--pv-brand);
+  --color-on-brand: var(--pv-on-brand);
+  --color-focus: var(--pv-focus);
+  --color-status-success: var(--pv-status-success);
+  --color-status-danger: var(--pv-status-danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--pv-canvas);
+}
+body {
+  margin: 0;
+  background: var(--pv-canvas);
+  color: var(--pv-ink);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+a,
+button,
+input,
+select,
+textarea {
+  min-height: 44px;
+  min-width: 44px;
+}
+:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 3px;
+}
+.skip-link {
+  position: fixed;
+  z-index: 50;
+  transform: translateY(-150%);
+  background: var(--pv-brand);
+  color: var(--pv-on-brand);
+  padding: 0.75rem 1rem;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}

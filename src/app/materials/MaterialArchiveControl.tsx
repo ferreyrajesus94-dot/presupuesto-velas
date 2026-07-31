@@ -10,7 +10,7 @@ import { useMaterialArchiveFeedback } from "./MaterialsArchiveFeedback";
 import type { MaterialLifecycleOperation } from "./materialLifecycle";
 
 const IDLE: MaterialActionState = { status: "idle" };
-const CONFIRM = (name: string) => `Archive ${name}? You can restore it later.`;
+const CONFIRM = (name: string) => `¿Archivar ${name}? Podés restaurarlo después.`;
 
 type Props = { material: { id: string; name: string; archived: boolean } };
 
@@ -44,8 +44,8 @@ export function MaterialArchiveControl({ material }: Props) {
     startTransition(() => formAction(new FormData(event.currentTarget)));
   }
 
-  const v = material.archived ? "Restore" : "Archive";
-  const pv = material.archived ? "Restoring" : "Archiving";
+  const v = material.archived ? "Restaurar" : "Archivar";
+  const pv = material.archived ? "Restaurando" : "Archivando";
   const accessible = pending ? `${pv} ${material.name}…` : `${v} ${material.name}`;
 
   return (
@@ -56,12 +56,12 @@ export function MaterialArchiveControl({ material }: Props) {
         disabled={pending}
         data-archive-focus={material.archived ? undefined : "next-row"}
         aria-label={accessible}
-        className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-sm font-semibold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center rounded-md border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand transition-colors hover:bg-surface-soft disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? `${pv} ${material.name}…` : v}
       </button>
       {state.status === "error" && state.message ? (
-        <p role="alert" className="text-sm text-rose-800">
+        <p role="alert" className="text-sm text-status-danger">
           {state.message}
         </p>
       ) : null}

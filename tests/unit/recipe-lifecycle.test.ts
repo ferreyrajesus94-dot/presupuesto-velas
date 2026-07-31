@@ -8,13 +8,13 @@ describe("buildRecipeLifecycleCopy", () => {
     // user just performed, not the refreshed prop — same R3-001 mirror as
     // the materials lifecycle helper.
     expect(buildRecipeLifecycleCopy({ operation: "archive", recipeName: "Vanilla candle" })).toBe(
-      "Vanilla candle archived.",
+      "Vanilla candle archivada.",
     );
   });
 
   it("uses the captured restore operation even when the refreshed prop says the recipe is active", () => {
     expect(buildRecipeLifecycleCopy({ operation: "restore", recipeName: "Citrus candle" })).toBe(
-      "Citrus candle restored.",
+      "Citrus candle restaurada.",
     );
   });
 });

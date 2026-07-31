@@ -24,7 +24,7 @@ function FocusMarker({ showArchived = false }: { showArchived?: boolean }) {
   if (showArchived) {
     return (
       <a href="/materials?view=all" data-archive-focus="show-archived">
-        Show archived
+        Mostrar archivados
       </a>
     );
   }
@@ -43,7 +43,7 @@ describe("MaterialsArchiveFeedback provider", () => {
       </MaterialsArchiveFeedback>,
     );
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archivado.");
   });
 
   it("uses the restore copy when the captured operation is restore", async () => {
@@ -53,7 +53,7 @@ describe("MaterialsArchiveFeedback provider", () => {
       </MaterialsArchiveFeedback>,
     );
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax restored.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax restaurado.");
   });
 
   it("survives a child unmount so the status is not lost when the archived row is removed", async () => {
@@ -70,13 +70,13 @@ describe("MaterialsArchiveFeedback provider", () => {
     }
 
     render(<Harness />);
-    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archived.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax archivado.");
 
     await act(async () => {
       screen.getByTestId("drop-child").click();
     });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archived.");
+    expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archivado.");
   });
 
   it("moves focus to the next archive row after a successful archive in active view with remaining rows", async () => {
@@ -88,7 +88,7 @@ describe("MaterialsArchiveFeedback provider", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archived."),
+      expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archivado."),
     );
     await waitFor(() =>
       expect(screen.getByTestId("child").ownerDocument.activeElement).toBe(
@@ -97,7 +97,7 @@ describe("MaterialsArchiveFeedback provider", () => {
     );
   });
 
-  it("moves focus to the Show archived link after a successful archive in active view with no remaining rows", async () => {
+  it("moves focus to the Mostrar archivados link after a successful archive in active view with no remaining rows", async () => {
     render(
       <MaterialsArchiveFeedback view="active" hasRemainingRows={false}>
         <ChildReporter archived={false} />
@@ -106,9 +106,11 @@ describe("MaterialsArchiveFeedback provider", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archived."),
+      expect(screen.getByRole("status")).toHaveTextContent("Coconut wax archivado."),
     );
-    await waitFor(() => expect(screen.getByRole("link", { name: "Show archived" })).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Mostrar archivados" })).toHaveFocus(),
+    );
   });
 
   it("does not move focus on restore in the all view (the row stays mounted)", async () => {
@@ -119,7 +121,9 @@ describe("MaterialsArchiveFeedback provider", () => {
       </MaterialsArchiveFeedback>,
     );
 
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Soy wax restored."));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Soy wax restaurado."),
+    );
     // The status is announced but focus is not moved.
     expect(screen.getByRole("button", { name: "Next row archive" })).not.toHaveFocus();
   });

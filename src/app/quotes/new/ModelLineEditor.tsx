@@ -6,9 +6,8 @@ import { formatArsFromDecimalString } from "@/lib/moneyFormat";
 import type { Recipe } from "@/server/repositories/recipes";
 import type { QuoteDraftFormValues } from "./QuoteCreateForm";
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
-const selectClass = `${controlClass} bg-white`;
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
+const selectClass = controlClass;
 
 type RowErrors = { recipeId?: { message?: string }; quantity?: { message?: string } };
 
@@ -32,10 +31,10 @@ export function ModelLineEditor({
 }) {
   const { fields, remove } = fieldArray;
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
+    <section className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-soft p-4">
       <header className="flex items-center justify-between">
-        <h3 className="font-medium">Modelos</h3>
-        <span className="text-sm text-zinc-700">{fields.length} en la cotización</span>
+        <h3 className="font-medium text-ink">Modelos</h3>
+        <span className="text-sm text-ink-muted">{fields.length} en la cotización</span>
       </header>
       <ol aria-label="Modelos" className="flex flex-col gap-3">
         {fields.map((field, index) => (
@@ -52,7 +51,7 @@ export function ModelLineEditor({
       <button
         type="button"
         onClick={onAppend}
-        className="self-start font-semibold text-rose-900 underline"
+        className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
       >
         Agregar modelo
       </button>
@@ -83,21 +82,21 @@ function ModelRow({
     <li
       aria-label={`Modelo ${index + 1}`}
       data-testid={`quote-model-${index + 1}`}
-      className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-white p-3"
+      className="flex min-w-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3"
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-zinc-700">Modelo {index + 1}</span>
+        <span className="text-sm font-semibold text-ink-muted">Modelo {index + 1}</span>
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Quitar modelo ${index + 1}`}
-          className="font-semibold text-rose-900 underline"
+          className="font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
           Quitar
         </button>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`quote-model-${index}-recipe`} className="font-medium">
+        <label htmlFor={`quote-model-${index}-recipe`} className="font-medium text-ink">
           Receta
         </label>
         <select
@@ -105,7 +104,7 @@ function ModelRow({
           {...control.register(recipeName)}
           aria-describedby={`quote-model-${index}-recipe-error`}
           aria-invalid={Boolean(rowErrors?.recipeId)}
-          className={selectClass}
+          className={`${selectClass} min-w-0`}
         >
           <option value="">Elegí un modelo</option>
           {recipes.map((recipe) => (
@@ -118,7 +117,7 @@ function ModelRow({
           <p
             id={`quote-model-${index}-recipe-error`}
             role="alert"
-            className="text-sm text-rose-800"
+            className="text-sm text-status-danger"
           >
             {rowErrors.recipeId.message}
           </p>
@@ -126,7 +125,7 @@ function ModelRow({
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={`quote-model-${index}-quantity`} className="font-medium">
+          <label htmlFor={`quote-model-${index}-quantity`} className="font-medium text-ink">
             Cantidad
           </label>
           <input
@@ -144,22 +143,22 @@ function ModelRow({
             <p
               id={`quote-model-${index}-quantity-error`}
               role="alert"
-              className="text-sm text-rose-800"
+              className="text-sm text-status-danger"
             >
               {rowErrors.quantity.message}
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col gap-1 text-sm text-zinc-700">
+        <div className="flex flex-col gap-1 text-sm text-ink-muted">
           <span>
             Costo unitario:{" "}
-            <span className="font-semibold">
+            <span className="font-semibold text-ink">
               {selected ? formatArsFromDecimalString(selected.unitCost) : "—"}
             </span>
           </span>
           <span>
             Total línea:{" "}
-            <span className="font-semibold">
+            <span className="font-semibold text-ink">
               {lineTotal !== null ? formatArsFromDecimalString(lineTotal) : "—"}
             </span>
           </span>

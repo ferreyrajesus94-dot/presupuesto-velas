@@ -42,7 +42,7 @@ describe("MaterialArchiveControl lifecycle reporting", () => {
     const confirmSpy = mockConfirm(true);
     const { rerender } = render(<MaterialArchiveControl material={ACTIVE} />);
 
-    await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
+    await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
 
     // Simulate post-revalidation re-render where the same material is now archived.
     rerender(
@@ -62,7 +62,7 @@ describe("MaterialArchiveControl lifecycle reporting", () => {
     const user = userEvent.setup();
     const { rerender } = render(<MaterialArchiveControl material={ARCHIVED} />);
 
-    await user.click(screen.getByRole("button", { name: "Restore Soy wax" }));
+    await user.click(screen.getByRole("button", { name: "Restaurar Soy wax" }));
 
     rerender(
       <MaterialArchiveControl
@@ -83,7 +83,7 @@ describe("MaterialArchiveControl lifecycle reporting", () => {
     const confirmSpy = mockConfirm(true);
     render(<MaterialArchiveControl material={ACTIVE} />);
 
-    await user.click(screen.getByRole("button", { name: "Archive Coconut wax" }));
+    await user.click(screen.getByRole("button", { name: "Archivar Coconut wax" }));
 
     expect(mocks.reportLifecycle).toHaveBeenCalled();
     // The control itself must NOT render the role=status region to avoid

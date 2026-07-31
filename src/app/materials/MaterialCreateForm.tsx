@@ -20,9 +20,9 @@ export const blankMaterialValues: MaterialInput = {
   purchasePrice: "",
 };
 
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
-const selectClass = `${controlClass} bg-white`;
+// U4: rosa-crema tokens; focus/touch targets inherit from globals.css.
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
+const selectClass = controlClass;
 type MaterialFormErrors = FieldErrors<MaterialInput> & {
   unitCost?: { message?: string };
 };
@@ -55,7 +55,7 @@ function options(values: readonly string[]) {
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="text-sm text-rose-800">
+    <p id={id} role="alert" className="text-sm text-status-danger">
       {message}
     </p>
   );
@@ -65,12 +65,12 @@ export function MaterialForm({
   action = createMaterialAction,
   defaultValues = blankMaterialValues,
   idPrefix = "",
-  title = "Add a material",
+  title = "Agregar material",
   labelSuffix = "",
   hiddenFields,
-  submitLabel = "Create material",
-  pendingLabel = "Creating material…",
-  successMessage = "Material created.",
+  submitLabel = "Crear material",
+  pendingLabel = "Creando material…",
+  successMessage = "Material creado.",
   onSuccess,
 }: MaterialFormProps) {
   const sectionId = idPrefix || "new-material";
@@ -138,7 +138,7 @@ export function MaterialForm({
     <section
       id={sectionId}
       aria-labelledby={`${sectionId}-heading`}
-      className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
       <h2 id={`${sectionId}-heading`} className="text-xl font-semibold">
         {title}
@@ -155,7 +155,7 @@ export function MaterialForm({
             ))
           : null}
         <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("name")}>
-          {label("Name")}
+          {label("Nombre")}
           <input
             id={inputId("name")}
             {...register("name")}
@@ -165,14 +165,14 @@ export function MaterialForm({
           <FieldError id={errorId("name")} message={messageFor("name")} />
         </label>
         <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("dimension")}>
-          {label("Dimension")}
+          {label("Dimensión")}
           <select id={inputId("dimension")} {...register("dimension")} className={selectClass}>
             {options(DIMENSIONS)}
           </select>
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("base-unit")}>
-            {label("Base unit")}
+            {label("Unidad base")}
             <select
               id={inputId("base-unit")}
               {...register("baseUnit")}
@@ -184,7 +184,7 @@ export function MaterialForm({
             <FieldError id={errorId("base-unit")} message={messageFor("baseUnit")} />
           </label>
           <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-unit")}>
-            {label("Purchase unit")}
+            {label("Unidad de compra")}
             <select
               id={inputId("purchase-unit")}
               {...register("purchaseUnit")}
@@ -197,7 +197,7 @@ export function MaterialForm({
           </label>
         </div>
         <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-quantity")}>
-          {label("Purchase quantity")}
+          {label("Cantidad de compra")}
           <input
             id={inputId("purchase-quantity")}
             type="number"
@@ -211,7 +211,7 @@ export function MaterialForm({
           <FieldError id={errorId("purchase-quantity")} message={messageFor("purchaseQuantity")} />
         </label>
         <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-price")}>
-          {label("Purchase price (ARS)")}
+          {label("Precio de compra (ARS)")}
           <input
             id={inputId("purchase-price")}
             type="number"
@@ -229,20 +229,20 @@ export function MaterialForm({
           <p
             role={state.status === "error" ? "alert" : "status"}
             aria-live="polite"
-            className="text-sm text-rose-800"
+            className="text-sm text-status-danger"
           >
             {state.message}
           </p>
         ) : null}
         {state.status === "success" ? (
-          <p role="status" aria-live="polite" className="text-sm text-emerald-800">
+          <p role="status" aria-live="polite" className="text-sm text-status-success">
             {successMessage}
           </p>
         ) : null}
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-brand px-4 text-base font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
         >
           {pending ? pendingLabel : submitLabel}
         </button>

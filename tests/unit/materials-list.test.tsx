@@ -70,9 +70,9 @@ it("shows an actionable empty state when the owner has no materials", async () =
 
   render(await MaterialsPage(pageProps()));
 
-  expect(screen.getByRole("heading", { name: "Materials" })).toBeInTheDocument();
-  expect(screen.getByText("No materials yet")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Add your first material" })).toHaveAttribute(
+  expect(screen.getByRole("heading", { name: "Materiales" })).toBeInTheDocument();
+  expect(screen.getByText("No hay materiales todavía")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Agregá tu primer material" })).toHaveAttribute(
     "href",
     "#new-material",
   );
@@ -87,15 +87,17 @@ it("shows a view-aware empty state when active list is empty but archived record
 
   render(await MaterialsPage(pageProps()));
 
-  expect(screen.getByRole("heading", { name: "No active materials" })).toBeInTheDocument();
-  expect(screen.getByText("3 materials are archived and hidden in this view.")).toBeInTheDocument();
-  const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+  expect(screen.getByRole("heading", { name: "No hay materiales activos" })).toBeInTheDocument();
+  expect(
+    screen.getByText("3 materiales están archivados y ocultos en esta vista."),
+  ).toBeInTheDocument();
+  const showArchivedLinks = screen.getAllByRole("link", { name: /Mostrar archivados/ });
   expect(showArchivedLinks.length).toBeGreaterThanOrEqual(1);
   expect(
     showArchivedLinks.find((link) => link.getAttribute("href") === "/materials?view=all"),
   ).toBeDefined();
-  expect(screen.queryByText("No materials yet")).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "Add your first material" })).not.toBeInTheDocument();
+  expect(screen.queryByText("No hay materiales todavía")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Agregá tu primer material" })).not.toBeInTheDocument();
   expect(mocks.countArchivedMaterials).toHaveBeenCalledWith("owner-1");
 });
 
@@ -105,7 +107,7 @@ it("uses singular copy when only one archived material exists", async () => {
 
   render(await MaterialsPage(pageProps()));
 
-  expect(screen.getByText("1 material is archived and hidden in this view.")).toBeInTheDocument();
+  expect(screen.getByText("1 material está archivado y oculto en esta vista.")).toBeInTheDocument();
 });
 
 it("does not query archived count when active list is non-empty", async () => {
@@ -123,8 +125,8 @@ it("does not query archived count in the all view even when the list is empty", 
 
   render(await MaterialsPage(pageProps("all")));
 
-  // All view shows "No materials yet" because nothing exists at all.
-  expect(screen.getByText("No materials yet")).toBeInTheDocument();
+  // All view shows "No hay materiales todavía" because nothing exists at all.
+  expect(screen.getByText("No hay materiales todavía")).toBeInTheDocument();
   expect(mocks.countArchivedMaterials).not.toHaveBeenCalled();
 });
 
@@ -134,12 +136,15 @@ it("renders current materials, hides archived by default, and exposes the filter
   render(await MaterialsPage(pageProps()));
 
   expect(screen.getByRole("listitem")).toHaveTextContent("Soy wax");
-  expect(screen.getByRole("listitem")).toHaveTextContent("ARS 10 per g");
+  expect(screen.getByRole("listitem")).toHaveTextContent("ARS 10 por g");
   expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
-  const nav = screen.getByRole("navigation", { name: "Material view filter" });
-  expect(within(nav).getByRole("link", { name: /Active/ })).toHaveAttribute("href", "/materials");
-  expect(within(nav).getByRole("link", { name: /Active/ })).toHaveAttribute("aria-current", "page");
-  expect(within(nav).getByRole("link", { name: /Show archived/ })).toHaveAttribute(
+  const nav = screen.getByRole("navigation", { name: /filtro de vista de materiales/i });
+  expect(within(nav).getByRole("link", { name: /Activos/ })).toHaveAttribute("href", "/materials");
+  expect(within(nav).getByRole("link", { name: /Activos/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(within(nav).getByRole("link", { name: /Mostrar archivados/ })).toHaveAttribute(
     "href",
     "/materials?view=all",
   );
@@ -151,31 +156,31 @@ it("shows archived materials with restore controls, a badge, and the all view as
   render(await MaterialsPage(pageProps("all")));
 
   expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: true });
-  expect(screen.getByRole("button", { name: "Archive Soy wax" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Restore Coconut wax" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Edit material: Soy wax" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Archivar Soy wax" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Restaurar Coconut wax" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Editar material: Soy wax" })).toBeInTheDocument();
   expect(
-    screen.queryByRole("heading", { name: "Edit material: Coconut wax" }),
+    screen.queryByRole("heading", { name: "Editar material: Coconut wax" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archived");
-  expect(screen.getByRole("link", { name: /Show archived/ })).toHaveAttribute(
+  expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archivado");
+  expect(screen.getByRole("link", { name: /Mostrar archivados/ })).toHaveAttribute(
     "aria-current",
     "page",
   );
 });
 
 async function fillMaterialForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Name"), "Soy wax");
-  await user.selectOptions(screen.getByLabelText("Purchase unit"), "kg");
-  await user.type(screen.getByLabelText("Purchase quantity"), "1");
-  await user.type(screen.getByLabelText("Purchase price (ARS)"), "10000");
+  await user.type(screen.getByLabelText("Nombre"), "Soy wax");
+  await user.selectOptions(screen.getByLabelText("Unidad de compra"), "kg");
+  await user.type(screen.getByLabelText("Cantidad de compra"), "1");
+  await user.type(screen.getByLabelText("Precio de compra (ARS)"), "10000");
 }
 
 it("validates with Zod before invoking the Server Action", async () => {
   const user = userEvent.setup();
   render(<MaterialCreateForm />);
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
 
   expect(await screen.findByText("Name is required")).toBeInTheDocument();
   expect(mocks.createMaterialAction).not.toHaveBeenCalled();
@@ -184,12 +189,12 @@ it("validates with Zod before invoking the Server Action", async () => {
 it("shows and focuses a client-derived unit-cost error before invoking the Server Action", async () => {
   const user = userEvent.setup();
   render(<MaterialCreateForm />);
-  await user.type(screen.getByLabelText("Name"), "Soy wax");
-  await user.type(screen.getByLabelText("Purchase quantity"), "0.000001");
-  const price = screen.getByLabelText("Purchase price (ARS)");
+  await user.type(screen.getByLabelText("Nombre"), "Soy wax");
+  await user.type(screen.getByLabelText("Cantidad de compra"), "0.000001");
+  const price = screen.getByLabelText("Precio de compra (ARS)");
   await user.type(price, "1000000000000000");
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Derived unit cost cannot be represented at database precision",
@@ -204,14 +209,14 @@ it("submits FormData to the Server Action and reports success", async () => {
   render(<MaterialCreateForm />);
   await fillMaterialForm(user);
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
 
   expect(mocks.createMaterialAction).toHaveBeenCalledTimes(1);
   const submitted = mocks.createMaterialAction.mock.calls[0][1] as FormData;
   expect(submitted.get("name")).toBe("Soy wax");
   expect(submitted.get("purchaseUnit")).toBe("kg");
   expect(submitted.get("purchasePrice")).toBe("10000");
-  expect(await screen.findByRole("status")).toHaveTextContent("Material created.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Material creado.");
 });
 
 it("shows pending feedback and the derived-cost error returned by the server", async () => {
@@ -226,8 +231,8 @@ it("shows pending feedback and the derived-cost error returned by the server", a
   render(<MaterialCreateForm />);
   await fillMaterialForm(user);
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
-  expect(await screen.findByRole("button", { name: "Creating material…" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
+  expect(await screen.findByRole("button", { name: "Creando material…" })).toBeDisabled();
   resolveAction({
     status: "error",
     fieldErrors: { unitCost: ["Derived unit cost cannot be represented at database precision"] },
@@ -236,7 +241,7 @@ it("shows pending feedback and the derived-cost error returned by the server", a
   expect(
     await screen.findByText("Derived unit cost cannot be represented at database precision"),
   ).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByLabelText("Purchase price (ARS)")).toHaveFocus());
+  await waitFor(() => expect(screen.getByLabelText("Precio de compra (ARS)")).toHaveFocus());
 });
 
 it("resets the form after a successful create without dispatching a duplicate action", async () => {
@@ -244,17 +249,17 @@ it("resets the form after a successful create without dispatching a duplicate ac
   render(<MaterialCreateForm />);
   await fillMaterialForm(user);
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
 
-  expect(await screen.findByRole("status")).toHaveTextContent("Material created.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Material creado.");
   expect(mocks.createMaterialAction).toHaveBeenCalledTimes(1);
   await waitFor(() => {
-    expect(screen.getByLabelText("Name")).toHaveValue("");
-    expect(screen.getByLabelText("Dimension")).toHaveValue("mass");
-    expect(screen.getByLabelText("Base unit")).toHaveValue("g");
-    expect(screen.getByLabelText("Purchase unit")).toHaveValue("g");
-    expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
-    expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+    expect(screen.getByLabelText("Nombre")).toHaveValue("");
+    expect(screen.getByLabelText("Dimensión")).toHaveValue("mass");
+    expect(screen.getByLabelText("Unidad base")).toHaveValue("g");
+    expect(screen.getByLabelText("Unidad de compra")).toHaveValue("g");
+    expect(screen.getByLabelText("Cantidad de compra")).toHaveValue(null);
+    expect(screen.getByLabelText("Precio de compra (ARS)")).toHaveValue(null);
   });
 });
 
@@ -266,17 +271,17 @@ it("resets again after a later successful create", async () => {
   render(<MaterialCreateForm />);
 
   await fillMaterialForm(user);
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
   await waitFor(() => expect(mocks.createMaterialAction).toHaveBeenCalledTimes(1));
 
   await fillMaterialForm(user);
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
   await waitFor(() => expect(mocks.createMaterialAction).toHaveBeenCalledTimes(2));
 
   await waitFor(() => {
-    expect(screen.getByLabelText("Name")).toHaveValue("");
-    expect(screen.getByLabelText("Purchase quantity")).toHaveValue(null);
-    expect(screen.getByLabelText("Purchase price (ARS)")).toHaveValue(null);
+    expect(screen.getByLabelText("Nombre")).toHaveValue("");
+    expect(screen.getByLabelText("Cantidad de compra")).toHaveValue(null);
+    expect(screen.getByLabelText("Precio de compra (ARS)")).toHaveValue(null);
   });
 });
 
@@ -289,10 +294,10 @@ it("does not steal focus on unrelated rerenders after a server unit-cost error",
   render(<MaterialCreateForm />);
   await fillMaterialForm(user);
 
-  await user.click(screen.getByRole("button", { name: "Create material" }));
+  await user.click(screen.getByRole("button", { name: "Crear material" }));
   await screen.findByText("Derived unit cost cannot be represented at database precision");
 
-  const name = screen.getByLabelText("Name");
+  const name = screen.getByLabelText("Nombre");
   await user.click(name);
   await user.type(name, " updated");
 
@@ -329,8 +334,8 @@ describe("R3-003 page-level lifecycle composition", () => {
     const first = await MaterialsPage(pageProps());
     const { rerender } = render(first);
 
-    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+    await user.click(screen.getByRole("button", { name: "Archivar Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archivado.");
 
     // Simulate the post-revalidation render: the active list is now empty
     // and the owner has one archived material, so the page transitions to
@@ -340,10 +345,10 @@ describe("R3-003 page-level lifecycle composition", () => {
     rerender(await MaterialsPage(pageProps()));
 
     // The persistent success announcement must survive the transition.
-    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
-    // Focus must move to a "Show archived" affordance (nav or empty-state
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archivado.");
+    // Focus must move to a "Mostrar archivados" affordance (nav or empty-state
     // link), not be lost on body.
-    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Mostrar archivados/ });
     expect(showArchivedLinks.length).toBeGreaterThan(0);
     expect(showArchivedLinks.some((link) => link === document.activeElement)).toBe(true);
     confirmSpy.mockRestore();
@@ -373,17 +378,17 @@ describe("R3-003 page-level lifecycle composition", () => {
     const first = await MaterialsPage(pageProps());
     const { rerender } = render(first);
 
-    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+    await user.click(screen.getByRole("button", { name: "Archivar Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archivado.");
 
     // Post-revalidation: Soy wax archived, Coconut wax remains active.
     mocks.listMaterials.mockResolvedValue([otherActive]);
     rerender(await MaterialsPage(pageProps()));
 
     // Status persists across the transition.
-    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archivado.");
     // The remaining row's archive button is still rendered.
-    expect(screen.getByRole("button", { name: "Archive Coconut wax" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Coconut wax" })).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 
@@ -416,22 +421,22 @@ describe("R3-003 page-level lifecycle composition", () => {
     const first = await MaterialsPage(pageProps());
     const { rerender } = render(first);
 
-    expect(screen.getByRole("button", { name: "Archive Soy wax" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Archive Coconut wax" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Soy wax" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archivar Coconut wax" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Archive Soy wax" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archived.");
+    await user.click(screen.getByRole("button", { name: "Archivar Soy wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Soy wax archivado.");
 
     // Post-revalidation: Soy wax archived, Coconut wax remains active.
     mocks.listMaterials.mockResolvedValue([otherActive]);
     rerender(await MaterialsPage(pageProps()));
 
     // Status persists across the transition.
-    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archived.");
+    expect(screen.getByRole("status")).toHaveTextContent("Soy wax archivado.");
     // The first row was archived and removed; the remaining row's archive
     // button must receive focus so the keyboard cursor does not get lost
     // on the unmounted departing row.
-    const remaining = screen.getByRole("button", { name: "Archive Coconut wax" });
+    const remaining = screen.getByRole("button", { name: "Archivar Coconut wax" });
     expect(remaining).toBeInTheDocument();
     await waitFor(() => expect(remaining).toHaveFocus());
     confirmSpy.mockRestore();
@@ -452,19 +457,39 @@ describe("R3-003 page-level lifecycle composition", () => {
     const first = await MaterialsPage(pageProps("all"));
     const { rerender } = render(first);
 
-    await user.click(screen.getByRole("button", { name: "Restore Coconut wax" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax restored.");
+    await user.click(screen.getByRole("button", { name: "Restaurar Coconut wax" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Coconut wax restaurado.");
 
     // The list is unchanged in the all view (restore doesn't remove rows).
     rerender(await MaterialsPage(pageProps("all")));
 
     // Status persists.
-    expect(screen.getByRole("status")).toHaveTextContent("Coconut wax restored.");
-    // Focus must NOT be on a "Show archived" link — restore keeps the row
+    expect(screen.getByRole("status")).toHaveTextContent("Coconut wax restaurado.");
+    // Focus must NOT be on a "Mostrar archivados" link — restore keeps the row
     // mounted, so the provider's focus effect must early-return.
-    const showArchivedLinks = screen.getAllByRole("link", { name: /Show archived/ });
+    const showArchivedLinks = screen.getAllByRole("link", { name: /Mostrar archivados/ });
     showArchivedLinks.forEach((link) => {
       expect(link).not.toBe(document.activeElement);
     });
+  });
+});
+
+// U4 — presentation contract: rosa-crema tokens only, no nested <main>.
+describe("U4 /materials presentation contract", () => {
+  // Spec forbids raw zinc/rose outside token-definition files.
+  const FORBIDDEN_RAW = ["bg-zinc-", "border-rose-", "bg-rose-"] as const;
+
+  it("does not nest a <main> element so the root layout keeps a single skip-link target", async () => {
+    const view = render(await MaterialsPage(pageProps()));
+    expect(view.container.querySelector("main")).toBeNull();
+  });
+
+  it("uses rosa-crema tokens only (bg-canvas present, no raw zinc/rose utilities)", async () => {
+    const view = render(await MaterialsPage(pageProps()));
+    const html = view.container.innerHTML;
+    expect(html).toMatch(/\bbg-canvas\b/);
+    for (const forbidden of FORBIDDEN_RAW) {
+      expect(html).not.toContain(forbidden);
+    }
   });
 });

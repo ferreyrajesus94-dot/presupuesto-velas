@@ -19,17 +19,20 @@ export default async function NewQuotePage() {
     .filter(({ recipe }) => recipe.archivedAt === null)
     .map(({ recipe }) => recipe);
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-[#fffaf5] px-4 py-8 text-zinc-900 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav>
-        <Link href="/quotes" className="font-semibold text-rose-900 underline">
+        <Link
+          href="/quotes"
+          className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+        >
           ← Cotizaciones
         </Link>
       </nav>
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-800">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold">Nueva cotización</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink">Nueva cotización</h1>
       </header>
       <QuoteCreateForm recipes={activeRecipes} />
     </main>

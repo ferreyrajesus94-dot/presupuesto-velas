@@ -17,12 +17,12 @@ export function MaterialEditForm({ material }: { material: MaterialListItem }) {
         purchasePrice: material.purchasePrice,
       }}
       idPrefix={`edit-${material.id}`}
-      title={`Edit material: ${material.name}`}
-      labelSuffix={` for ${material.name}`}
+      title={`Editar material: ${material.name}`}
+      labelSuffix={` para ${material.name}`}
       hiddenFields={{ id: material.id }}
-      submitLabel="Save material"
-      pendingLabel="Saving material…"
-      successMessage="Material updated."
+      submitLabel="Guardar material"
+      pendingLabel="Guardando material…"
+      successMessage="Material actualizado."
     />
   );
 }

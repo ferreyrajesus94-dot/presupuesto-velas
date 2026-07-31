@@ -26,15 +26,20 @@ export function QuoteShareLinks({
   }
 
   return (
-    <section aria-label="Compartir cotización" className="flex flex-col gap-2">
+    <section
+      aria-label="Compartir cotización"
+      className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm"
+    >
       {oversized ? (
-        <p role="alert">Mensaje demasiado largo para WhatsApp</p>
+        <p role="alert" className="text-status-danger">
+          Mensaje demasiado largo para WhatsApp
+        </p>
       ) : (
         <a
           href={buildWhatsAppShareUrl(quote, visibility)}
           target="_blank"
           rel="noreferrer"
-          className="font-semibold text-rose-900 underline"
+          className="inline-flex min-h-11 items-center break-words font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
           Compartir por WhatsApp
         </a>
@@ -42,11 +47,11 @@ export function QuoteShareLinks({
       <button
         type="button"
         onClick={copyText}
-        className="self-start rounded-lg border border-rose-900 px-4 py-2 font-semibold text-rose-900"
+        className="self-start rounded-md border border-border-subtle bg-surface-raised px-4 py-2 font-semibold text-brand transition-colors hover:bg-surface-soft disabled:opacity-60"
       >
         Copiar texto
       </button>
-      <p role="status" aria-live="polite" className="text-sm text-zinc-700">
+      <p role="status" aria-live="polite" className="text-sm text-ink-muted">
         {copyFeedback}
       </p>
     </section>

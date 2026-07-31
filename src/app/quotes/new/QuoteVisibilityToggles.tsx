@@ -10,13 +10,13 @@ export function QuoteVisibilityToggles({
   register: UseFormRegister<QuoteDraftFormValues>;
 }) {
   return (
-    <fieldset className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
-      <legend className="px-1 font-medium">Visibilidad</legend>
-      <label className="flex items-center gap-2">
+    <fieldset className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-4">
+      <legend className="px-1 font-medium text-ink">Visibilidad</legend>
+      <label className="flex items-center gap-2 text-ink">
         <input type="checkbox" {...register("visibility.internalCost")} />
         <span>Mostrar costo interno</span>
       </label>
-      <label className="flex items-center gap-2">
+      <label className="flex items-center gap-2 text-ink">
         <input type="checkbox" {...register("visibility.profitMargin")} />
         <span>Mostrar margen de ganancia</span>
       </label>

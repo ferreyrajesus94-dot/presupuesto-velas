@@ -8,16 +8,15 @@ import { UNITS_BY_DIMENSION, getUnitDimension, type Unit } from "@/domain/units"
 import { recipeInputSchema, type RecipeInput } from "@/server/validation/recipeSchema";
 
 export type RecipeMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
-const controlClass =
-  "rounded-lg border border-zinc-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700";
-const selectClass = `${controlClass} bg-white`;
+const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
+const selectClass = controlClass;
 const blankItem: RecipeInput["items"][number] = { materialId: "", quantity: "", unit: "g" as Unit };
 const blankValues: RecipeInput = { name: "", items: [blankItem] };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="text-sm text-rose-800">
+    <p id={id} role="alert" className="text-sm text-status-danger">
       {message}
     </p>
   );
@@ -75,15 +74,16 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
   }
   const itemErrors = errors.items as
     Array<FieldErrors<RecipeInput["items"][number]> | undefined> | undefined;
-  const nameMessage = errors.name?.message?.toString() ?? state.fieldErrors?.name?.[0];
+  const hasNameError = Boolean(errors.name?.message ?? state.fieldErrors?.name?.[0]);
+  const nameMessage = hasNameError ? "Ingresá un nombre para la receta." : undefined;
   return (
     <section
       id="new-recipe"
       aria-labelledby="new-recipe-heading"
-      className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
-      <h2 id="new-recipe-heading" className="text-xl font-semibold">
-        Create recipe
+      <h2 id="new-recipe-heading" className="text-xl font-semibold text-ink">
+        Nueva receta
       </h2>
       <form
         onSubmit={handleSubmit(submit)}
@@ -92,8 +92,8 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
         className="mt-5 flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
-          <label className="font-medium" htmlFor="recipe-name">
-            Name
+          <label className="font-medium text-ink" htmlFor="recipe-name">
+            Nombre
           </label>
           <input
             id="recipe-name"
@@ -104,7 +104,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
           />
           <FieldError id="recipe-name-error" message={nameMessage} />
         </div>
-        <ol aria-label="Recipe materials" className="flex flex-col gap-3">
+        <ol aria-label="Ingredientes de la receta" className="flex flex-col gap-3">
           {fields.map((field, index) => {
             const item = watchedItems[index] ?? blankItem;
             const material = sortedMaterials.find((option) => option.id === item.materialId);
@@ -113,33 +113,39 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
               : UNITS_BY_DIMENSION.mass;
             const rowErrors = itemErrors?.[index];
             const materialMessage =
-              rowErrors?.materialId?.message?.toString() ??
-              serverItemMessage(state, index, "materialId");
+              (rowErrors?.materialId?.message ?? serverItemMessage(state, index, "materialId"))
+                ? "Seleccioná un material disponible."
+                : undefined;
             const quantityMessage =
-              rowErrors?.quantity?.message?.toString() ??
-              serverItemMessage(state, index, "quantity");
+              (rowErrors?.quantity?.message ?? serverItemMessage(state, index, "quantity"))
+                ? "Ingresá una cantidad válida mayor que cero, con hasta 6 decimales."
+                : undefined;
             const unitMessage =
-              rowErrors?.unit?.message?.toString() ?? serverItemMessage(state, index, "unit");
+              (rowErrors?.unit?.message ?? serverItemMessage(state, index, "unit"))
+                ? "Seleccioná una unidad válida para el material."
+                : undefined;
             return (
               <li
                 key={field.id}
-                aria-label={`Item ${index + 1}`}
+                aria-label={`Ingrediente ${index + 1}`}
                 data-testid={`recipe-item-${index + 1}`}
-                className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/40 p-3"
+                className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-soft p-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-zinc-700">Item {index + 1}</span>
+                  <span className="text-sm font-semibold text-ink-muted">
+                    Ingrediente {index + 1}
+                  </span>
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    aria-label={`Remove item ${index + 1}`}
-                    className="font-semibold text-rose-900 underline"
+                    aria-label={`Quitar ingrediente ${index + 1}`}
+                    className="font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
                   >
-                    Remove
+                    Quitar
                   </button>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-medium" htmlFor={`recipe-item-${index}-material`}>
+                  <label className="font-medium text-ink" htmlFor={`recipe-item-${index}-material`}>
                     Material
                   </label>
                   <select
@@ -150,7 +156,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                     aria-invalid={Boolean(materialMessage)}
                     className={selectClass}
                   >
-                    <option value="">Select a material</option>
+                    <option value="">Seleccioná un material</option>
                     {sortedMaterials.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.name}
@@ -164,8 +170,11 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
-                    <label className="font-medium" htmlFor={`recipe-item-${index}-quantity`}>
-                      Quantity
+                    <label
+                      className="font-medium text-ink"
+                      htmlFor={`recipe-item-${index}-quantity`}
+                    >
+                      Cantidad
                     </label>
                     <input
                       id={`recipe-item-${index}-quantity`}
@@ -184,8 +193,8 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-medium" htmlFor={`recipe-item-${index}-unit`}>
-                      Unit
+                    <label className="font-medium text-ink" htmlFor={`recipe-item-${index}-unit`}>
+                      Unidad
                     </label>
                     <select
                       id={`recipe-item-${index}-unit`}
@@ -208,31 +217,31 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
           })}
         </ol>
         {errors.items?.root?.message ? (
-          <FieldError id="recipe-items-error" message={errors.items.root.message.toString()} />
+          <FieldError id="recipe-items-error" message="Agregá al menos un ingrediente." />
         ) : null}
         <button
           type="button"
           onClick={() => append(blankItem)}
-          className="self-start font-semibold text-rose-900 underline"
+          className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
-          Add recipe item
+          Agregar ingrediente
         </button>
         {state.message && state.status !== "success" ? (
-          <p role="alert" aria-live="polite" className="text-sm text-rose-800">
-            {state.message}
+          <p role="alert" aria-live="polite" className="text-sm text-status-danger">
+            No se pudo crear la receta.
           </p>
         ) : null}
         {state.status === "success" ? (
-          <p role="status" aria-live="polite" className="text-sm text-emerald-800">
-            Recipe created.
+          <p role="status" aria-live="polite" className="text-sm text-status-success">
+            Receta creada.
           </p>
         ) : null}
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-rose-900 px-4 py-2.5 font-semibold text-white transition-opacity hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:cursor-wait disabled:opacity-60"
+          className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
         >
-          {pending ? "Creating recipe…" : "Create recipe"}
+          {pending ? "Creando receta…" : "Crear receta"}
         </button>
       </form>
     </section>

@@ -18,7 +18,7 @@ export function QuoteViewFilter({ current }: { current: QuoteView }) {
   }
 
   return (
-    <nav aria-label="Vista de cotizaciones" className="flex gap-2">
+    <nav aria-label="Vista de cotizaciones" className="flex flex-wrap gap-2">
       {(["active", "archived"] as const).map((view) => (
         <button
           key={view}
@@ -27,8 +27,8 @@ export function QuoteViewFilter({ current }: { current: QuoteView }) {
           onClick={() => select(view)}
           className={
             selected === view
-              ? "rounded-full bg-rose-900 px-3 py-1.5 text-sm font-semibold text-white"
-              : "rounded-full border border-rose-300 bg-white px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-50"
+              ? "inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand"
+              : "inline-flex min-h-11 items-center rounded-full border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand hover:bg-surface-soft"
           }
         >
           {view === "active" ? "Activas" : "Archivadas"}

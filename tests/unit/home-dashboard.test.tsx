@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   owner: { id: "owner-1", email: "owner@calculadora-flor.invalid" },
   listMaterials: vi.fn(),
-  listRecipes: vi.fn(),
+  listTemplates: vi.fn(),
   listQuotes: vi.fn(),
 }));
 
@@ -12,8 +12,8 @@ vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: () => Promise.resol
 vi.mock("@/server/repositories/materials", () => ({
   listMaterials: (...args: unknown[]) => mocks.listMaterials(...args),
 }));
-vi.mock("@/server/repositories/recipes", () => ({
-  listRecipes: (...args: unknown[]) => mocks.listRecipes(...args),
+vi.mock("@/server/repositories/templates", () => ({
+  listTemplates: (...args: unknown[]) => mocks.listTemplates(...args),
 }));
 vi.mock("@/server/repositories/quotes", () => ({
   listQuotes: (...args: unknown[]) => mocks.listQuotes(...args),
@@ -48,7 +48,7 @@ function deferred<T>() {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.listMaterials.mockResolvedValue([]);
-  mocks.listRecipes.mockResolvedValue([]);
+  mocks.listTemplates.mockResolvedValue([]);
   mocks.listQuotes.mockResolvedValue([]);
 });
 
@@ -69,7 +69,10 @@ describe("Home dashboard", () => {
       "href",
       "/materials",
     );
-    expect(screen.getByRole("link", { name: /Ver recetas/i })).toHaveAttribute("href", "/recipes");
+    expect(screen.getByRole("link", { name: /Ver plantillas/i })).toHaveAttribute(
+      "href",
+      "/templates",
+    );
     expect(screen.getByRole("link", { name: /Nueva cotización/i })).toHaveAttribute(
       "href",
       "/quotes/new",
@@ -78,26 +81,26 @@ describe("Home dashboard", () => {
 
   it("starts all three owner-scoped reads before any one resolves", async () => {
     const materials = deferred<unknown[]>();
-    const recipes = deferred<unknown[]>();
+    const templates = deferred<unknown[]>();
     const quotes = deferred<unknown[]>();
     mocks.listMaterials.mockReturnValue(materials.promise);
-    mocks.listRecipes.mockReturnValue(recipes.promise);
+    mocks.listTemplates.mockReturnValue(templates.promise);
     mocks.listQuotes.mockReturnValue(quotes.promise);
 
     const home = Home();
     await Promise.resolve();
     expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1");
-    expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1");
+    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1");
     expect(mocks.listQuotes).toHaveBeenCalledWith("owner-1");
     materials.resolve([]);
-    recipes.resolve([]);
+    templates.resolve([]);
     quotes.resolve([]);
     render(await home);
   });
 
   it("shows real counts derived from the returned repository data", async () => {
     mocks.listMaterials.mockResolvedValue([{ id: "m1" }, { id: "m2" }, { id: "m3" }]);
-    mocks.listRecipes.mockResolvedValue([{ recipe: { id: "r1" }, items: [] }]);
+    mocks.listTemplates.mockResolvedValue([{ template: { id: "r1" }, items: [] }]);
     mocks.listQuotes.mockResolvedValue([
       makeQuote({
         id: "q1",
@@ -112,7 +115,7 @@ describe("Home dashboard", () => {
     ]);
     render(await Home());
     expect(screen.getByLabelText("3 materiales")).toBeInTheDocument();
-    expect(screen.getByLabelText("1 receta")).toBeInTheDocument();
+    expect(screen.getByLabelText("1 plantilla")).toBeInTheDocument();
     expect(screen.getByLabelText("2 cotizaciones activas")).toBeInTheDocument();
   });
 
@@ -125,7 +128,10 @@ describe("Home dashboard", () => {
       "href",
       "/materials",
     );
-    expect(screen.getByRole("link", { name: /Ir a Recetas/i })).toHaveAttribute("href", "/recipes");
+    expect(screen.getByRole("link", { name: /Ir a Plantillas/i })).toHaveAttribute(
+      "href",
+      "/templates",
+    );
     expect(screen.getByRole("link", { name: /Crear cotización/i })).toHaveAttribute(
       "href",
       "/quotes/new",

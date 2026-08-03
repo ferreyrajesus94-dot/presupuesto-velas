@@ -98,7 +98,7 @@ export async function createQuoteDraftAction(
  * `expectedLockVersion` via `quoteVersionInputSchema`, builds the
  * immutable snapshot, then runs the optimistic-concurrency append
  * transaction. The form layer resolves each model's `perUnitCostDecimal`
- * from the recipes catalog before invoking this action (PR4g wires the
+ * from the templates catalog before invoking this action (PR4g wires the
  * form-side lookup; see the cast below).
  */
 export async function appendQuoteVersionAction(

@@ -77,7 +77,7 @@ const snap2 = (): QuoteSnapshot =>
 // (1 if indirects) + 1 UPDATE returning + 1 SELECT quote_versions.
 function q(
   qo: Record<string, unknown>,
-  recipes: unknown[],
+  templates: unknown[],
   items: unknown[],
   materials: unknown[],
   modelCount: number,
@@ -88,7 +88,7 @@ function q(
   const l = ((qo.lockVersion ?? 0) as number) + 1;
   return [
     [quote(qo)],
-    recipes,
+    templates,
     items,
     materials,
     [],

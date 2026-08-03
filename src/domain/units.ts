@@ -2,7 +2,7 @@ import { Decimal } from "decimal.js";
 import { decimal } from "./decimal";
 
 /**
- * Domain units used by materials, recipes, and quotes. Every unit belongs to
+ * Domain units used by materials, templates, and quotes. Every unit belongs to
  * exactly one dimension. Cross-dimension arithmetic is rejected loudly so the
  * UI and Server Actions fail with a clear validation error instead of silently
  * producing a wrong number.
@@ -43,7 +43,7 @@ export function isUnit(value: string): value is Unit {
 
 /**
  * True when both units belong to the same dimension. The materials schema
- * relies on this check before the database CHECK constraint fires; recipes
+ * relies on this check before the database CHECK constraint fires; templates
  * rely on it to reject lines that reference a material in the wrong unit.
  */
 export function areUnitsCompatible(a: string, b: string): boolean {

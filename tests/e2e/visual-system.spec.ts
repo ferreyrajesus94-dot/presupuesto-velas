@@ -155,7 +155,7 @@ for (const vp of VIEWPORTS) {
       const PAGES = [
         { path: "/", h1: /^inicio$/i },
         { path: "/materials", h1: /^materiales$/i },
-        { path: "/recipes", h1: /^recetas$/i },
+        { path: "/templates", h1: /^plantillas$/i },
         { path: "/quotes", h1: /^cotizaciones$/i },
         { path: "/quotes/new", h1: /^nueva cotización$/i },
       ];

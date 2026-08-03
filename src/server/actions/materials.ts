@@ -76,11 +76,11 @@ function failure(error: unknown, operation: string): MaterialActionState {
     }
     // R3-001 prerequisite guard. Non-disclosing: we tell the user the
     // base unit cannot change while the material is referenced by
-    // recipes, but never leak the material id or any internal detail.
+    // templates, but never leak the material id or any internal detail.
     if (error.code === "BASE_UNIT_REFERENCED") {
       return {
         status: "error",
-        message: "Base unit cannot be changed while this material is used in recipes.",
+        message: "Base unit cannot be changed while this material is used in templates.",
       };
     }
     return { status: "error", message: "Material could not be found." };

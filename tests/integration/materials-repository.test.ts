@@ -166,7 +166,7 @@ describe("materials repository (integration vs dev branch)", () => {
   // to the material's baseUnit (see recipeSchema), so flipping baseUnit on
   // a referenced material would silently change every persisted quantity's
   // meaning. The guard must reject with BASE_UNIT_REFERENCED for any
-  // referenced material — active or archived recipes both count.
+  // referenced material — active or archived templates both count.
   it("R3-001: rejects baseUnit change on a referenced material without mutating the row", async () => {
     const material = await createMaterial(
       ownerId,
@@ -211,7 +211,7 @@ describe("materials repository (integration vs dev branch)", () => {
     // Recipe history must remain semantically stable across the archive
     // boundary; archiving a recipe does not detach its items, so the
     // guard must still reject baseUnit flips on a material whose only
-    // references are archived recipes.
+    // references are archived templates.
     const material = await createMaterial(
       ownerId,
       input(`archived-ref-${crypto.randomUUID()}`, "10000"),

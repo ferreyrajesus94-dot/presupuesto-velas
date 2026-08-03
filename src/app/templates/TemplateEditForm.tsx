@@ -264,8 +264,9 @@ export function TemplateEditForm({
         <button
           type="button"
           onClick={() => append(blankItem)}
-          className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
-        >
+           aria-label="Agregar ingrediente"
+           className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
+         >
            ✨ + Material
         </button>
         {state.message && state.status !== "success" ? (

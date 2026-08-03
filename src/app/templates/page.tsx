@@ -77,7 +77,7 @@ export default async function TemplatesPage({
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
             Calculadora Flor
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">📋 Plantillas</h1>
+          <h1 aria-label="Plantillas" className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">📋 Plantillas</h1>
         </div>
         <div className="flex items-center gap-2">
           <a

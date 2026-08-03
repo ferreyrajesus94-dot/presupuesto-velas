@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/theme/ThemeProvider";
 
 const NAV_ITEMS = [
   { href: "/", label: "Inicio" },
@@ -18,7 +19,7 @@ export function AppNav() {
   if (hidden) return null;
   return (
     <nav aria-label="Navegación principal" className="border-b border-border-subtle bg-surface">
-      <ul className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-4 py-2">
+      <ul className="mx-auto flex max-w-5xl items-center gap-2 overflow-x-auto px-4 py-2">
         {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/"
@@ -35,6 +36,9 @@ export function AppNav() {
             </li>
           );
         })}
+        <li className="ml-auto shrink-0">
+          <ThemeToggle />
+        </li>
       </ul>
     </nav>
   );

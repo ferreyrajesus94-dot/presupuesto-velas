@@ -138,7 +138,7 @@ export function TemplateEditForm({
         key={field.id}
         aria-label={`Ingrediente ${index + 1}`}
         data-testid={`template-edit-item-${index + 1}`}
-        className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised p-3"
+           className="group flex flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 transition-transform hover:-translate-y-1"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-ink-muted">Ingrediente {index + 1}</span>
@@ -230,7 +230,7 @@ export function TemplateEditForm({
     <section
       id={sectionId}
       aria-labelledby={`${sectionId}-heading`}
-      className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-soft p-3"
+       className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow"
     >
       <h3 id={`${sectionId}-heading`} className="text-base font-semibold text-ink">
         Editar plantilla: {template.name}
@@ -266,7 +266,7 @@ export function TemplateEditForm({
           onClick={() => append(blankItem)}
           className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
         >
-          Agregar ingrediente
+           ✨ + Material
         </button>
         {state.message && state.status !== "success" ? (
           <p role="alert" aria-live="polite" className="text-sm text-status-danger">

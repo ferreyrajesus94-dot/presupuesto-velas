@@ -84,11 +84,11 @@ export function TemplatesList({
               <li
                 key={template.id}
                 data-testid="template-card"
-                className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 shadow-sm"
+                className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-ink">{template.name}</h3>
+                       <h3 className="font-semibold text-ink">📋 {template.name}</h3>
                     <p className="mt-1 text-sm text-ink-muted">ARS {template.unitCost}</p>
                     <p className="mt-1 text-xs text-ink-muted">
                       {template.itemCount === 1 ? "1 elemento" : `${template.itemCount} elementos`}

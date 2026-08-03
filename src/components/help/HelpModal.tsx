@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/components/a11y/useFocusTrap";
 import { HELP_CONTENT, type HelpTabKey } from "./content";
 
 /**
@@ -58,11 +59,9 @@ export function HelpModal() {
     };
   }, [activeTab, close]);
 
-  // Focus trap: move focus into the modal when it opens.
-  useEffect(() => {
-    if (!activeTab) return;
-    window.setTimeout(() => dialogRef.current?.focus(), 0);
-  }, [activeTab]);
+  // Focus trap: cycle Tab between the modal's focusable children while the
+  // modal is open and move focus to the first child when the trap activates.
+  useFocusTrap(dialogRef, activeTab !== null);
 
   // Backdrop click handler — only close when the click landed on the
   // backdrop itself, not on any descendant (e.g. the dialog content).

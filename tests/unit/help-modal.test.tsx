@@ -87,4 +87,32 @@ describe("HelpModal (Phase 4.3)", () => {
     const dialog = await screen.findByRole("dialog", { name: /Ayuda: Calculadora/ });
     expect(within(dialog).getByText(/Descuento por mayoreo/)).toBeInTheDocument();
   });
+
+  it("traps Tab focus inside the dialog while it is open", async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <button type="button" data-help="templates" aria-label="Ayuda sobre plantillas">
+          ?
+        </button>
+        <HelpModal />
+      </div>,
+    );
+    await user.click(screen.getByRole("button", { name: "Ayuda sobre plantillas" }));
+    const dialog = await screen.findByRole("dialog", { name: /Ayuda: Plantillas/ });
+    const closeButton = within(dialog).getByRole("button", { name: "Cerrar ayuda" });
+    const understoodButton = within(dialog).getByRole("button", { name: "Entendido" });
+
+    // Focus the last button (Entendido) and Tab — the focus trap should
+    // cycle back to the first focusable child (closeButton) instead of
+    // moving outside the dialog.
+    understoodButton.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(closeButton);
+
+    // Shift+Tab from the first focusable child should wrap to the last.
+    closeButton.focus();
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(understoodButton);
+  });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/components/a11y/useFocusTrap";
 
 /**
  * PR4 tutorial overlay — 5-step first-visit tour.
@@ -227,7 +228,9 @@ export function Tutorial() {
     };
   }, [open, step, reducedMotion, stepIndex]);
 
-  // Escape closes; focus the first button when the dialog opens.
+  // Escape closes; focus is trapped inside the dialog via useFocusTrap so
+// Tab/Shift+Tab cycles between the close button, "Saltar tour", "Atrás",
+// and "Siguiente" — never escapes into the page below.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
@@ -237,10 +240,12 @@ export function Tutorial() {
       }
     };
     window.addEventListener("keydown", onKey);
-    // Move focus to the dialog so screen readers announce it.
-    window.setTimeout(() => dialogRef.current?.focus(), 0);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
+
+  // Focus the dialog content while the tour is open so the trap has a
+  // container to cycle through.
+  useFocusTrap(dialogRef, open);
 
   return (
     <>

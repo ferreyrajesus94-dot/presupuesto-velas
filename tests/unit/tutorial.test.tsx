@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -109,5 +109,26 @@ describe("Tutorial overlay (Phase 4.1)", () => {
     expect(screen.queryByTestId("tour-root")).not.toBeInTheDocument();
     await user.click(screen.getByTestId("tour-trigger"));
     expect(screen.getByTestId("tour-root")).toBeInTheDocument();
+  });
+
+  it("traps Tab focus inside the dialog while it is open", async () => {
+    const user = userEvent.setup();
+    setTourDone(null);
+    render(<Tutorial />);
+    const dialog = await screen.findByRole("dialog", { name: /Bienvenida/ });
+    const nextButton = within(dialog).getByTestId("tour-next");
+    const closeButton = within(dialog).getByRole("button", { name: "Cerrar tour" });
+
+    // The last focusable is the Siguiente button on the first step; Tab
+    // should wrap back to the close button (the first focusable in DOM
+    // order) instead of escaping into the page below.
+    nextButton.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(closeButton);
+
+    // Shift+Tab from the close button should wrap to the last focusable.
+    closeButton.focus();
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(nextButton);
   });
 });

@@ -84,11 +84,11 @@ export function MaterialsList({
           {materials.map((material) => (
             <li
               key={material.id}
-              className="flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 shadow-sm"
+              className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-semibold text-ink">{material.name}</h3>
+                   <h3 className="font-semibold text-ink">📦 {material.name}</h3>
                   <p className="mt-1 text-sm text-ink-muted">
                     ARS {material.unitCost} por {material.baseUnit}
                   </p>

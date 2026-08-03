@@ -95,9 +95,9 @@ export const materials = pgTable(
   ],
 );
 
-// Recipes ---------------------------------------------------------------
-export const recipes = pgTable(
-  "recipes",
+// Templates -------------------------------------------------------------
+export const templates = pgTable(
+  "templates",
   {
     id: text("id").primaryKey(),
     ownerId: text("owner_id")
@@ -109,18 +109,18 @@ export const recipes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("recipes_owner_name_uidx").on(t.ownerId, t.name),
-    index("recipes_owner_idx").on(t.ownerId),
+    uniqueIndex("templates_owner_name_uidx").on(t.ownerId, t.name),
+    index("templates_owner_idx").on(t.ownerId),
   ],
 );
 
-export const recipeItems = pgTable(
-  "recipe_items",
+export const templateItems = pgTable(
+  "template_items",
   {
     id: text("id").primaryKey(),
-    recipeId: text("recipe_id")
+    templateId: text("template_id")
       .notNull()
-      .references(() => recipes.id),
+      .references(() => templates.id),
     position: integer("position").notNull(),
     materialId: text("material_id")
       .notNull()
@@ -128,10 +128,10 @@ export const recipeItems = pgTable(
     quantity: numeric("quantity", { precision: 24, scale: 6 }).notNull(),
   },
   (t) => [
-    uniqueIndex("recipe_items_recipe_pos_uidx").on(t.recipeId, t.position),
-    index("recipe_items_material_idx").on(t.materialId),
-    check("recipe_items_pos_pos", sql`${t.position} > 0`),
-    check("recipe_items_qty_pos", sql`${t.quantity} > 0`),
+    uniqueIndex("template_items_template_pos_uidx").on(t.templateId, t.position),
+    index("template_items_material_idx").on(t.materialId),
+    check("template_items_pos_pos", sql`${t.position} > 0`),
+    check("template_items_qty_pos", sql`${t.quantity} > 0`),
   ],
 );
 
@@ -210,10 +210,10 @@ export const quoteVersionModels = pgTable(
     quoteId: text("quote_id").notNull(),
     versionNo: integer("version_no").notNull(),
     position: integer("position").notNull(),
-    recipeId: text("recipe_id")
+    templateId: text("template_id")
       .notNull()
-      .references(() => recipes.id),
-    recipeName: text("recipe_name").notNull(),
+      .references(() => templates.id),
+    templateName: text("template_name").notNull(),
     quantity: numeric("quantity", { precision: 24, scale: 6 }).notNull(),
     unitCost: numeric("unit_cost", { precision: 38, scale: 18 }).notNull(),
     lineTotal: numeric("line_total", { precision: 20, scale: 2 }).notNull(),
@@ -225,7 +225,7 @@ export const quoteVersionModels = pgTable(
       foreignColumns: [quoteVersions.quoteId, quoteVersions.versionNo],
       name: "quote_version_models_parent_fk",
     }).onDelete("cascade"),
-    index("quote_version_models_recipe_idx").on(t.recipeId),
+    index("quote_version_models_template_idx").on(t.templateId),
     check("quote_version_models_pos_pos", sql`${t.position} > 0`),
     check("quote_version_models_qty_pos", sql`${t.quantity} > 0`),
   ],

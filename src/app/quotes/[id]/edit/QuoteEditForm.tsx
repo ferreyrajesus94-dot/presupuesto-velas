@@ -142,7 +142,7 @@ export default function QuoteEditForm({
   return (
     <section
       aria-label="Editar cotización"
-      className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
+       className="rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
       <form
         onSubmit={handleSubmit(onSubmit)}

@@ -20,13 +20,16 @@ export default async function NewQuotePage() {
     .map(({ template }) => template);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
-      <nav>
+      <nav className="flex items-center justify-between">
         <Link
           href="/quotes"
           className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
         >
           ← Cotizaciones
         </Link>
+        <button type="button" data-help="quotes" aria-label="Ayuda sobre cotizaciones" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink">
+          ?
+        </button>
       </nav>
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">

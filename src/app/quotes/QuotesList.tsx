@@ -88,7 +88,7 @@ export function QuotesList({
             <li
               key={quote.id}
               data-testid="quote-card"
-              className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 shadow-sm"
+                   className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
             >
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
@@ -120,7 +120,15 @@ export function QuotesList({
                 <span
                   data-testid="quote-status"
                   aria-label={`Estado ${label}`}
-                  className="inline-flex min-h-7 items-center rounded-full bg-surface-soft px-2.5 text-xs font-semibold uppercase tracking-wide text-ink-muted"
+                   className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-semibold uppercase tracking-wide ${
+                     status === "accepted"
+                       ? "bg-status-success/15 text-status-success"
+                       : status === "rejected" || status === "expired"
+                         ? "bg-status-danger/15 text-status-danger"
+                         : status === "sent"
+                           ? "bg-brand/15 text-brand"
+                           : "bg-surface-soft text-ink-muted"
+                   }`}
                 >
                   {label}
                 </span>

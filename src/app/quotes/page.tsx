@@ -74,19 +74,24 @@ export default async function QuotesPage({
   return (
     // Root layout owns <main id="main">; this page must not nest another one.
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-border bg-surface p-6 shadow">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
             Calculadora Flor
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Cotizaciones</h1>
+          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">💬 Cotizaciones</h1>
         </div>
-        <Link
-          href="/quotes/new"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand"
-        >
-          + Nueva cotización
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/quotes/new"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition-transform hover:-translate-y-1"
+          >
+            ✨ + Nueva cotización
+          </Link>
+          <button type="button" data-help="quotes" aria-label="Ayuda sobre cotizaciones" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
+            ?
+          </button>
+        </div>
       </header>
       <Suspense fallback={null}>
         <QuoteViewFilter current={view} />

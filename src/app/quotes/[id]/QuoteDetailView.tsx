@@ -86,7 +86,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
   return (
     <section
       aria-label="Detalle de cotización"
-      className="flex flex-col gap-6 rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
+      className="flex flex-col gap-6 rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
@@ -97,7 +97,15 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
           <span
             data-testid="quote-status"
             aria-label={`Estado ${statusLabel}`}
-            className="inline-flex min-h-7 items-center rounded-full bg-surface-soft px-2.5 text-xs font-semibold uppercase tracking-wide text-ink-muted"
+             className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-semibold uppercase tracking-wide ${
+               status === "accepted"
+                 ? "bg-status-success/15 text-status-success"
+                 : status === "rejected" || status === "expired"
+                   ? "bg-status-danger/15 text-status-danger"
+                   : status === "sent"
+                     ? "bg-brand/15 text-brand"
+                     : "bg-surface-soft text-ink-muted"
+             }`}
           >
             {statusLabel}
           </span>

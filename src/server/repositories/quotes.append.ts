@@ -20,8 +20,8 @@ import {
   quoteVersionModels,
   quoteVersions,
   quotes,
-  recipeItems,
-  recipes,
+  templateItems,
+  templates,
 } from "../../../db/schema";
 import { parseStrictDecimal } from "../../domain/decimal";
 import { verifyTerminalStatus, type QuoteStatus } from "../../domain/snapshot";
@@ -73,26 +73,26 @@ export async function appendQuoteVersion(
 
     const versionNo = quote.currentVersion + 1;
 
-    // Fetch recipes, items, materials. FK constraints surface missing refs as INSERT violations.
-    const recipeIds = Array.from(new Set(snapshot.models.map((m) => m.recipeId)));
-    const recipeRows =
-      recipeIds.length === 0
+    // Fetch templates, items, materials. FK constraints surface missing refs as INSERT violations.
+    const templateIds = Array.from(new Set(snapshot.models.map((m) => m.recipeId)));
+    const templateRows =
+      templateIds.length === 0
         ? []
         : await tx
-            .select({ id: recipes.id, name: recipes.name })
-            .from(recipes)
-            .where(inArray(recipes.id, recipeIds));
-    const recipeNameById = Object.fromEntries(recipeRows.map((r) => [r.id, r.name]));
+            .select({ id: templates.id, name: templates.name })
+            .from(templates)
+            .where(inArray(templates.id, templateIds));
+    const templateNameById = Object.fromEntries(templateRows.map((r) => [r.id, r.name]));
     const itemRows =
-      recipeIds.length === 0
+      templateIds.length === 0
         ? []
         : await tx
             .select()
-            .from(recipeItems)
-            .where(inArray(recipeItems.recipeId, recipeIds))
-            .orderBy(asc(recipeItems.position));
-    const itemsByRecipe = new Map<string, typeof itemRows>(
-      Object.entries(Object.groupBy(itemRows, (item) => item.recipeId)) as [
+            .from(templateItems)
+            .where(inArray(templateItems.templateId, templateIds))
+            .orderBy(asc(templateItems.position));
+    const itemsByTemplate = new Map<string, typeof itemRows>(
+      Object.entries(Object.groupBy(itemRows, (item) => item.templateId)) as [
         string,
         typeof itemRows,
       ][],
@@ -126,13 +126,13 @@ export async function appendQuoteVersion(
         quoteId: id,
         versionNo,
         position: modelPos,
-        recipeId: model.recipeId,
-        recipeName: recipeNameById[model.recipeId] ?? "",
+        templateId: model.recipeId,
+        templateName: templateNameById[model.recipeId] ?? "",
         quantity: model.quantity,
         unitCost: model.perUnitCost,
         lineTotal: model.lineTotal,
       });
-      const items = itemsByRecipe.get(model.recipeId) ?? [];
+      const items = itemsByTemplate.get(model.recipeId) ?? [];
       if (items.length === 0) continue;
       await tx.insert(quoteVersionMaterials).values(
         items.map((item, idx) => {

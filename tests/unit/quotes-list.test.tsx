@@ -72,8 +72,10 @@ beforeEach(() => {
 describe("quotes list", () => {
   it("renders an actionable empty state", () => {
     renderList([]);
-    expect(screen.getByText("Todavía no hay cotizaciones")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Crear la primera cotización" })).toHaveAttribute(
+    expect(
+      screen.getByRole("heading", { name: /Aún no tenés cotizaciones/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /\+ Crear cotización/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );

@@ -196,6 +196,17 @@ describe("QuoteCreateForm — interactive inputs", () => {
   });
 });
 
+describe("QuoteCreateForm — empty state when no templates", () => {
+  it("renders the 'Primero creá una plantilla' hint and a link to /templates when no active templates exist", () => {
+    render(<QuoteCreateForm templates={[]} />);
+    expect(
+      screen.getByRole("heading", { name: /Primero creá una plantilla/i }),
+    ).toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: /\+ Ir a Plantillas/i });
+    expect(cta).toHaveAttribute("href", "/templates");
+  });
+});
+
 describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
   it("shows the Spanish 'Seleccioná un modelo.' error when the template id is empty on submit", async () => {
     const user = userEvent.setup();

@@ -77,8 +77,14 @@ describe("/templates page composition (Phase 4.7)", () => {
     mocks.listTemplates.mockResolvedValue([]);
     render(await TemplatesPage(pageProps()));
     expect(screen.getByRole("heading", { name: "Plantillas" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "No hay plantillas todavía" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Creá tu primera plantilla" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Empezá creando tu primera plantilla/i }),
+    ).toBeInTheDocument();
+    // The "+ Nueva plantilla" CTA appears in both the header and the empty
+    // state — assert at least one exists.
+    expect(screen.getAllByRole("button", { name: /\+ Nueva plantilla/i }).length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
     expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
   });

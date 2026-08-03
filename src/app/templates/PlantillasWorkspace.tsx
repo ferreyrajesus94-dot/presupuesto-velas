@@ -230,20 +230,20 @@ export function PlantillasWorkspace({
       {templates.length === 0 ? (
           <section
             aria-labelledby="empty-templates"
-            className="rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
+            className="flex flex-col gap-3 rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
           >
-            <h2 id="empty-templates" className="text-xl font-semibold text-ink">
-              No hay plantillas todavía
+            <h2 id="empty-templates" className="text-xl font-semibold text-ink text-wrap-balance">
+              ✨ Empezá creando tu primera plantilla
             </h2>
-            <p className="mt-2 text-sm text-ink-muted">
-              Creá tu primera plantilla con los materiales disponibles.
+            <p className="text-sm text-ink-muted">
+              Las plantillas combinan materiales y tiempos para calcular el costo de cada vela.
             </p>
             <button
               type="button"
               onClick={createTemplate}
-              className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+              className="mt-2 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
             >
-              Creá tu primera plantilla
+              + Nueva plantilla
             </button>
           </section>
         ) : (

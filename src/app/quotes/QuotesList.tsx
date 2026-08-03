@@ -49,17 +49,19 @@ export function QuotesList({
     return (
       <section
         aria-labelledby="empty-quotes"
-        className="rounded-2xl border border-border-subtle bg-surface-soft p-6"
+        className="flex flex-col gap-3 rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
       >
-        <h2 id="empty-quotes" className="text-xl font-semibold text-ink">
-          Todavía no hay cotizaciones
+        <h2 id="empty-quotes" className="text-xl font-semibold text-ink text-wrap-balance">
+          📋 Aún no tenés cotizaciones
         </h2>
-        <p className="mt-2 text-sm text-ink-muted">Creá una cotización para empezar.</p>
+        <p className="text-sm text-ink-muted">
+          Armá tu primera cotización a partir de una plantilla y un cliente.
+        </p>
         <Link
-          className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+          className="mt-2 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
           href="/quotes/new"
         >
-          Crear la primera cotización
+          + Crear cotización
         </Link>
       </section>
     );

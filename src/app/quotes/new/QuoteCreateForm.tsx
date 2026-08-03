@@ -332,6 +332,26 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
           onAppend={() => modelsFieldArray.append(blankModel())}
           errorBag={modelErrors}
         />
+        {sortedTemplates.length === 0 ? (
+          <section
+            aria-labelledby="empty-templates-hint"
+            className="flex flex-col gap-3 rounded-xl border border-dashed border-border-subtle bg-surface-soft p-4"
+          >
+            <h2 id="empty-templates-hint" className="text-base font-semibold text-ink text-wrap-balance">
+              🕯️ Primero creá una plantilla
+            </h2>
+            <p className="text-sm text-ink-muted">
+              Una cotización necesita al menos un modelo con sus materiales y costos para calcular
+              el precio. Cuando termines la plantilla, volvé acá para armar la cotización.
+            </p>
+            <a
+              href="/templates"
+              className="mt-1 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
+            >
+              + Ir a Plantillas
+            </a>
+          </section>
+        ) : null}
         <fieldset className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-4">
           <legend className="px-1 font-medium text-ink">Ganancia</legend>
           <Controller

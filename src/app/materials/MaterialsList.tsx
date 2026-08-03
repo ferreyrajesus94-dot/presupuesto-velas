@@ -66,16 +66,19 @@ export function MaterialsList({
         ) : (
           <section
             aria-labelledby="empty-materials"
-            className="rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
+            className="flex flex-col gap-3 rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
           >
-            <h2 id="empty-materials" className="text-xl font-semibold text-ink">
-              No hay materiales todavía
+            <h2 id="empty-materials" className="text-xl font-semibold text-ink text-wrap-balance">
+              ✨ Empezá agregando tu primer insumo
             </h2>
+            <p className="text-sm text-ink-muted">
+              Cargá los materiales que usás para hacer velas y armá plantillas a partir de ellos.
+            </p>
             <a
               href="#new-material"
-              className="mt-4 inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
+              className="mt-2 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
             >
-              Agregá tu primer material
+              + Agregar insumo
             </a>
           </section>
         )

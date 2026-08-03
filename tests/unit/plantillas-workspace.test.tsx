@@ -108,8 +108,14 @@ describe("calcTemplateSummary", () => {
 describe("PlantillasWorkspace", () => {
   it("renders the empty state when there are no templates", () => {
     render(<PlantillasWorkspace initialTemplates={[]} materials={MATERIALS} />);
-    expect(screen.getByRole("heading", { name: "No hay plantillas todavía" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Creá tu primera plantilla" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Empezá creando tu primera plantilla/i }),
+    ).toBeInTheDocument();
+    // The workspace always renders a header CTA ("✨ + Nueva plantilla") and,
+    // when the list is empty, an additional empty-state CTA. Both should be
+    // present and clickable.
+    const createButtons = screen.getAllByRole("button", { name: /Nueva plantilla/i });
+    expect(createButtons.length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders one card per initial template with the live summary", () => {

@@ -257,7 +257,7 @@ export function PlantillasWorkspace({
                 key={template.id}
                 data-testid="template-card"
                 data-archived={isArchivedTemplateKey(template.id) || template.archivedAt !== null}
-                className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
+                className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover"
               >
                 <PlantillaCardHeader
                   template={template}

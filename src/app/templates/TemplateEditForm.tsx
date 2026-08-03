@@ -138,7 +138,7 @@ export function TemplateEditForm({
         key={field.id}
         aria-label={`Ingrediente ${index + 1}`}
         data-testid={`template-edit-item-${index + 1}`}
-           className="group flex flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 transition-transform hover:-translate-y-1"
+           className="group flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 transition-transform pv-card-hover"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-ink-muted">Ingrediente {index + 1}</span>

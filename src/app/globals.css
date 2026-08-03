@@ -124,6 +124,24 @@ textarea {
   outline-offset: 3px;
 }
 
+/*
+ * Main content surface: reserve space for the iOS home indicator on notched
+ * devices via `env(safe-area-inset-bottom)`. The 1rem baseline keeps the
+ * content from hugging the screen edge on devices without a notch.
+ */
+.main {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/*
+ * Toast / sticky action bar: iOS home-indicator padding. Toast surfaces stack
+ * above the home indicator so the dismiss / primary action is always reachable
+ * by the user's thumb.
+ */
+.toast {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
 .skip-link {
   position: fixed;
   z-index: 50;
@@ -177,6 +195,25 @@ textarea {
   outline-offset: 3px;
 }
 
+/*
+ * Hover gate — only apply :hover transform / color shifts on hover-capable
+ * pointers (mouse, trackpad). Touch devices with a sticky hover state
+ * (after a tap) won't trigger the lift. This is applied to every component
+ * that uses `hover:-translate-y-1` or `hover:opacity-80` so a phone user
+ * never sees a card stay elevated after dismissing it.
+ */
+@media (hover: hover) {
+  .pv-card-hover:hover {
+    transform: translateY(-0.25rem);
+  }
+  .pv-link-hover:hover {
+    color: var(--pv-ink);
+  }
+  .pv-opacity-hover:hover {
+    opacity: 0.85;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body,
   .skip-link,
@@ -189,6 +226,39 @@ textarea {
     .theme-toggle:hover .theme-toggle__icon {
       transform: none;
     }
+    .pv-card-hover:hover {
+      transform: none;
+    }
+  }
+}
+
+/*
+ * No sticky-hover on touch: cancel the Tailwind-generated hover utilities on
+ * devices that don't have a real hover capability. iOS Safari applies
+ * `:hover` after a tap and only clears it when the user taps elsewhere; this
+ * rule prevents the lifted cards, background shifts, and text recolors from
+ * sticking around after a tap. Order matters — Tailwind's utilities are
+ * emitted above via `@import "tailwindcss"`, so the cascade tie-break lands
+ * here on touch devices.
+ */
+@media (hover: none) {
+  .hover\:bg-surface-soft:hover {
+    background-color: var(--pv-surface);
+  }
+  .hover\:text-ink:hover {
+    color: var(--pv-brand);
+  }
+  .hover\:opacity-80:hover {
+    opacity: 1;
+  }
+  .hover\:opacity-90:hover {
+    opacity: 1;
+  }
+  .hover\:-translate-y-1:hover {
+    transform: none;
+  }
+  .pv-card-hover:hover {
+    transform: none;
   }
 }
 

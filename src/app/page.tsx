@@ -152,7 +152,7 @@ export default async function Home() {
             {recentQuotes.map(({ quote }) => (
             <li
                 key={quote.id}
-                className="rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
+                className="rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover"
               >
                 <Link
                   href={`/quotes/${quote.id}`}
@@ -207,7 +207,7 @@ function SummaryCard({
 }) {
   const noun = count === 1 ? singular : plural;
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1">
+    <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover">
       <span className="text-3xl" aria-hidden="true">{icon}</span>
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-muted">{title}</p>
       <p className="text-3xl font-semibold text-ink" aria-label={`${count} ${noun}`}>

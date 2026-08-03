@@ -88,7 +88,7 @@ export function QuotesList({
             <li
               key={quote.id}
               data-testid="quote-card"
-                   className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
+                   className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover"
             >
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">

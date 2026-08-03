@@ -15,7 +15,8 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const quote = await getQuote(owner.id, id);
   if (!quote) notFound();
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
+    // Root layout owns <main id="main">; this page must not nest another one.
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav>
         <Link
           href="/quotes"
@@ -31,6 +32,6 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
         <h1 className="mt-2 text-3xl font-semibold text-ink">Detalle de cotización</h1>
       </header>
       <QuoteDetailView quote={quote} now={new Date()} />
-    </main>
+    </div>
   );
 }

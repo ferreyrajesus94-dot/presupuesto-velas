@@ -49,7 +49,7 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <AppNav />
-          <main id="main" className="flex-1">
+          <main id="main" className="main flex-1">
             {children}
           </main>
           <Tutorial />

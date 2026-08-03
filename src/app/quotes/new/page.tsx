@@ -19,7 +19,8 @@ export default async function NewQuotePage() {
     .filter(({ template }) => template.archivedAt === null)
     .map(({ template }) => template);
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
+    // Root layout owns <main id="main">; this page must not nest another one.
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav className="flex items-center justify-between">
         <Link
           href="/quotes"
@@ -38,6 +39,6 @@ export default async function NewQuotePage() {
         <h1 className="mt-2 text-3xl font-semibold text-ink">Nueva cotización</h1>
       </header>
       <QuoteCreateForm templates={activeTemplates} />
-    </main>
+    </div>
   );
 }

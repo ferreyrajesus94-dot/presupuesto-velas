@@ -58,7 +58,8 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
         .map(({ template }) => template)
     : [];
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
+    // Root layout owns <main id="main">; this page must not nest another one.
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav className="flex items-center justify-between">
         <Link
           href={`/quotes/${id}`}
@@ -95,6 +96,6 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
           </p>
         </section>
       )}
-    </main>
+    </div>
   );
 }

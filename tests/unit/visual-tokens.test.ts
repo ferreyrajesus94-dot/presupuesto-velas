@@ -9,6 +9,19 @@ function hex(role: string) {
   return match?.[1];
 }
 
+function hexInScope(role: string, scopeRegex: RegExp) {
+  // Extract the first declaration of `--pv-<role>` that lives INSIDE the
+  // matching block (e.g. `[data-theme="dark"]` or `:root:not([data-theme])`
+  // under `prefers-color-scheme: dark`).
+  const blocks = [...css.matchAll(scopeRegex)];
+  for (const block of blocks) {
+    const re = new RegExp(`--pv-${role}:\\s*(#[0-9a-f]{3,6})`, "i");
+    const match = block[0].match(re);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
 function luminance(value: string) {
   const channels = value
     .slice(1)
@@ -23,22 +36,65 @@ function contrast(a: string, b: string) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe("rosa crema visual tokens", () => {
-  it("defines the approved semantic palette without automatic dark mode", () => {
-    expect(hex("canvas")).toBe("#fff8f8");
+describe("rosa paleta visual tokens (theme foundation)", () => {
+  it("defines the light rosa paleta, dark override, and prefers-color-scheme auto", () => {
+    // Light defaults
+    expect(hex("canvas")).toBe("#fff7fa");
+    expect(hex("brand")).toBe("#d6336c");
     expect(hex("surface-raised")).toBe("#ffffff");
-    expect(css).not.toMatch(/prefers-color-scheme:\s*dark/);
+
+    // Dark override block
+    expect(hexInScope("canvas", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)).toBe("#1a0d14");
+    expect(hexInScope("brand", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)).toBe("#ff7ba6");
+
+    // Auto mode via prefers-color-scheme
+    expect(css).toMatch(/@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)/);
+    expect(
+      hexInScope("canvas", /@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)\s*\{[\s\S]*?\}/g),
+    ).toBe("#1a0d14");
+
+    // Tailwind v4 bridge still wires brand → var(--pv-brand)
     expect(css).toContain("--color-brand: var(--pv-brand)");
   });
 
-  it("keeps text and actions at AA contrast", () => {
+  it("keeps text and actions at AA contrast in both light and dark", () => {
+    // Light
     expect(contrast(hex("ink")!, hex("canvas")!)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(hex("on-brand")!, hex("brand")!)).toBeGreaterThanOrEqual(4.5);
+    // Dark — pull from the [data-theme="dark"] block
+    const darkCanvas = hexInScope("canvas", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)!;
+    const darkInk = hexInScope("ink", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)!;
+    const darkOnBrand = hexInScope("on-brand", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)!;
+    const darkBrand = hexInScope("brand", /\[data-theme=["']dark["']\][^{]*\{[^}]*\}/g)!;
+    expect(contrast(darkInk, darkCanvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(darkOnBrand, darkBrand)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("animates only color-related properties and respects reduced motion", () => {
+    // The body rule must declare a transition list restricted to color props.
+    expect(css).toMatch(
+      /body\s*\{[^}]*transition:[^}]*background-color[^}]*color[^}]*border-color[^}]*\}/,
+    );
+    // Reduced-motion media query collapses all transitions to 0ms.
+    expect(css).toMatch(
+      /@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)\s*\{[\s\S]*?transition-duration:\s*0ms[\s\S]*?\}/,
+    );
   });
 
   it("provides visible focus and minimum touch-target support", () => {
     expect(css).toMatch(/:focus-visible[^{]*\{[^}]*outline:/);
     expect(css).toContain("min-height: 44px");
     expect(css).toContain("min-width: 44px");
+  });
+
+  it("ships a 44x44 circular theme toggle with hover rotation and reduced-motion guard", () => {
+    expect(css).toMatch(/\.theme-toggle\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*\}/);
+    expect(css).toMatch(/\.theme-toggle\s*\{[^}]*border-radius:\s*9999px[^}]*\}/);
+    expect(css).toMatch(
+      /@media\s*\(\s*hover:\s*hover\s*\)\s*\{[^}]*\.theme-toggle:hover\s+\.theme-toggle__icon\s*\{[^}]*transform:\s*rotate\(20deg\)/,
+    );
+    expect(css).toMatch(
+      /@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)\s*\{[\s\S]*?\.theme-toggle:hover\s+\.theme-toggle__icon\s*\{[^}]*transform:\s*none/,
+    );
   });
 });

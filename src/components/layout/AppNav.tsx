@@ -28,9 +28,15 @@ export function AppNav() {
           const cls = active
             ? "inline-flex min-h-11 items-center rounded-md bg-brand px-3 text-on-brand"
             : "inline-flex min-h-11 items-center rounded-md px-3 text-ink hover:bg-surface-soft";
+          const tourTarget = navTourTarget(item.href);
           return (
             <li key={item.href} className="shrink-0">
-              <Link href={item.href} aria-current={active ? "page" : undefined} className={cls}>
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cls}
+                data-tour-target={tourTarget}
+              >
                 {item.label}
               </Link>
             </li>
@@ -42,4 +48,19 @@ export function AppNav() {
       </ul>
     </nav>
   );
+}
+
+function navTourTarget(href: string): string | undefined {
+  switch (href) {
+    case "/materials":
+      return "materials";
+    case "/templates":
+      return "templates";
+    case "/":
+      return "config";
+    case "/quotes":
+      return "quotes";
+    default:
+      return undefined;
+  }
 }

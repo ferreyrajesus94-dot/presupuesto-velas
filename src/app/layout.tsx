@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppNav } from "@/components/layout/AppNav";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { Tutorial } from "@/components/tour/Tutorial";
+import { HelpModal } from "@/components/help/HelpModal";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -50,6 +52,8 @@ export default function RootLayout({
           <main id="main" className="flex-1">
             {children}
           </main>
+          <Tutorial />
+          <HelpModal />
         </ThemeProvider>
       </body>
     </html>

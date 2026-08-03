@@ -217,6 +217,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
     <section
       id="new-quote"
       aria-label="Nueva cotización"
+      data-tour-target="calculator"
        className="rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
       <form

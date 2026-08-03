@@ -27,7 +27,7 @@ export default async function NewQuotePage() {
         >
           ← Cotizaciones
         </Link>
-        <button type="button" data-help="quotes" aria-label="Ayuda sobre cotizaciones" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink">
+        <button type="button" data-help="calculator" aria-label="Ayuda sobre la calculadora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink">
           ?
         </button>
       </nav>

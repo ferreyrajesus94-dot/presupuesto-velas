@@ -39,13 +39,25 @@ export default async function Home() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 rounded-2xl bg-brand-gradient p-6 text-on-brand shadow sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-on-brand/80">
-          Calculadora Flor
-        </p>
-        <h1 className="text-3xl font-semibold text-wrap-balance">🕯️ Calculadora de Velas Flor</h1>
-        <p className="max-w-2xl text-sm text-on-brand/85">
-          Organizá tus insumos, plantillas y cotizaciones desde un solo lugar.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-on-brand/80">
+              Calculadora Flor
+            </p>
+            <h1 className="text-3xl font-semibold text-wrap-balance">🕯️ Calculadora de Velas Flor</h1>
+            <p className="max-w-2xl text-sm text-on-brand/85">
+              Organizá tus insumos, plantillas y cotizaciones desde un solo lugar.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-help="config"
+            aria-label="Ayuda sobre el inicio"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-on-brand/40 text-on-brand transition-transform hover:-translate-y-1"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
+        </div>
       </header>
 
       {totalsEmpty ? (

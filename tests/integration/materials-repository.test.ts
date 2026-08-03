@@ -6,7 +6,7 @@ assertSafeNeonTestDatabase();
 
 const [
   { db },
-  { appOwner, materials, recipeItems, recipes },
+  { appOwner, materials, templateItems, templates },
   { getSingletonOwner },
   materialsRepository,
 ] = await Promise.all([
@@ -38,7 +38,7 @@ describe("materials repository (integration vs dev branch)", () => {
   let ownerId: string;
   let createdOwner = false;
   const createdMaterialIds = new Set<string>();
-  const createdRecipeIds = new Set<string>();
+  const createdTemplateIds = new Set<string>();
 
   beforeAll(async () => {
     const owner = await getSingletonOwner();
@@ -56,23 +56,23 @@ describe("materials repository (integration vs dev branch)", () => {
   });
 
   afterEach(async () => {
-    const recipeIds = [...createdRecipeIds];
-    if (recipeIds.length > 0) {
-      await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
-      await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+    const templateIds = [...createdTemplateIds];
+    if (templateIds.length > 0) {
+      await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+      await db.delete(templates).where(inArray(templates.id, templateIds));
     }
     for (const id of createdMaterialIds) {
       await db.delete(materials).where(and(eq(materials.id, id), eq(materials.ownerId, ownerId)));
     }
-    createdRecipeIds.clear();
+    createdTemplateIds.clear();
     createdMaterialIds.clear();
   });
 
   afterAll(async () => {
-    const recipeIds = [...createdRecipeIds];
-    if (recipeIds.length > 0) {
-      await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
-      await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+    const templateIds = [...createdTemplateIds];
+    if (templateIds.length > 0) {
+      await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+      await db.delete(templates).where(inArray(templates.id, templateIds));
     }
     for (const id of createdMaterialIds) {
       await db.delete(materials).where(and(eq(materials.id, id), eq(materials.ownerId, ownerId)));
@@ -166,7 +166,7 @@ describe("materials repository (integration vs dev branch)", () => {
   // to the material's baseUnit (see recipeSchema), so flipping baseUnit on
   // a referenced material would silently change every persisted quantity's
   // meaning. The guard must reject with BASE_UNIT_REFERENCED for any
-  // referenced material — active or archived recipes both count.
+  // referenced material — active or archived templates both count.
   it("R3-001: rejects baseUnit change on a referenced material without mutating the row", async () => {
     const material = await createMaterial(
       ownerId,
@@ -177,21 +177,21 @@ describe("materials repository (integration vs dev branch)", () => {
     // Seed an active recipe that references the material. quantity is in
     // the material's baseUnit (g); a kg→g flip would silently scale every
     // quantity by 1000, which is exactly the bug we want to prevent.
-    const recipeId = crypto.randomUUID();
-    await db.insert(recipes).values({
-      id: recipeId,
+    const templateId = crypto.randomUUID();
+    await db.insert(templates).values({
+      id: templateId,
       ownerId,
-      name: `recipe-${recipeId}`,
+      name: `template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
-    await db.insert(recipeItems).values({
+    await db.insert(templateItems).values({
       id: crypto.randomUUID(),
-      recipeId,
+      templateId,
       materialId: material.id,
       position: 1,
       quantity: "100",
     });
-    createdRecipeIds.add(recipeId);
+    createdTemplateIds.add(templateId);
 
     // The kg→g flip must surface as BASE_UNIT_REFERENCED, never silently
     // succeed. The original row (baseUnit, unitCost) must be untouched.
@@ -211,32 +211,32 @@ describe("materials repository (integration vs dev branch)", () => {
     // Recipe history must remain semantically stable across the archive
     // boundary; archiving a recipe does not detach its items, so the
     // guard must still reject baseUnit flips on a material whose only
-    // references are archived recipes.
+    // references are archived templates.
     const material = await createMaterial(
       ownerId,
       input(`archived-ref-${crypto.randomUUID()}`, "10000"),
     );
     createdMaterialIds.add(material.id);
 
-    const recipeId = crypto.randomUUID();
-    await db.insert(recipes).values({
-      id: recipeId,
+    const templateId = crypto.randomUUID();
+    await db.insert(templates).values({
+      id: templateId,
       ownerId,
-      name: `archived-recipe-${recipeId}`,
+      name: `archived-template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
-    await db.insert(recipeItems).values({
+    await db.insert(templateItems).values({
       id: crypto.randomUUID(),
-      recipeId,
+      templateId,
       materialId: material.id,
       position: 1,
       quantity: "100",
     });
-    createdRecipeIds.add(recipeId);
+    createdTemplateIds.add(templateId);
     await db
-      .update(recipes)
+      .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(and(eq(recipes.id, recipeId), eq(recipes.ownerId, ownerId)));
+      .where(and(eq(templates.id, templateId), eq(templates.ownerId, ownerId)));
 
     await expect(
       updateMaterial(ownerId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
@@ -254,21 +254,21 @@ describe("materials repository (integration vs dev branch)", () => {
     );
     createdMaterialIds.add(material.id);
 
-    const recipeId = crypto.randomUUID();
-    await db.insert(recipes).values({
-      id: recipeId,
+    const templateId = crypto.randomUUID();
+    await db.insert(templates).values({
+      id: templateId,
       ownerId,
-      name: `price-recipe-${recipeId}`,
+      name: `price-template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
-    await db.insert(recipeItems).values({
+    await db.insert(templateItems).values({
       id: crypto.randomUUID(),
-      recipeId,
+      templateId,
       materialId: material.id,
       position: 1,
       quantity: "100",
     });
-    createdRecipeIds.add(recipeId);
+    createdTemplateIds.add(templateId);
 
     const updated = await updateMaterial(ownerId, material.id, input(material.name, "20000"));
     expect(updated.baseUnit).toBe("g");

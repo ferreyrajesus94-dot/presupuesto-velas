@@ -3,7 +3,7 @@
 import { useWatch, type Control, type UseFieldArrayReturn } from "react-hook-form";
 import Decimal from "decimal.js";
 import { formatArsFromDecimalString } from "@/lib/moneyFormat";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 import type { QuoteDraftFormValues } from "./QuoteCreateForm";
 
 const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
@@ -18,13 +18,13 @@ type RowErrors = { recipeId?: { message?: string }; quantity?: { message?: strin
  */
 export function ModelLineEditor({
   control,
-  recipes,
+  templates,
   fieldArray,
   onAppend,
   errorBag,
 }: {
   control: Control<QuoteDraftFormValues>;
-  recipes: readonly Recipe[];
+  templates: readonly Template[];
   fieldArray: UseFieldArrayReturn<QuoteDraftFormValues, "models", "id">;
   onAppend: () => void;
   errorBag: ReadonlyArray<RowErrors | undefined> | undefined;
@@ -42,7 +42,7 @@ export function ModelLineEditor({
             key={field.id}
             index={index}
             control={control}
-            recipes={recipes}
+            templates={templates}
             onRemove={() => remove(index)}
             rowErrors={errorBag?.[index]}
           />
@@ -62,13 +62,13 @@ export function ModelLineEditor({
 function ModelRow({
   index,
   control,
-  recipes,
+  templates,
   onRemove,
   rowErrors,
 }: {
   index: number;
   control: Control<QuoteDraftFormValues>;
-  recipes: readonly Recipe[];
+  templates: readonly Template[];
   onRemove: () => void;
   rowErrors: RowErrors | undefined;
 }) {
@@ -76,7 +76,7 @@ function ModelRow({
   const qtyName = `models.${index}.quantity` as const;
   const watchedRecipeId = useWatch({ control, name: recipeName }) as string | undefined;
   const watchedQuantity = useWatch({ control, name: qtyName }) as string | undefined;
-  const selected = recipes.find((recipe) => recipe.id === watchedRecipeId);
+  const selected = templates.find((template) => template.id === watchedRecipeId);
   const lineTotal = computeLineTotal(selected?.unitCost, watchedQuantity);
   return (
     <li
@@ -107,9 +107,9 @@ function ModelRow({
           className={`${selectClass} min-w-0`}
         >
           <option value="">Elegí un modelo</option>
-          {recipes.map((recipe) => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name}
+          {templates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name}
             </option>
           ))}
         </select>

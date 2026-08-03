@@ -34,7 +34,7 @@ export interface QuoteRecord {
 /**
  * Visibility controls. `includeArchived` and `includeTerminal` are synonyms:
  * quotes have no `archivedAt` column, so terminal status (`accepted` /
- * `rejected`) plays the role of the "closed" set. The recipes/quotas API
+ * `rejected`) plays the role of the "closed" set. The templates/quotas API
  * surface is symmetric.
  */
 export type QuoteVisibility = { includeArchived?: boolean; includeTerminal?: boolean };
@@ -104,7 +104,7 @@ function validateExpirationDate(value: string): void {
   }
 }
 
-// Same walker used in `src/server/repositories/recipes.ts` — Postgres
+// Same walker used in `src/server/repositories/templates.ts` — Postgres
 // unique_violation is SQLSTATE 23505. Exported for PR4b.append (concurrent
 // `version_no` allocation) and PR4c (status FSM) to detect races.
 export function isUniqueViolation(error: unknown): boolean {
@@ -123,7 +123,7 @@ export function isUniqueViolation(error: unknown): boolean {
 
 // Quotes have no `archivedAt` column — terminal status (accepted|rejected)
 // plays the role of the "closed" set. `includeArchived` and `includeTerminal`
-// are synonyms so the recipes/quotas API mirrors match.
+// are synonyms so the templates/quotas API mirrors match.
 function activeViewFilter(visibility: QuoteVisibility) {
   if (visibility.includeArchived || visibility.includeTerminal) return undefined;
   return inArray(quotes.status, ["draft", "sent"]);
@@ -138,7 +138,7 @@ function whereOf(conditions: Array<SQL | undefined>) {
 /**
  * Count of owner-scoped terminal quotes. Mirrors `countArchivedRecipes`
  * (same intent: "is the active list empty, or are there closed records
- * hiding?"). Terminal status maps to the recipes `archivedAt != null`.
+ * hiding?"). Terminal status maps to the templates `archivedAt != null`.
  */
 export async function countArchivedQuotes(ownerId: string): Promise<number> {
   const rows = await db

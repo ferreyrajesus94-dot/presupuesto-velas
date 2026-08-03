@@ -25,7 +25,7 @@ describe("buildQuoteSnapshot (PR #4a.calc foundation)", () => {
     expect(snap.profitMethod).toBe("percentage");
   });
 
-  it("Multi-model quote: two recipes with different quantities aggregate into a single materials total", () => {
+  it("Multi-model quote: two templates with different quantities aggregate into a single materials total", () => {
     const snap = buildQuoteSnapshot({
       ...baseInput,
       models: [

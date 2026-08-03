@@ -33,7 +33,7 @@ export interface QuotePdfModel {
   customerName: string;
   expirationDate: string;
   models: ReadonlyArray<{
-    recipeName: string;
+    templateName: string;
     quantity: string;
     lineTotal: string;
     perUnitCost: string | undefined;
@@ -61,7 +61,7 @@ export function quoteRecordToSnapshot(record: QuoteRecord): QuoteSnapshot {
   return {
     id: record.quote.id,
     models: record.models.map((m) => ({
-      recipeId: m.recipeId,
+      recipeId: m.templateId,
       quantity: m.quantity,
       perUnitCost: m.unitCost,
       lineTotal: m.lineTotal,
@@ -99,7 +99,7 @@ export function buildQuotePdfModel(
     customerName: record.quote.customerName ?? "",
     expirationDate: projected.expirationDate,
     models: projected.models.map((m) => ({
-      recipeName: m.recipeId,
+      templateName: m.recipeId,
       quantity: m.quantity,
       lineTotal: m.lineTotal,
       perUnitCost: m.perUnitCost,
@@ -148,7 +148,7 @@ function QuotePdfDocument({ model }: { model: QuotePdfModel }): ReactElement {
             <View key={`m-${idx}`}>
               <Text style={styles.row}>
                 <Text>
-                  {m.recipeName} (x{m.quantity})
+                  {m.templateName} (x{m.quantity})
                 </Text>
                 <Text>{formatArsFromDecimalString(m.lineTotal)}</Text>
               </Text>

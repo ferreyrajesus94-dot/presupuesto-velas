@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireOwner: vi.fn(),
-  listRecipes: vi.fn(),
+  listTemplates: vi.fn(),
   createQuoteDraftAction: vi.fn(),
   appendQuoteVersionAction: vi.fn(),
 }));
 vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
-vi.mock("@/server/repositories/recipes", () => ({ listRecipes: mocks.listRecipes }));
+vi.mock("@/server/repositories/templates", () => ({ listTemplates: mocks.listTemplates }));
 // PR4g.3 — `QuoteCreateForm` now imports the server actions; mock them so the
 // module load does not transitively require `DATABASE_URL` (the quotes repo
 // pulls `db/client.ts` at import time). Same module also pulls `useRouter`
@@ -27,9 +27,9 @@ vi.mock("@/server/actions/quotes", () => ({
 
 import NewQuotePage from "@/app/quotes/new/page";
 import { QuoteCreateForm } from "@/app/quotes/new/QuoteCreateForm";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 
-const VANILLA: Recipe = {
+const VANILLA: Template = {
   id: "11111111-1111-4111-8111-111111111111",
   ownerId: "owner-1",
   name: "Vanilla candle",
@@ -37,7 +37,7 @@ const VANILLA: Recipe = {
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
 };
-const CINNAMON: Recipe = {
+const CINNAMON: Template = {
   id: "22222222-2222-4222-8222-222222222222",
   ownerId: "owner-1",
   name: "Cinnamon candle",
@@ -45,15 +45,15 @@ const CINNAMON: Recipe = {
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
 };
-const ARCHIVED: Recipe = {
+const ARCHIVED: Template = {
   id: "33333333-3333-4333-8333-333333333333",
   ownerId: "owner-1",
-  name: "Old recipe",
+  name: "Old template",
   unitCost: "50",
   archivedAt: new Date("2026-01-01T00:00:00Z"),
   createdAt: new Date("2025-12-01T00:00:00Z"),
 };
-const RECIPES = [VANILLA, CINNAMON];
+const TEMPLATES = [VANILLA, CINNAMON];
 
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 const defaultExp = (days = 14, now = new Date()): string => {
@@ -65,7 +65,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useRealTimers();
   mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
-  mocks.listRecipes.mockResolvedValue([]);
+  mocks.listTemplates.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -73,22 +73,22 @@ afterEach(() => {
 });
 
 describe("/quotes/new page loader", () => {
-  it("requires the owner, fetches active recipes, and renders the page heading + back link", async () => {
-    mocks.listRecipes.mockResolvedValue(RECIPES.map((recipe) => ({ recipe, items: [] })));
+  it("requires the owner, fetches active templates, and renders the page heading + back link", async () => {
+    mocks.listTemplates.mockResolvedValue(TEMPLATES.map((template) => ({ template, items: [] })));
     const element = await NewQuotePage();
     render(element);
     expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
-    expect(mocks.listRecipes).toHaveBeenCalledWith("owner-1");
+    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1");
     expect(screen.getByRole("link", { name: /Cotizaciones/ })).toHaveAttribute("href", "/quotes");
     // Page mounts exactly one H1; the form uses an aria-label (not a heading).
     expect(screen.getAllByRole("heading", { name: "Nueva cotización" })).toHaveLength(1);
   });
 
-  it("filters out archived recipes before passing the list to the form", async () => {
-    mocks.listRecipes.mockResolvedValue([
-      { recipe: VANILLA, items: [] },
-      { recipe: ARCHIVED, items: [] },
-      { recipe: CINNAMON, items: [] },
+  it("filters out archived templates before passing the list to the form", async () => {
+    mocks.listTemplates.mockResolvedValue([
+      { template: VANILLA, items: [] },
+      { template: ARCHIVED, items: [] },
+      { template: CINNAMON, items: [] },
     ]);
     const element = await NewQuotePage();
     render(element);
@@ -98,14 +98,14 @@ describe("/quotes/new page loader", () => {
       .filter(Boolean);
     expect(names).toContain("Vanilla candle");
     expect(names).toContain("Cinnamon candle");
-    expect(names).not.toContain("Old recipe");
+    expect(names).not.toContain("Old template");
   });
 });
 
 describe("QuoteCreateForm — defaults", () => {
   it("renders empty customer, today+14 expiration, 1 model row, percentage profit, visibility on", () => {
     vi.useFakeTimers({ now: new Date("2026-07-15T12:00:00") });
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const customerInput = screen.getByLabelText("Cliente") as HTMLInputElement;
     expect(customerInput.value).toBe("");
     const expirationInput = screen.getByLabelText("Vencimiento") as HTMLInputElement;
@@ -125,7 +125,7 @@ describe("QuoteCreateForm — defaults", () => {
 describe("QuoteCreateForm — interactive inputs", () => {
   it("updates the customer name field when the user types", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const input = screen.getByLabelText("Cliente") as HTMLInputElement;
     await user.type(input, "Ana Pérez");
     expect(input.value).toBe("Ana Pérez");
@@ -133,7 +133,7 @@ describe("QuoteCreateForm — interactive inputs", () => {
 
   it("updates the expiration date when the user picks a different date", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const input = screen.getByLabelText("Vencimiento") as HTMLInputElement;
     await user.clear(input);
     await user.type(input, "2026-09-30");
@@ -142,7 +142,7 @@ describe("QuoteCreateForm — interactive inputs", () => {
 
   it("appends a model row when Agregar modelo is clicked", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const modelList = screen.getByRole("list", { name: "Modelos" });
     expect(within(modelList).getAllByRole("listitem")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "Agregar modelo" }));
@@ -151,7 +151,7 @@ describe("QuoteCreateForm — interactive inputs", () => {
 
   it("removes a model row when Quitar is clicked", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const modelList = screen.getByRole("list", { name: "Modelos" });
     await user.click(screen.getByRole("button", { name: "Agregar modelo" }));
     expect(within(modelList).getAllByRole("listitem")).toHaveLength(2);
@@ -161,7 +161,7 @@ describe("QuoteCreateForm — interactive inputs", () => {
 
   it("switches the profit mode from percentage to fixed and reveals the fixed-amount field", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     expect(screen.getByLabelText("Porcentaje")).toBeChecked();
     expect(screen.getByLabelText(/Porcentaje de ganancia/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Monto fijo de ganancia/)).not.toBeInTheDocument();
@@ -174,7 +174,7 @@ describe("QuoteCreateForm — interactive inputs", () => {
 
   it("flips the visibility toggles when the user clicks them", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const internalCost = screen.getByLabelText("Mostrar costo interno");
     const profitMargin = screen.getByLabelText("Mostrar margen de ganancia");
     expect(internalCost).toBeChecked();
@@ -186,8 +186,8 @@ describe("QuoteCreateForm — interactive inputs", () => {
     expect(profitMargin).not.toBeChecked();
   });
 
-  it("renders the model select with the provided active recipes sorted by name", () => {
-    render(<QuoteCreateForm recipes={RECIPES} />);
+  it("renders the model select with the provided active templates sorted by name", () => {
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const options = Array.from(screen.getByLabelText("Receta").querySelectorAll("option")).map(
       (o) => o.textContent,
     );
@@ -196,10 +196,21 @@ describe("QuoteCreateForm — interactive inputs", () => {
   });
 });
 
+describe("QuoteCreateForm — empty state when no templates", () => {
+  it("renders the 'Primero creá una plantilla' hint and a link to /templates when no active templates exist", () => {
+    render(<QuoteCreateForm templates={[]} />);
+    expect(
+      screen.getByRole("heading", { name: /Primero creá una plantilla/i }),
+    ).toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: /\+ Ir a Plantillas/i });
+    expect(cta).toHaveAttribute("href", "/templates");
+  });
+});
+
 describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
-  it("shows the Spanish 'Seleccioná un modelo.' error when the recipe id is empty on submit", async () => {
+  it("shows the Spanish 'Seleccioná un modelo.' error when the template id is empty on submit", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     expect(within(row).getByText("Seleccioná un modelo.")).toBeInTheDocument();
@@ -208,7 +219,7 @@ describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
 
   it("shows a Spanish 'La cantidad debe ser mayor que 0.' error when the user sets quantity to zero", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     const qty = within(row).getByLabelText("Cantidad") as HTMLInputElement;
     await user.clear(qty);
@@ -221,7 +232,7 @@ describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
     // Hardcoded past date avoids the date-input + userEvent + vi fake-timers
     // hang in jsdom (the default value is still today + 14 days).
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const expirationInput = screen.getByLabelText("Vencimiento") as HTMLInputElement;
     await user.clear(expirationInput);
     await user.type(expirationInput, "2020-01-01");
@@ -233,9 +244,9 @@ describe("QuoteCreateForm — Zod validation surfaced on submit", () => {
 });
 
 describe("ModelLineEditor — line total calculation", () => {
-  it("shows the unit cost and a formatted ARS line total when a recipe is selected", async () => {
+  it("shows the unit cost and a formatted ARS line total when a template is selected", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     await user.selectOptions(within(row).getByLabelText("Receta"), VANILLA.id);
     const qty = within(row).getByLabelText("Cantidad") as HTMLInputElement;
@@ -245,8 +256,8 @@ describe("ModelLineEditor — line total calculation", () => {
     expect(within(row).getByText(/ARS 500,00/)).toBeInTheDocument();
   });
 
-  it("hides the unit cost and line total when no recipe is selected", () => {
-    render(<QuoteCreateForm recipes={RECIPES} />);
+  it("hides the unit cost and line total when no template is selected", () => {
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     expect(within(row).getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });

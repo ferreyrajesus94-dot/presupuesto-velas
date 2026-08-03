@@ -15,6 +15,13 @@
       "when": 1785032225174,
       "tag": "0001_overconfident_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785200000000,
+      "tag": "0002_rename_recipes_to_templates",
+      "breakpoints": true
     }
   ]
 }

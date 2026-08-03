@@ -3,15 +3,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { startTransition, useActionState, useEffect, useMemo, useRef } from "react";
 import { useFieldArray, useForm, useWatch, type FieldErrors } from "react-hook-form";
-import { createRecipeAction, type RecipeActionState } from "@/server/actions/recipes";
+import { createTemplateAction, type TemplateActionState } from "@/server/actions/templates";
 import { UNITS_BY_DIMENSION, getUnitDimension, type Unit } from "@/domain/units";
-import { recipeInputSchema, type RecipeInput } from "@/server/validation/recipeSchema";
+import { templateInputSchema, type TemplateInput } from "@/server/validation/templateSchema";
 
-export type RecipeMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
+export type TemplateMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
 const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 const selectClass = controlClass;
-const blankItem: RecipeInput["items"][number] = { materialId: "", quantity: "", unit: "g" as Unit };
-const blankValues: RecipeInput = { name: "", items: [blankItem] };
+const blankItem: TemplateInput["items"][number] = { materialId: "", quantity: "", unit: "g" as Unit };
+const blankValues: TemplateInput = { name: "", items: [blankItem] };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
@@ -22,7 +22,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-function serverItemMessage(state: RecipeActionState, index: number, field: string) {
+function serverItemMessage(state: TemplateActionState, index: number, field: string) {
   const messages = state.fieldErrors?.items ?? [];
   return (
     messages
@@ -31,12 +31,12 @@ function serverItemMessage(state: RecipeActionState, index: number, field: strin
   );
 }
 
-export function RecipeCreateForm({ materials }: { materials: readonly RecipeMaterialOption[] }) {
+export function TemplateCreateForm({ materials }: { materials: readonly TemplateMaterialOption[] }) {
   const sortedMaterials = useMemo(
     () => [...materials].sort((a, b) => a.name.localeCompare(b.name)),
     [materials],
   );
-  const [state, formAction, pending] = useActionState(createRecipeAction, { status: "idle" });
+  const [state, formAction, pending] = useActionState(createTemplateAction, { status: "idle" });
   const {
     control,
     register,
@@ -44,8 +44,8 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
     reset,
     setValue,
     formState: { errors },
-  } = useForm<RecipeInput>({
-    resolver: zodResolver(recipeInputSchema, undefined, { mode: "sync" }),
+  } = useForm<TemplateInput>({
+    resolver: zodResolver(templateInputSchema, undefined, { mode: "sync" }),
     defaultValues: blankValues,
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
@@ -65,7 +65,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
       : ["g"];
     setValue(`items.${index}.unit`, units[0] as Unit, { shouldDirty: true });
   }
-  function submit(_values: RecipeInput, event?: React.BaseSyntheticEvent) {
+  function submit(_values: TemplateInput, event?: React.BaseSyntheticEvent) {
     const form = event?.target;
     if (!(form instanceof HTMLFormElement)) return;
     const data = new FormData(form);
@@ -73,17 +73,17 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
     startTransition(() => formAction(data));
   }
   const itemErrors = errors.items as
-    Array<FieldErrors<RecipeInput["items"][number]> | undefined> | undefined;
+    Array<FieldErrors<TemplateInput["items"][number]> | undefined> | undefined;
   const hasNameError = Boolean(errors.name?.message ?? state.fieldErrors?.name?.[0]);
-  const nameMessage = hasNameError ? "Ingresá un nombre para la receta." : undefined;
+  const nameMessage = hasNameError ? "Ingresá un nombre para la plantilla." : undefined;
   return (
     <section
-      id="new-recipe"
-      aria-labelledby="new-recipe-heading"
+      id="new-template"
+      aria-labelledby="new-template-heading"
       className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm sm:p-6"
     >
-      <h2 id="new-recipe-heading" className="text-xl font-semibold text-ink">
-        Nueva receta
+      <h2 id="new-template-heading" className="text-xl font-semibold text-ink">
+        Nueva plantilla
       </h2>
       <form
         onSubmit={handleSubmit(submit)}
@@ -92,19 +92,19 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
         className="mt-5 flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
-          <label className="font-medium text-ink" htmlFor="recipe-name">
+          <label className="font-medium text-ink" htmlFor="template-name">
             Nombre
           </label>
           <input
-            id="recipe-name"
+            id="template-name"
             {...register("name")}
-            aria-describedby="recipe-name-error"
+            aria-describedby="template-name-error"
             aria-invalid={Boolean(nameMessage)}
             className={controlClass}
           />
-          <FieldError id="recipe-name-error" message={nameMessage} />
+          <FieldError id="template-name-error" message={nameMessage} />
         </div>
-        <ol aria-label="Ingredientes de la receta" className="flex flex-col gap-3">
+        <ol aria-label="Ingredientes de la plantilla" className="flex flex-col gap-3">
           {fields.map((field, index) => {
             const item = watchedItems[index] ?? blankItem;
             const material = sortedMaterials.find((option) => option.id === item.materialId);
@@ -128,7 +128,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
               <li
                 key={field.id}
                 aria-label={`Ingrediente ${index + 1}`}
-                data-testid={`recipe-item-${index + 1}`}
+                data-testid={`template-item-${index + 1}`}
                 className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-soft p-3"
               >
                 <div className="flex items-center justify-between">
@@ -145,14 +145,17 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                   </button>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-medium text-ink" htmlFor={`recipe-item-${index}-material`}>
+                  <label
+                    className="font-medium text-ink"
+                    htmlFor={`template-item-${index}-material`}
+                  >
                     Material
                   </label>
                   <select
-                    id={`recipe-item-${index}-material`}
+                    id={`template-item-${index}-material`}
                     {...register(`items.${index}.materialId`)}
                     onChange={(event) => materialChange(index, event.target.value)}
-                    aria-describedby={`recipe-item-${index}-material-error`}
+                    aria-describedby={`template-item-${index}-material-error`}
                     aria-invalid={Boolean(materialMessage)}
                     className={selectClass}
                   >
@@ -164,7 +167,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                     ))}
                   </select>
                   <FieldError
-                    id={`recipe-item-${index}-material-error`}
+                    id={`template-item-${index}-material-error`}
                     message={materialMessage}
                   />
                 </div>
@@ -172,34 +175,34 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                   <div className="flex flex-col gap-1">
                     <label
                       className="font-medium text-ink"
-                      htmlFor={`recipe-item-${index}-quantity`}
+                      htmlFor={`template-item-${index}-quantity`}
                     >
                       Cantidad
                     </label>
                     <input
-                      id={`recipe-item-${index}-quantity`}
+                      id={`template-item-${index}-quantity`}
                       type="number"
                       inputMode="decimal"
                       min="0"
                       step="any"
                       {...register(`items.${index}.quantity`)}
-                      aria-describedby={`recipe-item-${index}-quantity-error`}
+                      aria-describedby={`template-item-${index}-quantity-error`}
                       aria-invalid={Boolean(quantityMessage)}
                       className={controlClass}
                     />
                     <FieldError
-                      id={`recipe-item-${index}-quantity-error`}
+                      id={`template-item-${index}-quantity-error`}
                       message={quantityMessage}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-medium text-ink" htmlFor={`recipe-item-${index}-unit`}>
+                    <label className="font-medium text-ink" htmlFor={`template-item-${index}-unit`}>
                       Unidad
                     </label>
                     <select
-                      id={`recipe-item-${index}-unit`}
+                      id={`template-item-${index}-unit`}
                       {...register(`items.${index}.unit`)}
-                      aria-describedby={`recipe-item-${index}-unit-error`}
+                      aria-describedby={`template-item-${index}-unit-error`}
                       aria-invalid={Boolean(unitMessage)}
                       className={selectClass}
                     >
@@ -209,7 +212,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
                         </option>
                       ))}
                     </select>
-                    <FieldError id={`recipe-item-${index}-unit-error`} message={unitMessage} />
+                    <FieldError id={`template-item-${index}-unit-error`} message={unitMessage} />
                   </div>
                 </div>
               </li>
@@ -217,7 +220,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
           })}
         </ol>
         {errors.items?.root?.message ? (
-          <FieldError id="recipe-items-error" message="Agregá al menos un ingrediente." />
+          <FieldError id="template-items-error" message="Agregá al menos un ingrediente." />
         ) : null}
         <button
           type="button"
@@ -228,12 +231,12 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
         </button>
         {state.message && state.status !== "success" ? (
           <p role="alert" aria-live="polite" className="text-sm text-status-danger">
-            No se pudo crear la receta.
+            No se pudo crear la plantilla.
           </p>
         ) : null}
         {state.status === "success" ? (
           <p role="status" aria-live="polite" className="text-sm text-status-success">
-            Receta creada.
+            Plantilla creada.
           </p>
         ) : null}
         <button
@@ -241,7 +244,7 @@ export function RecipeCreateForm({ materials }: { materials: readonly RecipeMate
           disabled={pending}
           className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
         >
-          {pending ? "Creando receta…" : "Crear receta"}
+          {pending ? "Creando plantilla…" : "Crear plantilla"}
         </button>
       </form>
     </section>

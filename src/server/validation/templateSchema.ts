@@ -22,7 +22,7 @@ const quantitySchema = z
     "Item quantity exceeds database precision",
   );
 
-export const recipeInputSchema = z.strictObject({
+export const templateInputSchema = z.strictObject({
   name: z.string().trim().min(1, "Name is required").max(120),
   items: z
     .array(
@@ -32,12 +32,12 @@ export const recipeInputSchema = z.strictObject({
         unit: z.enum(UNITS),
       }),
     )
-    .min(1, "Add at least one recipe item"),
+    .min(1, "Add at least one template item"),
 });
 
-export type RecipeInput = z.input<typeof recipeInputSchema>;
+export type TemplateInput = z.input<typeof templateInputSchema>;
 
-export type RecipeMaterialReference = {
+export type TemplateMaterialReference = {
   id: string;
   ownerId: string;
   baseUnit: string;
@@ -45,15 +45,15 @@ export type RecipeMaterialReference = {
   archivedAt: Date | null;
 };
 
-export type ParsedRecipeInput = {
+export type ParsedTemplateInput = {
   name: string;
   unitCost: string;
   items: Array<{ position: number; materialId: string; quantity: string }>;
 };
 
-export function createRecipeInputSchema(
+export function createTemplateInputSchema(
   ownerId: string,
-  materials: readonly RecipeMaterialReference[],
+  materials: readonly TemplateMaterialReference[],
 ) {
   const ownerMaterials = new Map(
     materials
@@ -61,10 +61,10 @@ export function createRecipeInputSchema(
       .map((material) => [material.id, material]),
   );
 
-  return recipeInputSchema.transform((input, context): ParsedRecipeInput => {
+  return templateInputSchema.transform((input, context): ParsedTemplateInput => {
     let invalid = false;
     let unitCost = decimal("0");
-    const items: ParsedRecipeInput["items"] = [];
+    const items: ParsedTemplateInput["items"] = [];
     const issue = (path: PropertyKey[], message: string) => {
       invalid = true;
       context.addIssue({ code: "custom", path, message });
@@ -77,7 +77,7 @@ export function createRecipeInputSchema(
         return;
       }
       if (material.archivedAt) {
-        issue(["items", index, "materialId"], "Archived materials cannot be added to recipes");
+        issue(["items", index, "materialId"], "Archived materials cannot be added to templates");
         return;
       }
       if (!areUnitsCompatible(item.unit, material.baseUnit)) {
@@ -109,7 +109,7 @@ export function createRecipeInputSchema(
     if (invalid) return z.NEVER;
     const persistedCost = unitCost.toDecimalPlaces(18, ROUNDING_MODE);
     if (persistedCost.isZero() || persistedCost.gt(MAX_UNIT_COST)) {
-      issue(["unitCost"], "Recipe cost cannot be represented at database precision");
+      issue(["unitCost"], "Template cost cannot be represented at database precision");
       return z.NEVER;
     }
 

@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   getQuote: vi.fn(),
   deleteQuoteDraft: vi.fn(),
   appendQuoteVersionAction: vi.fn(),
-  listRecipes: vi.fn(),
+  listTemplates: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -34,8 +34,8 @@ vi.mock("@/server/repositories/quotes", () => ({
   getQuote: mocks.getQuote,
   deleteQuoteDraft: mocks.deleteQuoteDraft,
 }));
-vi.mock("@/server/repositories/recipes", () => ({
-  listRecipes: mocks.listRecipes,
+vi.mock("@/server/repositories/templates", () => ({
+  listTemplates: mocks.listTemplates,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
@@ -45,7 +45,7 @@ import QuoteEditPage from "@/app/quotes/[id]/edit/page";
 import QuoteEditForm from "@/app/quotes/[id]/edit/QuoteEditForm";
 import { deleteQuoteDraftAction } from "@/server/actions/quotes-delete";
 import type { QuoteRecord } from "@/server/repositories/quotes";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 
 const OWNER = { id: "owner-1", email: "owner@example.com" };
 const QUOTE_ID = "quote-1";
@@ -53,7 +53,7 @@ const RECIPE_ID = "11111111-1111-4111-8111-111111111111";
 
 const NOW = new Date("2026-04-01T12:00:00.000Z");
 
-const VANILLA: Recipe = {
+const VANILLA: Template = {
   id: RECIPE_ID,
   ownerId: OWNER.id,
   name: "Vanilla candle",
@@ -111,8 +111,8 @@ function buildQuoteRecord(
         quoteId: QUOTE_ID,
         versionNo: currentVersion,
         position: 1,
-        recipeId: RECIPE_ID,
-        recipeName: "Vanilla candle",
+        templateId: RECIPE_ID,
+        templateName: "Vanilla candle",
         quantity: "5",
         unitCost: "100",
         lineTotal: "500.00",
@@ -150,7 +150,7 @@ beforeEach(() => {
     },
   });
   mocks.deleteQuoteDraft.mockResolvedValue({ ok: true });
-  mocks.listRecipes.mockResolvedValue([]);
+  mocks.listTemplates.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -286,14 +286,14 @@ describe("/quotes/[id] page loader", () => {
 describe("QuoteEditForm — pre-fill", () => {
   it("pre-fills customer name, expiration date, percent, and deposit", () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     expect((screen.getByLabelText("Cliente") as HTMLInputElement).value).toBe("Ana Pérez");
     expect((screen.getByLabelText("Vencimiento") as HTMLInputElement).value).toBe("2026-05-01");
   });
 
   it("pre-fills the first model with the existing recipe and quantity", () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     expect(within(row).getByLabelText("Receta")).toHaveValue(RECIPE_ID);
     const qty = within(row).getByLabelText("Cantidad") as HTMLInputElement;
@@ -302,7 +302,7 @@ describe("QuoteEditForm — pre-fill", () => {
 
   it("does not re-seed the default indirects when the existing list is non-empty", () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const indirects = screen.getByRole("list", { name: "Costos indirectos" });
     expect(within(indirects).getAllByRole("listitem")).toHaveLength(2);
   });
@@ -312,7 +312,7 @@ describe("QuoteEditForm — pre-fill", () => {
   // at 375px without overflowing the form column.
   it("carries `min-w-0` on the model row, recipe select, and indirect name input for 375px safety", () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     expect(row.className.split(/\s+/)).toContain("min-w-0");
     const select = within(row).getByLabelText("Receta");
@@ -327,7 +327,7 @@ describe("QuoteEditForm — pre-fill", () => {
   // pushing currency labels out of the form column at 375px.
   it("carries `min-w-0` on the indirect cost row <li> for 375px safety", () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const indirectRow = screen.getByTestId("quote-indirect-1");
     expect(indirectRow.className.split(/\s+/)).toContain("min-w-0");
   });
@@ -337,7 +337,7 @@ describe("QuoteEditForm — submit", () => {
   it("calls appendQuoteVersionAction with perUnitCostDecimal and pushes to /quotes/{id}", async () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
     expect(mocks.appendQuoteVersionAction).toHaveBeenCalledTimes(1);
     const args = mocks.appendQuoteVersionAction.mock.calls[0] as [
@@ -361,7 +361,7 @@ describe("QuoteEditForm — submit", () => {
     });
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
     const liveRegion = screen.getByRole("status");
     expect(liveRegion).toHaveTextContent("No se pudo actualizar la cotización.");
@@ -373,7 +373,7 @@ describe("QuoteEditForm — submit", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Eliminar borrador/ }));
     await vi.waitFor(() => expect(mocks.deleteQuoteDraft).toHaveBeenCalledTimes(1));
     expect(mocks.deleteQuoteDraft).toHaveBeenCalledWith(OWNER.id, QUOTE_ID);
@@ -389,7 +389,7 @@ describe("QuoteEditForm — submit", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Eliminar borrador/ }));
     const liveRegion = screen.getByRole("status");
     await waitFor(() => expect(liveRegion).toHaveTextContent("No se pudo eliminar el borrador."));
@@ -409,7 +409,7 @@ describe("QuoteEditForm — U7b Spanish field-error mapping", () => {
     // raw Zod message to the direct Spanish fallback.
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const row = screen.getByRole("listitem", { name: "Modelo 1" });
     await user.selectOptions(within(row).getByLabelText("Receta"), "");
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
@@ -422,7 +422,7 @@ describe("QuoteEditForm — U7b Spanish field-error mapping", () => {
   it("shows 'Ingresá un nombre para el costo.' when an indirect cost name is cleared on submit", async () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const firstName = screen.getAllByLabelText("Concepto")[0] as HTMLInputElement;
     await user.clear(firstName);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
@@ -433,7 +433,7 @@ describe("QuoteEditForm — U7b Spanish field-error mapping", () => {
   it("shows 'Ingresá un monto válido.' when an indirect cost amount is cleared on submit", async () => {
     const record = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
-    render(<QuoteEditForm quote={record} recipes={[VANILLA]} />);
+    render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     const firstAmount = screen.getAllByLabelText("Monto (ARS)")[0] as HTMLInputElement;
     await user.clear(firstAmount);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));

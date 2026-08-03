@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../../../db/client";
-import { materials, recipeItems } from "../../../db/schema";
+import { materials, templateItems } from "../../../db/schema";
 import {
   materialInputSchema,
   type MaterialInput,
@@ -30,16 +30,16 @@ function duplicateName(name: string): MaterialRepositoryError {
   return new MaterialRepositoryError("DUPLICATE_NAME", `Material name "${name}" is already used`);
 }
 
-// R3-001 prerequisite guard. Recipe items persist quantities normalized to
-// the material's baseUnit at write time (see recipeSchema). If a referenced
+// R3-001 prerequisite guard. Template items persist quantities normalized to
+// the material's baseUnit at write time (see templateSchema). If a referenced
 // material's baseUnit flipped, every persisted quantity would silently
-// change meaning — recipes created against g would now resolve as if the
-// unit were kg. Both active and archived recipes count, because history
+// change meaning — templates created against g would now resolve as if the
+// unit were kg. Both active and archived templates count, because history
 // must remain semantically stable across the archive boundary.
 function baseUnitReferenced(id: string): MaterialRepositoryError {
   return new MaterialRepositoryError(
     "BASE_UNIT_REFERENCED",
-    `Material "${id}" base unit cannot change while referenced by recipes`,
+    `Material "${id}" base unit cannot change while referenced by templates`,
   );
 }
 
@@ -137,11 +137,11 @@ export async function updateMaterial(
   try {
     return await db.transaction(async (tx) => {
       // R3-001 prerequisite guard. Lock the owner-scoped active row FOR
-      // UPDATE so we can compare baseUnit and check recipe_items
+      // UPDATE so we can compare baseUnit and check template_items
       // references safely without a TOCTOU window. Lock-order invariant:
-      // updateMaterial takes the material lock first; updateRecipe takes
-      // the recipe lock first then a shared material lock. Since neither
-      // path acquires the same lock type on (recipe, materials) in
+      // updateMaterial takes the material lock first; updateTemplate takes
+      // the template lock first then a shared material lock. Since neither
+      // path acquires the same lock type on (template, materials) in
       // reverse order, deadlock is unreachable.
       const [current] = await tx
         .select({ baseUnit: materials.baseUnit })
@@ -152,14 +152,14 @@ export async function updateMaterial(
         .for("update");
       if (!current) throw notFound(id);
       if (parsed.baseUnit !== current.baseUnit) {
-        // Recipe history must remain semantically stable, so referenced
+        // Template history must remain semantically stable, so referenced
         // materials (active or archived) cannot flip baseUnit. limit(1)
         // is the existence probe — we only need to know whether at least
-        // one recipe_items row still points at this material.
+        // one template_items row still points at this material.
         const [ref] = await tx
-          .select({ id: recipeItems.id })
-          .from(recipeItems)
-          .where(eq(recipeItems.materialId, id))
+          .select({ id: templateItems.id })
+          .from(templateItems)
+          .where(eq(templateItems.materialId, id))
           .limit(1);
         if (ref) throw baseUnitReferenced(id);
       }

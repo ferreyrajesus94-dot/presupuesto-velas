@@ -178,7 +178,7 @@ describe("material Server Actions", () => {
     mocks.updateMaterial.mockRejectedValue(
       new mocks.RepositoryError(
         "BASE_UNIT_REFERENCED",
-        'Material "secret-material-id" base unit cannot change while referenced by recipes',
+        'Material "secret-material-id" base unit cannot change while referenced by templates',
       ),
     );
 
@@ -189,7 +189,7 @@ describe("material Server Actions", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Base unit cannot be changed while this material is used in recipes.",
+      message: "Base unit cannot be changed while this material is used in templates.",
     });
     expect(result.message).not.toContain("secret-material-id");
     expect(mocks.revalidatePath).not.toHaveBeenCalled();

@@ -20,9 +20,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { QuoteCreateForm } from "@/app/quotes/new/QuoteCreateForm";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 
-const VANILLA: Recipe = {
+const VANILLA: Template = {
   id: "11111111-1111-4111-8111-111111111111",
   ownerId: "owner-1",
   name: "Vanilla candle",
@@ -30,7 +30,7 @@ const VANILLA: Recipe = {
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
 };
-const RECIPES = [VANILLA];
+const TEMPLATES = [VANILLA];
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -60,7 +60,7 @@ afterEach(() => {
 
 describe("IndirectCostEditor — defaults", () => {
   it("renders the 4 default indirects (labor, electricity, transport, waste) on mount", () => {
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const list = screen.getByRole("list", { name: "Costos indirectos" });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(4);
@@ -74,7 +74,7 @@ describe("IndirectCostEditor — defaults", () => {
 describe("IndirectCostEditor — CRUD", () => {
   it("appends an empty row when Agregar concepto is clicked", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const list = screen.getByRole("list", { name: "Costos indirectos" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(4);
     await user.click(screen.getByRole("button", { name: "Agregar concepto" }));
@@ -83,7 +83,7 @@ describe("IndirectCostEditor — CRUD", () => {
 
   it("removes a row when Quitar is clicked", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const list = screen.getByRole("list", { name: "Costos indirectos" });
     await user.click(screen.getByRole("button", { name: "Quitar concepto 1" }));
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
@@ -91,7 +91,7 @@ describe("IndirectCostEditor — CRUD", () => {
 
   it("updates the running total when amounts change", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     const firstAmount = document.getElementById("quote-indirect-0-amount") as HTMLInputElement;
     await user.clear(firstAmount);
     await user.type(firstAmount, "100");
@@ -100,8 +100,8 @@ describe("IndirectCostEditor — CRUD", () => {
 
   it("rejects an empty indirect name on submit (Zod error)", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
-    // Pick a valid recipe so the model validation passes.
+    render(<QuoteCreateForm templates={TEMPLATES} />);
+    // Pick a valid template so the model validation passes.
     const modelRow = screen.getByRole("listitem", { name: "Modelo 1" });
     await user.selectOptions(within(modelRow).getByLabelText("Receta"), VANILLA.id);
     // Clear the first indirect name.
@@ -135,14 +135,14 @@ describe("QuoteCreateForm — derived totals preview", () => {
 
   it("computes materialsTotal = 500 (unitCost 100 × qty 5) in the totals row", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "0", "0");
     expect(screen.getByTestId("materials-total")).toHaveTextContent(/ARS 500,00/);
   });
 
   it("computes indirectTotal = 150 (labor 100 + electricity 50) in the totals row", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "100", "50");
     // The indirects running total must include 100 + 50 = 150.
     expect(screen.getByTestId("indirect-total")).toHaveTextContent(/ARS 150,00/);
@@ -151,21 +151,21 @@ describe("QuoteCreateForm — derived totals preview", () => {
 
   it("computes profitTotal = 195 (30% of (500 + 150)) for percentage mode", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "100", "50");
     expect(screen.getByTestId("profit-total")).toHaveTextContent(/ARS 195,00/);
   });
 
   it("computes total T = 845 (500 + 150 + 195) in the totals row", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "100", "50");
     expect(screen.getByTestId("grand-total")).toHaveTextContent(/ARS 845,00/);
   });
 
   it("shows the auto-suggested deposit percent (M/T=500/845 → 59.18)", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "100", "50");
     // suggestDepositPercent(500, 150, 195):
     //   T = 845, M/T = 0.5917..., M/T*100 = 59.1717..., × 100 = 5917.17..., ceil = 5918, / 100 = 59.18
@@ -174,7 +174,7 @@ describe("QuoteCreateForm — derived totals preview", () => {
 
   it("Aplicar sugerencia writes the suggested percent into the deposit field", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user, "5", "100", "50");
     const depositInput = screen.getByLabelText(/Porcentaje de seña/) as HTMLInputElement;
     expect(depositInput.value).toBe("0");
@@ -184,8 +184,8 @@ describe("QuoteCreateForm — derived totals preview", () => {
 
   it("suggests 0% when there are no materials selected (M=0)", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
-    // No recipe picked → materialsTotal stays 0 even if indirects > 0.
+    render(<QuoteCreateForm templates={TEMPLATES} />);
+    // No template picked → materialsTotal stays 0 even if indirects > 0.
     const laborInput = document.getElementById("quote-indirect-0-amount") as HTMLInputElement;
     await user.clear(laborInput);
     await user.type(laborInput, "100");
@@ -204,7 +204,7 @@ describe("QuoteCreateForm — submit wiring", () => {
 
   it("calls createQuoteDraftAction then appendQuoteVersionAction then router.push on success", async () => {
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     // Both actions were called with the right owner-scoped inputs.
@@ -233,7 +233,7 @@ describe("QuoteCreateForm — submit wiring", () => {
       error: { code: "INVALID_INPUT", message: "fecha inválida" },
     });
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const liveRegion = screen.getByRole("status");
@@ -249,7 +249,7 @@ describe("QuoteCreateForm — submit wiring", () => {
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
     });
     const user = userEvent.setup();
-    render(<QuoteCreateForm recipes={RECIPES} />);
+    render(<QuoteCreateForm templates={TEMPLATES} />);
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     const liveRegion = screen.getByRole("status");

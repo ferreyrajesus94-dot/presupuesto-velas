@@ -18,7 +18,7 @@ describe("AppNav", () => {
     expect(pairs).toEqual([
       ["Inicio", "/"],
       ["Materiales", "/materials"],
-      ["Recetas", "/recipes"],
+      ["Plantillas", "/templates"],
       ["Cotizaciones", "/quotes"],
     ]);
   });

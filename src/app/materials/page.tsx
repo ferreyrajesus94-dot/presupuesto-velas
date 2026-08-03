@@ -42,11 +42,24 @@ export default async function MaterialsPage({
   return (
     // Root layout owns <main id="main">; this page must not nest another one.
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
-      <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
-          Calculadora Flor
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Materiales</h1>
+      <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-border bg-surface p-6 shadow">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
+            Calculadora Flor
+          </p>
+          <h1 aria-label="Materiales" className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">📦 Insumos y precios</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href="#new-material"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition-transform hover:-translate-y-1"
+          >
+            ✨ + Agregar insumo
+          </a>
+          <button type="button" data-help="materials" aria-label="Ayuda sobre insumos" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
+            ?
+          </button>
+        </div>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">

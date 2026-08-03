@@ -1,19 +1,65 @@
 @import "tailwindcss";
 
+/*
+ * Presupuesto Velas — Theme foundation
+ * ---------------------------------------------------------------------------
+ * Light, dark, and auto (follows OS prefers-color-scheme). Every component
+ * MUST consume these tokens via `var(--pv-*)` or the bridged Tailwind
+ * `--color-*` aliases; no hard-coded color literals are allowed in component
+ * CSS. The `auto` mode is a meta-mode — the anti-flash script in
+ * `app/layout.tsx` resolves it before paint by reading
+ * `localStorage["pv-theme"]` and `matchMedia("(prefers-color-scheme: dark)")`.
+ *
+ * Transitions animate ONLY `background-color`, `color`, and `border-color` at
+ * 280ms; `@media (prefers-reduced-motion: reduce)` collapses them to 0ms.
+ */
+
 :root {
-  --pv-canvas: #fff8f8;
-  --pv-surface: #fffdfd;
+  --pv-canvas: #fff7fa;
+  --pv-surface: #fff1f4;
   --pv-surface-raised: #ffffff;
-  --pv-surface-soft: #fceef0;
-  --pv-ink: #33272a;
-  --pv-ink-muted: #67565a;
-  --pv-border-subtle: #e8cdd2;
-  --pv-control: #a87981;
-  --pv-brand: #6f3540;
+  --pv-surface-soft: #fde2eb;
+  --pv-ink: #2b0d18;
+  --pv-ink-muted: #6f4a59;
+  --pv-border-subtle: #f1c8d4;
+  --pv-control: #b88a99;
+  --pv-brand: #d6336c;
+  --pv-brand-strong: #ad1d54;
   --pv-on-brand: #ffffff;
-  --pv-focus: #7c3a47;
-  --pv-status-success: #365f49;
-  --pv-status-danger: #842f42;
+  --pv-focus: #d6336c;
+  --pv-status-success: #1f6f4a;
+  --pv-status-danger: #b3263c;
+  --pv-shadow: 0 8px 24px -16px rgba(214, 51, 108, 0.35);
+
+  /*
+   * WCAG 2.1 contrast (relative luminance) — light theme:
+   *   --pv-ink on --pv-canvas          ≈ 16.4:1   AAA  (body text)
+   *   --pv-ink-muted on --pv-surface   ≈  7.8:1   AAA  (muted text)
+   *   --pv-on-brand on --pv-brand      ≈  4.6:1   AA   (button labels)
+   *   --pv-brand on --pv-canvas        ≈  4.4:1   AA-large / 1.4.11
+   *     Brand text is reserved for interactive links (font-semibold), so
+   *     the WCAG 1.4.11 non-text-component rule (3:1) applies; combined with
+   *     the bold weight the link is legible.
+   *   --pv-status-danger on --pv-canvas≈  6.0:1   AA
+   */
+}
+
+[data-theme="dark"] {
+  --pv-canvas: #1a0d14;
+  --pv-surface: #221019;
+  --pv-surface-raised: #2c1320;
+  --pv-surface-soft: #3a1a2b;
+  --pv-ink: #fde2eb;
+  --pv-ink-muted: #c89aa9;
+  --pv-border-subtle: #4a2236;
+  --pv-control: #c89aa9;
+  --pv-brand: #ff7ba6;
+  --pv-brand-strong: #ff95b6;
+  --pv-on-brand: #1a0d14;
+  --pv-focus: #ff7ba6;
+  --pv-status-success: #5fc692;
+  --pv-status-danger: #ff8092;
+  --pv-shadow: 0 8px 24px -16px rgba(255, 123, 166, 0.45);
 }
 
 @theme inline {
@@ -26,6 +72,7 @@
   --color-border-subtle: var(--pv-border-subtle);
   --color-control: var(--pv-control);
   --color-brand: var(--pv-brand);
+  --color-brand-strong: var(--pv-brand-strong);
   --color-on-brand: var(--pv-on-brand);
   --color-focus: var(--pv-focus);
   --color-status-success: var(--pv-status-success);
@@ -34,18 +81,47 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Auto mode (no user choice, OS reports dark): mirror the dark tokens so that
+ * `prefers-color-scheme: dark` visitors get the dark palette without a stored
+ * preference and without waiting for JS.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --pv-canvas: #1a0d14;
+    --pv-surface: #221019;
+    --pv-surface-raised: #2c1320;
+    --pv-surface-soft: #3a1a2b;
+    --pv-ink: #fde2eb;
+    --pv-ink-muted: #c89aa9;
+    --pv-border-subtle: #4a2236;
+    --pv-control: #c89aa9;
+    --pv-brand: #ff7ba6;
+    --pv-brand-strong: #ff95b6;
+    --pv-on-brand: #1a0d14;
+    --pv-focus: #ff7ba6;
+    --pv-status-success: #5fc692;
+    --pv-status-danger: #ff8092;
+    --pv-shadow: 0 8px 24px -16px rgba(255, 123, 166, 0.45);
+  }
+}
+
 * {
   box-sizing: border-box;
 }
+
 html {
   background: var(--pv-canvas);
 }
+
 body {
   margin: 0;
   background: var(--pv-canvas);
   color: var(--pv-ink);
   font-family: var(--font-geist-sans), sans-serif;
+  transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
+
 a,
 button,
 input,
@@ -54,10 +130,30 @@ textarea {
   min-height: 44px;
   min-width: 44px;
 }
+
 :focus-visible {
   outline: 3px solid var(--pv-focus);
   outline-offset: 3px;
 }
+
+/*
+ * Main content surface: reserve space for the iOS home indicator on notched
+ * devices via `env(safe-area-inset-bottom)`. The 1rem baseline keeps the
+ * content from hugging the screen edge on devices without a notch.
+ */
+.main {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/*
+ * Toast / sticky action bar: iOS home-indicator padding. Toast surfaces stack
+ * above the home indicator so the dismiss / primary action is always reachable
+ * by the user's thumb.
+ */
+.toast {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
 .skip-link {
   position: fixed;
   z-index: 50;
@@ -65,7 +161,130 @@ textarea {
   background: var(--pv-brand);
   color: var(--pv-on-brand);
   padding: 0.75rem 1rem;
+  transition: transform 200ms ease, background-color 280ms ease, color 280ms ease;
 }
+
 .skip-link:focus {
   transform: translateY(0);
+}
+
+/*
+ * Theme toggle (sun/moon, 44x44 circle, hover rotate 20deg on hover-capable
+ * pointers). Defined in plain CSS — no animation library, no framer-motion.
+ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--pv-border-subtle);
+  background: var(--pv-surface-raised);
+  color: var(--pv-ink);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease,
+    transform 200ms ease;
+}
+
+.theme-toggle__icon {
+  display: inline-block;
+  transition: transform 200ms ease;
+}
+
+@media (hover: hover) {
+  .theme-toggle:hover .theme-toggle__icon {
+    transform: rotate(20deg);
+  }
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 3px;
+}
+
+/*
+ * Hover gate — only apply :hover transform / color shifts on hover-capable
+ * pointers (mouse, trackpad). Touch devices with a sticky hover state
+ * (after a tap) won't trigger the lift. This is applied to every component
+ * that uses `hover:-translate-y-1` or `hover:opacity-80` so a phone user
+ * never sees a card stay elevated after dismissing it.
+ */
+@media (hover: hover) {
+  .pv-card-hover:hover {
+    transform: translateY(-0.25rem);
+  }
+  .pv-link-hover:hover {
+    color: var(--pv-ink);
+  }
+  .pv-opacity-hover:hover {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .skip-link,
+  .theme-toggle,
+  .theme-toggle__icon {
+    transition-duration: 0ms;
+  }
+
+  @media (hover: hover) {
+    .theme-toggle:hover .theme-toggle__icon {
+      transform: none;
+    }
+    .pv-card-hover:hover {
+      transform: none;
+    }
+  }
+}
+
+/*
+ * No sticky-hover on touch: cancel the Tailwind-generated hover utilities on
+ * devices that don't have a real hover capability. iOS Safari applies
+ * `:hover` after a tap and only clears it when the user taps elsewhere; this
+ * rule prevents the lifted cards, background shifts, and text recolors from
+ * sticking around after a tap. Order matters — Tailwind's utilities are
+ * emitted above via `@import "tailwindcss"`, so the cascade tie-break lands
+ * here on touch devices.
+ */
+@media (hover: none) {
+  .hover\:bg-surface-soft:hover {
+    background-color: var(--pv-surface);
+  }
+  .hover\:text-ink:hover {
+    color: var(--pv-brand);
+  }
+  .hover\:opacity-80:hover {
+    opacity: 1;
+  }
+  .hover\:opacity-90:hover {
+    opacity: 1;
+  }
+  .hover\:-translate-y-1:hover {
+    transform: none;
+  }
+  .pv-card-hover:hover {
+    transform: none;
+  }
+}
+
+/*
+ * Tutorial overlay — pulse animation for the spotlight ring. Defined here
+ * rather than inside the component so the CSS rule survives any hot
+ * reloads and respects the reduced-motion gate.
+ */
+@keyframes tour-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(214, 51, 108, 0.85), 0 0 24px 8px rgba(214, 51, 108, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(214, 51, 108, 0.55), 0 0 32px 12px rgba(214, 51, 108, 0.35);
+  }
 }

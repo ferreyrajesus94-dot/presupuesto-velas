@@ -6,25 +6,25 @@ assertSafeNeonTestDatabase();
 
 const [
   { db },
-  { appOwner, materials, recipeItems, recipes },
+  { appOwner, materials, templateItems, templates },
   { getSingletonOwner },
-  recipeRepository,
+  templateRepository,
 ] = await Promise.all([
   import("../../db/client"),
   import("../../db/schema"),
   import("../../src/server/repositories/owner"),
-  import("../../src/server/repositories/recipes"),
+  import("../../src/server/repositories/templates"),
 ]);
 const {
-  archiveRecipe,
-  countArchivedRecipes,
-  createRecipe,
-  getRecipe,
-  listRecipes,
-  restoreRecipe,
-  updateRecipe,
-  RecipeRepositoryError,
-} = recipeRepository;
+  archiveTemplate,
+  countArchivedTemplates,
+  createTemplate,
+  getTemplate,
+  listTemplates,
+  restoreTemplate,
+  updateTemplate,
+  TemplateRepositoryError,
+} = templateRepository;
 
 const materialFixture = (ownerId: string, id: string, name: string, unitCost: string) => ({
   id,
@@ -38,34 +38,34 @@ const materialFixture = (ownerId: string, id: string, name: string, unitCost: st
   unitCost,
 });
 
-async function insertRecipeFixture(args: {
+async function insertTemplateFixture(args: {
   ownerId: string;
   materialId: string;
-  recipeId: string;
-  recipeName: string;
+  templateId: string;
+  templateName: string;
   unitCost: string;
   quantity: string;
   position: number;
 }): Promise<void> {
-  await db.insert(recipes).values({
-    id: args.recipeId,
+  await db.insert(templates).values({
+    id: args.templateId,
     ownerId: args.ownerId,
-    name: args.recipeName,
+    name: args.templateName,
     unitCost: args.unitCost,
   });
-  await db.insert(recipeItems).values({
+  await db.insert(templateItems).values({
     id: crypto.randomUUID(),
-    recipeId: args.recipeId,
+    templateId: args.templateId,
     materialId: args.materialId,
     position: args.position,
     quantity: args.quantity,
   });
 }
 
-describe("recipes repository (integration vs dev branch) — read", () => {
-  let ownerId: string;
+describe("templates repository (integration vs dev branch)", () => {
+  let ownerId = "";
   let createdOwner = false;
-  const createdRecipeIds = new Set<string>();
+  const createdTemplateIds = new Set<string>();
   const createdMaterialIds = new Set<string>();
 
   beforeAll(async () => {
@@ -84,16 +84,16 @@ describe("recipes repository (integration vs dev branch) — read", () => {
   });
 
   afterEach(async () => {
-    for (const recipeId of createdRecipeIds) {
-      await db.delete(recipeItems).where(eq(recipeItems.recipeId, recipeId));
-      await db.delete(recipes).where(and(eq(recipes.id, recipeId), eq(recipes.ownerId, ownerId)));
+    const templateIds = [...createdTemplateIds];
+    if (templateIds.length > 0) {
+      await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+      await db.delete(templates).where(inArray(templates.id, templateIds));
     }
-    for (const materialId of createdMaterialIds) {
-      await db
-        .delete(materials)
-        .where(and(eq(materials.id, materialId), eq(materials.ownerId, ownerId)));
+    createdTemplateIds.clear();
+    const materialIds = [...createdMaterialIds];
+    if (materialIds.length > 0) {
+      await db.delete(materials).where(inArray(materials.id, materialIds));
     }
-    createdRecipeIds.clear();
     createdMaterialIds.clear();
   });
 
@@ -101,7 +101,7 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     if (createdOwner) await db.delete(appOwner).where(eq(appOwner.id, ownerId));
   });
 
-  it("returns owner-scoped recipes with position-ordered items and supports cross-owner / missing reads", async () => {
+  it("returns owner-scoped templates with position-ordered items and supports cross-owner / missing reads", async () => {
     const waxId = crypto.randomUUID();
     const wickId = crypto.randomUUID();
     await db
@@ -112,65 +112,67 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       ]);
     createdMaterialIds.add(waxId).add(wickId);
 
-    const recipeId = crypto.randomUUID();
-    await insertRecipeFixture({
+    const templateId = crypto.randomUUID();
+    await insertTemplateFixture({
       ownerId,
       materialId: waxId,
-      recipeId,
-      recipeName: `floral-${recipeId}`,
+      templateId,
+      templateName: `floral-${templateId}`,
       unitCost: "1100.000000000000000000",
       quantity: "100",
       position: 1,
     });
-    await db.insert(recipeItems).values({
+    await db.insert(templateItems).values({
       id: crypto.randomUUID(),
-      recipeId,
+      templateId,
       materialId: wickId,
       position: 2,
       quantity: "2",
     });
-    createdRecipeIds.add(recipeId);
+    createdTemplateIds.add(templateId);
 
-    const got = await getRecipe(ownerId, recipeId);
+    const got = await getTemplate(ownerId, templateId);
     expect(got?.items.map(({ position }) => position)).toEqual([1, 2]);
     expect(got?.items.map(({ materialId }) => materialId)).toEqual([waxId, wickId]);
-    expect(got?.recipe.unitCost).toBe("1100.000000000000000000");
+    expect(got?.template.unitCost).toBe("1100.000000000000000000");
 
-    expect((await listRecipes(ownerId)).map(({ recipe: row }) => row.id)).toContain(recipeId);
-    expect(await getRecipe(crypto.randomUUID(), recipeId)).toBeNull();
-    expect(await getRecipe(ownerId, crypto.randomUUID())).toBeNull();
+    expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).toContain(templateId);
+    expect(await getTemplate(crypto.randomUUID(), templateId)).toBeNull();
+    expect(await getTemplate(ownerId, crypto.randomUUID())).toBeNull();
   });
 
-  it("hides archived recipes by default and returns them only in all visibility", async () => {
+  it("hides archived templates by default and returns them only in all visibility", async () => {
     const materialId = crypto.randomUUID();
     await db
       .insert(materials)
       .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
     createdMaterialIds.add(materialId);
 
-    const recipeId = crypto.randomUUID();
-    await insertRecipeFixture({
+    const templateId = crypto.randomUUID();
+    await insertTemplateFixture({
       ownerId,
       materialId,
-      recipeId,
-      recipeName: `archived-${recipeId}`,
+      templateId,
+      templateName: `archived-${templateId}`,
       unitCost: "100.000000000000000000",
       quantity: "10",
       position: 1,
     });
-    createdRecipeIds.add(recipeId);
+    createdTemplateIds.add(templateId);
     await db
-      .update(recipes)
+      .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(and(eq(recipes.id, recipeId), eq(recipes.ownerId, ownerId)));
+      .where(and(eq(templates.id, templateId), eq(templates.ownerId, ownerId)));
 
-    expect(await getRecipe(ownerId, recipeId)).toBeNull();
+    expect(await getTemplate(ownerId, templateId)).toBeNull();
     expect(
-      (await listRecipes(ownerId, { includeArchived: true })).map(({ recipe: row }) => row.id),
-    ).toContain(recipeId);
+      (await listTemplates(ownerId, { includeArchived: true })).map(
+        ({ template: row }) => row.id,
+      ),
+    ).toContain(templateId);
   });
 
-  it("counts archived recipes per owner without surfacing other owners' archived rows", async () => {
+  it("counts archived templates per owner without surfacing other owners' archived rows", async () => {
     const materialId = crypto.randomUUID();
     await db
       .insert(materials)
@@ -180,35 +182,37 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     const archivedAId = crypto.randomUUID();
     const archivedBId = crypto.randomUUID();
     const activeId = crypto.randomUUID();
-    for (const recipeId of [archivedAId, archivedBId, activeId]) {
-      await insertRecipeFixture({
+    for (const templateId of [archivedAId, archivedBId, activeId]) {
+      await insertTemplateFixture({
         ownerId,
         materialId,
-        recipeId,
-        recipeName: `count-${recipeId}`,
+        templateId,
+        templateName: `count-${templateId}`,
         unitCost: "100.000000000000000000",
         quantity: "10",
         position: 1,
       });
-      createdRecipeIds.add(recipeId);
+      createdTemplateIds.add(templateId);
     }
     await db
-      .update(recipes)
+      .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(and(inArray(recipes.id, [archivedAId, archivedBId]), eq(recipes.ownerId, ownerId)));
+      .where(
+        and(inArray(templates.id, [archivedAId, archivedBId]), eq(templates.ownerId, ownerId)),
+      );
 
     // Two archived rows for the owner: count must be exactly 2.
-    expect(await countArchivedRecipes(ownerId)).toBe(2);
+    expect(await countArchivedTemplates(ownerId)).toBe(2);
 
     // A foreign owner with no rows must see 0 — and the prior owner count
     // stays 2 (the function must not double-count or include other scopes).
-    expect(await countArchivedRecipes(crypto.randomUUID())).toBe(0);
+    expect(await countArchivedTemplates(crypto.randomUUID())).toBe(0);
   });
 
   describe("create", () => {
     let createOwnerId: string;
     const createOwnerCreated = false;
-    const createdCreateRecipeIds = new Set<string>();
+    const createdCreateTemplateIds = new Set<string>();
     const createdCreateMaterialIds = new Set<string>();
 
     beforeAll(async () => {
@@ -219,12 +223,12 @@ describe("recipes repository (integration vs dev branch) — read", () => {
     });
 
     afterEach(async () => {
-      const recipeIds = [...createdCreateRecipeIds];
-      if (recipeIds.length > 0) {
-        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
-        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      const templateIds = [...createdCreateTemplateIds];
+      if (templateIds.length > 0) {
+        await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+        await db.delete(templates).where(inArray(templates.id, templateIds));
       }
-      createdCreateRecipeIds.clear();
+      createdCreateTemplateIds.clear();
       const materialIds = [...createdCreateMaterialIds];
       if (materialIds.length > 0) {
         await db.delete(materials).where(inArray(materials.id, materialIds));
@@ -236,7 +240,7 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       if (createOwnerCreated) await db.delete(appOwner).where(eq(appOwner.id, createOwnerId));
     });
 
-    it("creates and reads an owner-scoped recipe with ordered items and deterministic cost", async () => {
+    it("creates and reads an owner-scoped template with ordered items and deterministic cost", async () => {
       const waxId = crypto.randomUUID();
       const scentId = crypto.randomUUID();
       await db
@@ -247,22 +251,22 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         ]);
       createdCreateMaterialIds.add(waxId).add(scentId);
 
-      const recipe = await createRecipe(createOwnerId, {
+      const template = await createTemplate(createOwnerId, {
         name: `floral-${crypto.randomUUID()}`,
         items: [
           { materialId: waxId, quantity: "100", unit: "g" },
           { materialId: scentId, quantity: "50", unit: "g" },
         ],
       });
-      createdCreateRecipeIds.add(recipe.recipe.id);
+      createdCreateTemplateIds.add(template.template.id);
 
-      expect(recipe.recipe.unitCost).toBe("2000.000000000000000000");
-      expect(recipe.items.map(({ position }) => position)).toEqual([1, 2]);
-      expect(recipe.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
-      expect(recipe.items.map(({ quantity }) => quantity)).toEqual(["100", "50"]);
+      expect(template.template.unitCost).toBe("2000.000000000000000000");
+      expect(template.items.map(({ position }) => position)).toEqual([1, 2]);
+      expect(template.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
+      expect(template.items.map(({ quantity }) => quantity)).toEqual(["100", "50"]);
 
-      const got = await getRecipe(createOwnerId, recipe.recipe.id);
-      expect(got?.recipe.id).toBe(recipe.recipe.id);
+      const got = await getTemplate(createOwnerId, template.template.id);
+      expect(got?.template.id).toBe(template.template.id);
       expect(got?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
     });
 
@@ -284,21 +288,21 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       createdCreateMaterialIds.add(waxId).add(archivedId);
 
       const sharedName = `floral-${crypto.randomUUID()}`;
-      const first = await createRecipe(createOwnerId, {
+      const first = await createTemplate(createOwnerId, {
         name: sharedName,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdCreateRecipeIds.add(first.recipe.id);
+      createdCreateTemplateIds.add(first.template.id);
 
       // DUPLICATE_NAME — the unique (ownerId, name) index must surface as the repository code.
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: sharedName,
           items: [{ materialId: waxId, quantity: "50", unit: "g" }],
         }),
-      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      ).rejects.toBeInstanceOf(TemplateRepositoryError);
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: sharedName,
           items: [{ materialId: waxId, quantity: "50", unit: "g" }],
         }),
@@ -306,13 +310,13 @@ describe("recipes repository (integration vs dev branch) — read", () => {
 
       // MATERIAL_UNAVAILABLE — archived material reference.
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: `arch-${crypto.randomUUID()}`,
           items: [{ materialId: archivedId, quantity: "10", unit: "g" }],
         }),
-      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      ).rejects.toBeInstanceOf(TemplateRepositoryError);
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: `arch-${crypto.randomUUID()}`,
           items: [{ materialId: archivedId, quantity: "10", unit: "g" }],
         }),
@@ -322,20 +326,20 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       // references because the owner-scoped FOR SHARE snapshot only sees
       // this owner's rows).
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: `miss-${crypto.randomUUID()}`,
           items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
         }),
-      ).rejects.toBeInstanceOf(RecipeRepositoryError);
+      ).rejects.toBeInstanceOf(TemplateRepositoryError);
       await expect(
-        createRecipe(createOwnerId, {
+        createTemplate(createOwnerId, {
           name: `miss-${crypto.randomUUID()}`,
           items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
         }),
       ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
     });
 
-    it("serializes createRecipe behind a held-open archive lock (recipe rejects unavailable material)", async () => {
+    it("serializes createTemplate behind a held-open archive lock (template rejects unavailable material)", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
@@ -366,10 +370,10 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       try {
         await updateDonePromise;
 
-        // Start createRecipe while the held UPDATE still owns the row lock.
+        // Start createTemplate while the held UPDATE still owns the row lock.
         // The FOR SHARE snapshot will block until the held tx commits, then
         // observe the now-archived material and reject with MATERIAL_UNAVAILABLE.
-        const createPromise = createRecipe(createOwnerId, {
+        const createPromise = createTemplate(createOwnerId, {
           name: `floral-${crypto.randomUUID()}`,
           items: [{ materialId: waxId, quantity: "100", unit: "g" }],
         });
@@ -385,12 +389,12 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         await heldTx.catch(() => undefined);
       }
 
-      expect(caught).toBeInstanceOf(RecipeRepositoryError);
+      expect(caught).toBeInstanceOf(TemplateRepositoryError);
       expect(caught).toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
-      expect(await getRecipe(createOwnerId, "00000000-0000-0000-0000-000000000000")).toBeNull();
+      expect(await getTemplate(createOwnerId, "00000000-0000-0000-0000-000000000000")).toBeNull();
     });
 
-    it("serializes createRecipe behind a held-open price-update lock (recipe reads post-update unitCost)", async () => {
+    it("serializes createTemplate behind a held-open price-update lock (template reads post-update unitCost)", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
@@ -415,11 +419,11 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         await releaseUpdatePromise;
       });
 
-      let recipe: Awaited<ReturnType<typeof createRecipe>> | undefined;
+      let template: Awaited<ReturnType<typeof createTemplate>> | undefined;
       try {
         await updateDonePromise;
 
-        const createPromise = createRecipe(createOwnerId, {
+        const createPromise = createTemplate(createOwnerId, {
           name: `floral-${crypto.randomUUID()}`,
           items: [{ materialId: waxId, quantity: "10", unit: "g" }],
         });
@@ -427,8 +431,8 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         releaseUpdate();
         await heldTx;
 
-        recipe = await createPromise;
-        createdCreateRecipeIds.add(recipe.recipe.id);
+        template = await createPromise;
+        createdCreateTemplateIds.add(template.template.id);
       } finally {
         releaseUpdate();
         await heldTx.catch(() => undefined);
@@ -436,22 +440,22 @@ describe("recipes repository (integration vs dev branch) — read", () => {
 
       // 10 * 30 = 300 — proves the FOR SHARE snapshot read the post-update
       // unitCost (otherwise the value would have been derived from 10).
-      expect(recipe?.recipe.unitCost).toBe("300.000000000000000000");
-      expect(recipe?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
+      expect(template?.template.unitCost).toBe("300.000000000000000000");
+      expect(template?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
     });
   });
 
   describe("update", () => {
-    const createdUpdateRecipeIds = new Set<string>();
+    const createdUpdateTemplateIds = new Set<string>();
     const createdUpdateMaterialIds = new Set<string>();
 
     afterEach(async () => {
-      const recipeIds = [...createdUpdateRecipeIds];
-      if (recipeIds.length > 0) {
-        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
-        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      const templateIds = [...createdUpdateTemplateIds];
+      if (templateIds.length > 0) {
+        await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+        await db.delete(templates).where(inArray(templates.id, templateIds));
       }
-      createdUpdateRecipeIds.clear();
+      createdUpdateTemplateIds.clear();
       const materialIds = [...createdUpdateMaterialIds];
       if (materialIds.length > 0) {
         await db.delete(materials).where(inArray(materials.id, materialIds));
@@ -470,14 +474,14 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         ]);
       createdUpdateMaterialIds.add(waxId).add(scentId);
 
-      const created = await createRecipe(ownerId, {
+      const created = await createTemplate(ownerId, {
         name: `original-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdUpdateRecipeIds.add(created.recipe.id);
-      expect(created.recipe.unitCost).toBe("1000.000000000000000000");
+      createdUpdateTemplateIds.add(created.template.id);
+      expect(created.template.unitCost).toBe("1000.000000000000000000");
 
-      const updated = await updateRecipe(ownerId, created.recipe.id, {
+      const updated = await updateTemplate(ownerId, created.template.id, {
         name: `floral-${crypto.randomUUID()}`,
         items: [
           { materialId: scentId, quantity: "50", unit: "g" },
@@ -485,89 +489,91 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         ],
       });
 
-      // 50 * 20 + 100 * 10 = 2000; order derives from input, not the prior recipe.
-      expect(updated.recipe.name).not.toBe(created.recipe.name);
-      expect(updated.recipe.unitCost).toBe("2000.000000000000000000");
+      // 50 * 20 + 100 * 10 = 2000; order derives from input, not the prior template.
+      expect(updated.template.name).not.toBe(created.template.name);
+      expect(updated.template.unitCost).toBe("2000.000000000000000000");
       expect(updated.items.map(({ position }) => position)).toEqual([1, 2]);
       expect(updated.items.map(({ materialId }) => materialId)).toEqual([scentId, waxId]);
       expect(updated.items.map(({ quantity }) => quantity)).toEqual(["50", "100"]);
 
       // Persisted state must reflect the replacement (no stale items remain).
-      const got = await getRecipe(ownerId, created.recipe.id);
-      expect(got?.recipe.unitCost).toBe("2000.000000000000000000");
+      const got = await getTemplate(ownerId, created.template.id);
+      expect(got?.template.unitCost).toBe("2000.000000000000000000");
       expect(got?.items.map(({ materialId }) => materialId)).toEqual([scentId, waxId]);
     });
 
-    it("rejects NOT_FOUND for archived, cross-owner, and missing recipes", async () => {
+    it("rejects NOT_FOUND for archived, cross-owner, and missing templates", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
         .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
-      const created = await createRecipe(ownerId, {
+      const created = await createTemplate(ownerId, {
         name: `arch-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdUpdateRecipeIds.add(created.recipe.id);
-      // archiveRecipe is deferred to the next child slice; archive the row
-      // directly so the archived-recipe contract is still exercised here.
+      createdUpdateTemplateIds.add(created.template.id);
+      // archiveTemplate is deferred to the next child slice; archive the row
+      // directly so the archived-template contract is still exercised here.
       await db
-        .update(recipes)
+        .update(templates)
         .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-        .where(and(eq(recipes.id, created.recipe.id), eq(recipes.ownerId, ownerId)));
+        .where(and(eq(templates.id, created.template.id), eq(templates.ownerId, ownerId)));
 
-      const draft: Parameters<typeof updateRecipe>[2] = {
+      const draft: Parameters<typeof updateTemplate>[2] = {
         name: `renamed-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       };
       const otherOwnerId = crypto.randomUUID();
 
-      // Archived recipe + cross-owner + missing recipe must all reject updates.
-      await expect(updateRecipe(ownerId, created.recipe.id, draft)).rejects.toMatchObject({
+      // Archived template + cross-owner + missing template must all reject updates.
+      await expect(updateTemplate(ownerId, created.template.id, draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(updateRecipe(otherOwnerId, created.recipe.id, draft)).rejects.toMatchObject({
+      await expect(updateTemplate(otherOwnerId, created.template.id, draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(updateRecipe(ownerId, crypto.randomUUID(), draft)).rejects.toMatchObject({
+      await expect(updateTemplate(ownerId, crypto.randomUUID(), draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
-      // The original archived recipe row and items remain intact.
-      const stillArchived = await getRecipe(ownerId, created.recipe.id, { includeArchived: true });
-      expect(stillArchived?.recipe.archivedAt).toBeInstanceOf(Date);
+      // The original archived template row and items remain intact.
+      const stillArchived = await getTemplate(ownerId, created.template.id, {
+        includeArchived: true,
+      });
+      expect(stillArchived?.template.archivedAt).toBeInstanceOf(Date);
       expect(stillArchived?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
     });
 
-    it("maps duplicate names to DUPLICATE_NAME without mutating the recipe", async () => {
+    it("maps duplicate names to DUPLICATE_NAME without mutating the template", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
         .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
-      const first = await createRecipe(ownerId, {
+      const first = await createTemplate(ownerId, {
         name: `first-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      const second = await createRecipe(ownerId, {
+      const second = await createTemplate(ownerId, {
         name: `second-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "50", unit: "g" }],
       });
-      createdUpdateRecipeIds.add(first.recipe.id).add(second.recipe.id);
+      createdUpdateTemplateIds.add(first.template.id).add(second.template.id);
 
       await expect(
-        updateRecipe(ownerId, second.recipe.id, {
-          name: first.recipe.name,
+        updateTemplate(ownerId, second.template.id, {
+          name: first.template.name,
           items: [{ materialId: waxId, quantity: "50", unit: "g" }],
         }),
       ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
 
-      // The rejected rename must leave the recipe name and items untouched.
-      const stillSecond = await getRecipe(ownerId, second.recipe.id);
-      expect(stillSecond?.recipe.name).toBe(second.recipe.name);
-      expect(stillSecond?.recipe.unitCost).toBe("500.000000000000000000");
+      // The rejected rename must leave the template name and items untouched.
+      const stillSecond = await getTemplate(ownerId, second.template.id);
+      expect(stillSecond?.template.name).toBe(second.template.name);
+      expect(stillSecond?.template.unitCost).toBe("500.000000000000000000");
       expect(stillSecond?.items.map(({ quantity }) => quantity)).toEqual(["50.000000"]);
     });
 
@@ -583,15 +589,15 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       ]);
       createdUpdateMaterialIds.add(waxId).add(archivedId);
 
-      const created = await createRecipe(ownerId, {
+      const created = await createTemplate(ownerId, {
         name: `mat-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdUpdateRecipeIds.add(created.recipe.id);
+      createdUpdateTemplateIds.add(created.template.id);
 
       // Archived material reference must reject the update.
       await expect(
-        updateRecipe(ownerId, created.recipe.id, {
+        updateTemplate(ownerId, created.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [
             { materialId: waxId, quantity: "100", unit: "g" },
@@ -601,32 +607,32 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
       // Missing material reference (also cross-owner by FOR SHARE scope) must reject.
       await expect(
-        updateRecipe(ownerId, created.recipe.id, {
+        updateTemplate(ownerId, created.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
         }),
       ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
 
-      // The original recipe must still be intact after the rejected updates.
-      const stillOriginal = await getRecipe(ownerId, created.recipe.id);
-      expect(stillOriginal?.recipe.name).toBe(created.recipe.name);
+      // The original template must still be intact after the rejected updates.
+      const stillOriginal = await getTemplate(ownerId, created.template.id);
+      expect(stillOriginal?.template.name).toBe(created.template.name);
       expect(stillOriginal?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
     });
 
-    it("serializes updateRecipe behind a held-open price-update lock (recipe waits, reads post-update unitCost, and preserves atomic replacement)", async () => {
+    it("serializes updateTemplate behind a held-open price-update lock (template waits, reads post-update unitCost, and preserves atomic replacement)", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
         .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
-      // Seed an active recipe so updateRecipe has a row to lock and replace.
-      const seeded = await createRecipe(ownerId, {
+      // Seed an active template so updateTemplate has a row to lock and replace.
+      const seeded = await createTemplate(ownerId, {
         name: `seed-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdUpdateRecipeIds.add(seeded.recipe.id);
-      expect(seeded.recipe.unitCost).toBe("1000.000000000000000000");
+      createdUpdateTemplateIds.add(seeded.template.id);
+      expect(seeded.template.unitCost).toBe("1000.000000000000000000");
 
       let updateDone = () => {};
       const updateDonePromise = new Promise<void>((resolve) => {
@@ -640,7 +646,7 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       // Held-open transaction: UPDATE acquires the exclusive row lock on the
       // material row and then waits on `releaseUpdatePromise` until the test
       // releases it. Synchronization on `updateDonePromise` is awaited BEFORE
-      // launching updateRecipe, so we only release once we know updateRecipe
+      // launching updateTemplate, so we only release once we know updateTemplate
       // is racing against the held lock.
       const heldTx = db.transaction(async (tx) => {
         await tx
@@ -651,16 +657,16 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         await releaseUpdatePromise;
       });
 
-      let updated: Awaited<ReturnType<typeof updateRecipe>> | undefined;
+      let updated: Awaited<ReturnType<typeof updateTemplate>> | undefined;
       try {
         await updateDonePromise;
 
-        // Start updateRecipe while the held UPDATE still owns the row lock.
-        // FOR UPDATE on the recipe row acquires immediately, then the FOR
+        // Start updateTemplate while the held UPDATE still owns the row lock.
+        // FOR UPDATE on the template row acquires immediately, then the FOR
         // SHARE snapshot of the owner's materials blocks until the held tx
-        // commits. After the held tx commits, updateRecipe reads the new
-        // unitCost (30) and the renormalized recipe cost is 10 * 30 = 300.
-        const updatePromise = updateRecipe(ownerId, seeded.recipe.id, {
+        // commits. After the held tx commits, updateTemplate reads the new
+        // unitCost (30) and the renormalized template cost is 10 * 30 = 300.
+        const updatePromise = updateTemplate(ownerId, seeded.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [{ materialId: waxId, quantity: "10", unit: "g" }],
         });
@@ -680,29 +686,29 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       // unitCost (otherwise the value would have been derived from 10).
       // The returned `quantity` is the parsed numeric "10" (toFixed); the
       // persisted shape (NUMERIC(24,6)) stores "10.000000".
-      expect(updated?.recipe.unitCost).toBe("300.000000000000000000");
-      expect(updated?.recipe.name).not.toBe(seeded.recipe.name);
+      expect(updated?.template.unitCost).toBe("300.000000000000000000");
+      expect(updated?.template.name).not.toBe(seeded.template.name);
       expect(updated?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
 
       // The replacement must persist atomically: no stale items remain.
-      const persisted = await getRecipe(ownerId, seeded.recipe.id);
-      expect(persisted?.recipe.unitCost).toBe("300.000000000000000000");
+      const persisted = await getTemplate(ownerId, seeded.template.id);
+      expect(persisted?.template.unitCost).toBe("300.000000000000000000");
       expect(persisted?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
       expect(persisted?.items.map(({ quantity }) => quantity)).toEqual(["10.000000"]);
     });
   });
 
   describe("archive and restore", () => {
-    const createdArchiveRecipeIds = new Set<string>();
+    const createdArchiveTemplateIds = new Set<string>();
     const createdArchiveMaterialIds = new Set<string>();
 
     afterEach(async () => {
-      const recipeIds = [...createdArchiveRecipeIds];
-      if (recipeIds.length > 0) {
-        await db.delete(recipeItems).where(inArray(recipeItems.recipeId, recipeIds));
-        await db.delete(recipes).where(inArray(recipes.id, recipeIds));
+      const templateIds = [...createdArchiveTemplateIds];
+      if (templateIds.length > 0) {
+        await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+        await db.delete(templates).where(inArray(templates.id, templateIds));
       }
-      createdArchiveRecipeIds.clear();
+      createdArchiveTemplateIds.clear();
       const materialIds = [...createdArchiveMaterialIds];
       if (materialIds.length > 0) {
         await db.delete(materials).where(inArray(materials.id, materialIds));
@@ -710,7 +716,7 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       createdArchiveMaterialIds.clear();
     });
 
-    it("archives a recipe (preserves items, hides from active list) and restores it (returns to active list)", async () => {
+    it("archives a template (preserves items, hides from active list) and restores it (returns to active list)", async () => {
       const waxId = crypto.randomUUID();
       const scentId = crypto.randomUUID();
       await db
@@ -721,35 +727,39 @@ describe("recipes repository (integration vs dev branch) — read", () => {
         ]);
       createdArchiveMaterialIds.add(waxId).add(scentId);
 
-      const created = await createRecipe(ownerId, {
+      const created = await createTemplate(ownerId, {
         name: `floral-${crypto.randomUUID()}`,
         items: [
           { materialId: waxId, quantity: "100", unit: "g" },
           { materialId: scentId, quantity: "50", unit: "g" },
         ],
       });
-      createdArchiveRecipeIds.add(created.recipe.id);
-      expect(created.recipe.archivedAt).toBeNull();
+      createdArchiveTemplateIds.add(created.template.id);
+      expect(created.template.archivedAt).toBeNull();
 
-      // Archive — returns the recipe with archivedAt populated, items unchanged.
-      const archived = await archiveRecipe(ownerId, created.recipe.id);
-      expect(archived.id).toBe(created.recipe.id);
+      // Archive — returns the template with archivedAt populated, items unchanged.
+      const archived = await archiveTemplate(ownerId, created.template.id);
+      expect(archived.id).toBe(created.template.id);
       expect(archived.archivedAt).toBeInstanceOf(Date);
-      expect(archived.unitCost).toBe(created.recipe.unitCost);
-      expect(archived.name).toBe(created.recipe.name);
+      expect(archived.unitCost).toBe(created.template.unitCost);
+      expect(archived.name).toBe(created.template.name);
 
-      // Active list hides the archived recipe; all-visibility surfaces it.
-      expect((await listRecipes(ownerId)).map(({ recipe: row }) => row.id)).not.toContain(
-        created.recipe.id,
+      // Active list hides the archived template; all-visibility surfaces it.
+      expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).not.toContain(
+        created.template.id,
       );
       expect(
-        (await listRecipes(ownerId, { includeArchived: true })).map(({ recipe: row }) => row.id),
-      ).toContain(created.recipe.id);
+        (await listTemplates(ownerId, { includeArchived: true })).map(
+          ({ template: row }) => row.id,
+        ),
+      ).toContain(created.template.id);
 
-      // getRecipe mirrors the visibility: hidden by default, included when requested.
-      expect(await getRecipe(ownerId, created.recipe.id)).toBeNull();
-      const archivedView = await getRecipe(ownerId, created.recipe.id, { includeArchived: true });
-      expect(archivedView?.recipe.archivedAt).toBeInstanceOf(Date);
+      // getTemplate mirrors the visibility: hidden by default, included when requested.
+      expect(await getTemplate(ownerId, created.template.id)).toBeNull();
+      const archivedView = await getTemplate(ownerId, created.template.id, {
+        includeArchived: true,
+      });
+      expect(archivedView?.template.archivedAt).toBeInstanceOf(Date);
       expect(archivedView?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
       expect(archivedView?.items.map(({ quantity }) => quantity)).toEqual([
         "100.000000",
@@ -757,17 +767,17 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       ]);
 
       // Restore — clears archivedAt; items are preserved verbatim.
-      const restored = await restoreRecipe(ownerId, created.recipe.id);
-      expect(restored.id).toBe(created.recipe.id);
+      const restored = await restoreTemplate(ownerId, created.template.id);
+      expect(restored.id).toBe(created.template.id);
       expect(restored.archivedAt).toBeNull();
-      expect(restored.unitCost).toBe(created.recipe.unitCost);
+      expect(restored.unitCost).toBe(created.template.unitCost);
 
-      // Active list contains the restored recipe; all-visibility still surfaces it.
-      expect((await listRecipes(ownerId)).map(({ recipe: row }) => row.id)).toContain(
-        created.recipe.id,
+      // Active list contains the restored template; all-visibility still surfaces it.
+      expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).toContain(
+        created.template.id,
       );
-      const restoredView = await getRecipe(ownerId, created.recipe.id);
-      expect(restoredView?.recipe.archivedAt).toBeNull();
+      const restoredView = await getTemplate(ownerId, created.template.id);
+      expect(restoredView?.template.archivedAt).toBeNull();
       expect(restoredView?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
       expect(restoredView?.items.map(({ quantity }) => quantity)).toEqual([
         "100.000000",
@@ -775,66 +785,70 @@ describe("recipes repository (integration vs dev branch) — read", () => {
       ]);
     });
 
-    it("rejects archive and restore with NOT_FOUND for cross-owner, wrong-state, and missing recipes", async () => {
+    it("rejects archive and restore with NOT_FOUND for cross-owner, wrong-state, and missing templates", async () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
         .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdArchiveMaterialIds.add(waxId);
 
-      const active = await createRecipe(ownerId, {
+      const active = await createTemplate(ownerId, {
         name: `active-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      createdArchiveRecipeIds.add(active.recipe.id);
+      createdArchiveTemplateIds.add(active.template.id);
 
-      const archived = await archiveRecipe(ownerId, active.recipe.id);
+      const archived = await archiveTemplate(ownerId, active.template.id);
       expect(archived.archivedAt).toBeInstanceOf(Date);
 
       const otherOwnerId = crypto.randomUUID();
       const missingId = crypto.randomUUID();
 
-      // archiveRecipe rejects:
-      // - cross-owner (recipe exists for another owner)
+      // archiveTemplate rejects:
+      // - cross-owner (template exists for another owner)
       // - already archived (wrong state — FOR UPDATE only sees active rows)
-      // - missing recipe id
-      await expect(archiveRecipe(otherOwnerId, active.recipe.id)).rejects.toBeInstanceOf(
-        RecipeRepositoryError,
+      // - missing template id
+      await expect(archiveTemplate(otherOwnerId, active.template.id)).rejects.toBeInstanceOf(
+        TemplateRepositoryError,
       );
-      await expect(archiveRecipe(otherOwnerId, active.recipe.id)).rejects.toMatchObject({
+      await expect(archiveTemplate(otherOwnerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(archiveRecipe(ownerId, active.recipe.id)).rejects.toBeInstanceOf(
-        RecipeRepositoryError,
+      await expect(archiveTemplate(ownerId, active.template.id)).rejects.toBeInstanceOf(
+        TemplateRepositoryError,
       );
-      await expect(archiveRecipe(ownerId, active.recipe.id)).rejects.toMatchObject({
+      await expect(archiveTemplate(ownerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(archiveRecipe(ownerId, missingId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(archiveTemplate(ownerId, missingId)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
 
-      // restoreRecipe rejects:
-      // - cross-owner (recipe exists for another owner)
+      // restoreTemplate rejects:
+      // - cross-owner (template exists for another owner)
       // - already active (wrong state — FOR UPDATE only sees archived rows)
-      // - missing recipe id
-      await expect(restoreRecipe(otherOwnerId, active.recipe.id)).rejects.toMatchObject({
+      // - missing template id
+      await expect(restoreTemplate(otherOwnerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(restoreRecipe(ownerId, missingId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(restoreTemplate(ownerId, missingId)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
 
-      // Wrong-state restore on the still-archived recipe: the only currently
+      // Wrong-state restore on the still-archived template: the only currently
       // valid transition is restore → active; re-archive while archived must
       // also reject (already covered above), then restore flips state, then
       // a second restore while now-active must reject with NOT_FOUND.
-      const restored = await restoreRecipe(ownerId, active.recipe.id);
+      const restored = await restoreTemplate(ownerId, active.template.id);
       expect(restored.archivedAt).toBeNull();
-      await expect(restoreRecipe(ownerId, active.recipe.id)).rejects.toMatchObject({
+      await expect(restoreTemplate(ownerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
-      // The original recipe row must still exist with its items intact after
+      // The original template row must still exist with its items intact after
       // every rejected call.
-      const finalView = await getRecipe(ownerId, active.recipe.id);
-      expect(finalView?.recipe.archivedAt).toBeNull();
+      const finalView = await getTemplate(ownerId, active.template.id);
+      expect(finalView?.template.archivedAt).toBeNull();
       expect(finalView?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
       expect(finalView?.items.map(({ quantity }) => quantity)).toEqual(["100.000000"]);
     });

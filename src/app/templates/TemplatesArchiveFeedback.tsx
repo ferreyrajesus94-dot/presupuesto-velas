@@ -1,32 +1,32 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { buildRecipeLifecycleCopy, type RecipeLifecycleOperation } from "./recipeLifecycle";
-import type { RecipeView } from "./RecipeViewFilter";
+import { buildTemplateLifecycleCopy, type TemplateLifecycleOperation } from "./templateLifecycle";
+import type { TemplateView } from "./TemplateViewFilter";
 
-export type RecipeLifecycleResult = {
-  operation: RecipeLifecycleOperation;
-  recipeId: string;
-  recipeName: string;
+export type TemplateLifecycleResult = {
+  operation: TemplateLifecycleOperation;
+  templateId: string;
+  templateName: string;
 };
 
-type FeedbackContextValue = { reportLifecycle: (result: RecipeLifecycleResult) => void };
+type FeedbackContextValue = { reportLifecycle: (result: TemplateLifecycleResult) => void };
 
 const FeedbackContext = createContext<FeedbackContextValue | null>(null);
 
-export function useRecipeArchiveFeedback(): FeedbackContextValue {
+export function useTemplateArchiveFeedback(): FeedbackContextValue {
   return useContext(FeedbackContext) ?? { reportLifecycle: () => {} };
 }
 
-export function RecipesArchiveFeedback({
+export function TemplatesArchiveFeedback({
   view,
   children,
 }: {
-  view: RecipeView;
+  view: TemplateView;
   children: ReactNode;
 }) {
-  const [result, setResult] = useState<RecipeLifecycleResult | null>(null);
-  const reportLifecycle = useCallback((next: RecipeLifecycleResult) => setResult(next), []);
+  const [result, setResult] = useState<TemplateLifecycleResult | null>(null);
+  const reportLifecycle = useCallback((next: TemplateLifecycleResult) => setResult(next), []);
 
   // PR3z.focus: deterministic focus destination after a successful archive in
   // the active view. The row being archived unmounts, so we move focus to a
@@ -37,13 +37,13 @@ export function RecipesArchiveFeedback({
     if (!result) return;
     if (view !== "active" || result.operation !== "archive") return;
     // First try the next-row destination: a focus marker whose source is
-    // NOT the recipe we just archived. The source's button is still in the
+    // NOT the template we just archived. The source's button is still in the
     // DOM until the post-revalidation render commits, so we must filter it
     // out explicitly to avoid leaving focus on a soon-to-be-unmounted
     // element.
     const nextRow = Array.from(
       document.querySelectorAll<HTMLElement>('[data-archive-focus="next-row"]'),
-    ).find((el) => el.getAttribute("data-archive-source") !== result.recipeId);
+    ).find((el) => el.getAttribute("data-archive-source") !== result.templateId);
     if (nextRow) {
       nextRow.focus();
       return;
@@ -58,7 +58,7 @@ export function RecipesArchiveFeedback({
       {children}
       {result ? (
         <p role="status" aria-live="polite" className="text-sm text-status-success">
-          {buildRecipeLifecycleCopy({ operation: result.operation, recipeName: result.recipeName })}
+          {buildTemplateLifecycleCopy({ operation: result.operation, templateName: result.templateName })}
         </p>
       ) : null}
     </FeedbackContext.Provider>

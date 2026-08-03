@@ -26,8 +26,8 @@ const [
     quoteVersionModels,
     quoteVersions,
     quotes,
-    recipeItems,
-    recipes,
+    templateItems,
+    templates,
   },
   { getSingletonOwner },
   { appendQuoteVersion, createQuoteDraft, QuoteRepositoryError },
@@ -42,7 +42,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
   let ownerId = "";
   let createdOwner = false;
   const quoteIds = new Set<string>();
-  const recipeIds = new Set<string>();
+  const templateIds = new Set<string>();
   const materialIds = new Set<string>();
 
   beforeAll(async () => {
@@ -69,10 +69,10 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       await db.delete(quoteVersions).where(inArray(quoteVersions.quoteId, qIds));
       await db.delete(quotes).where(inArray(quotes.id, qIds));
     }
-    const rIds = [...recipeIds];
-    if (rIds.length > 0) {
-      await db.delete(recipeItems).where(inArray(recipeItems.recipeId, rIds));
-      await db.delete(recipes).where(inArray(recipes.id, rIds));
+    const tIds = [...templateIds];
+    if (tIds.length > 0) {
+      await db.delete(templateItems).where(inArray(templateItems.templateId, tIds));
+      await db.delete(templates).where(inArray(templates.id, tIds));
     }
     if (materialIds.size > 0)
       await db.delete(materials).where(inArray(materials.id, [...materialIds]));
@@ -81,7 +81,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
   afterEach(async () => {
     await sweep();
     quoteIds.clear();
-    recipeIds.clear();
+    templateIds.clear();
     materialIds.clear();
   });
 
@@ -102,12 +102,12 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     });
   }
 
-  async function seedSimpleRecipe(
+  async function seedSimpleTemplate(
     materialCost: string,
-    recipeCost: string,
-  ): Promise<{ recipeId: string; materialId: string }> {
+    templateCost: string,
+  ): Promise<{ templateId: string; materialId: string }> {
     const materialId = crypto.randomUUID();
-    const recipeId = crypto.randomUUID();
+    const templateId = crypto.randomUUID();
     await db.insert(materials).values([
       {
         id: materialId,
@@ -123,19 +123,19 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     ]);
     materialIds.add(materialId);
     await db
-      .insert(recipes)
-      .values([{ id: recipeId, ownerId, name: `r-${recipeId}`, unitCost: recipeCost }]);
-    recipeIds.add(recipeId);
-    await db.insert(recipeItems).values([
+      .insert(templates)
+      .values([{ id: templateId, ownerId, name: `r-${templateId}`, unitCost: templateCost }]);
+    templateIds.add(templateId);
+    await db.insert(templateItems).values([
       {
         id: crypto.randomUUID(),
-        recipeId,
+        templateId,
         materialId,
         position: 1,
         quantity: "10",
       },
     ]);
-    return { recipeId, materialId };
+    return { templateId, materialId };
   }
 
   async function createDraft(): Promise<string> {
@@ -146,10 +146,10 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 1. round-trip --------------------------------------------------------
   it("round-trips: appendQuoteVersion returns the bumped quote and the persisted version row", async () => {
-    const { recipeId } = await seedSimpleRecipe("10.000000000000000000", "100.000000000000000000");
+    const { templateId } = await seedSimpleTemplate("10.000000000000000000", "100.000000000000000000");
     const quoteId = await createDraft();
 
-    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(recipeId, "2", "100"), 0);
+    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(templateId, "2", "100"), 0);
     expect(r1.quote.id).toBe(quoteId);
     expect(r1.quote.ownerId).toBe(ownerId);
     expect(r1.quote.currentVersion).toBe(1);
@@ -177,9 +177,9 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 2. atomicity ---------------------------------------------------------
   it("atomicity: currentVersion and lockVersion bump together inside the transaction", async () => {
-    const { recipeId } = await seedSimpleRecipe("5.000000000000000000", "50.000000000000000000");
+    const { templateId } = await seedSimpleTemplate("5.000000000000000000", "50.000000000000000000");
     const quoteId = await createDraft();
-    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(recipeId, "1", "5000"), 0);
+    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(templateId, "1", "5000"), 0);
     expect(r1.quote.currentVersion).toBe(1);
     expect(r1.quote.lockVersion).toBe(1);
     // The transaction bumped both counters in one UPDATE — the returned
@@ -195,9 +195,9 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 3. LOCK_VERSION_MISMATCH ---------------------------------------------
   it("rejects LOCK_VERSION_MISMATCH for a stale expectedLockVersion (read-then-bump-then-stale-call)", async () => {
-    const { recipeId } = await seedSimpleRecipe("10.000000000000000000", "100.000000000000000000");
+    const { templateId } = await seedSimpleTemplate("10.000000000000000000", "100.000000000000000000");
     const quoteId = await createDraft();
-    const s = snap(recipeId, "1", "100");
+    const s = snap(templateId, "1", "100");
 
     await appendQuoteVersion(ownerId, quoteId, s, 0); // 0 → 1
     const after1 = (await db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1))[0]!;
@@ -216,9 +216,9 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 4. TERMINAL_STATUS ---------------------------------------------------
   it("rejects TERMINAL_STATUS after the quote is manually flipped to accepted", async () => {
-    const { recipeId } = await seedSimpleRecipe("10.000000000000000000", "100.000000000000000000");
+    const { templateId } = await seedSimpleTemplate("10.000000000000000000", "100.000000000000000000");
     const quoteId = await createDraft();
-    const s = snap(recipeId, "1", "100");
+    const s = snap(templateId, "1", "100");
 
     await appendQuoteVersion(ownerId, quoteId, s, 0);
     // Status FSM transaction is deferred to PR4c; mutate the row directly
@@ -248,9 +248,9 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 5. concurrent allocation --------------------------------------------
   it("concurrent allocation: two parallel calls produce unique, sequential versionNo's", async () => {
-    const { recipeId } = await seedSimpleRecipe("10.000000000000000000", "100.000000000000000000");
+    const { templateId } = await seedSimpleTemplate("10.000000000000000000", "100.000000000000000000");
     const quoteId = await createDraft();
-    const s = snap(recipeId, "1", "100");
+    const s = snap(templateId, "1", "100");
 
     // Two parallel calls with the same expectedLockVersion=0. SELECT FOR
     // UPDATE serializes them; the optimistic concurrency guard rejects
@@ -290,8 +290,8 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
 
   // 6. row counts --------------------------------------------------------
   it("row counts: 2 models × 3 materials + 2 indirects ⇒ exactly 2 / 6 / 2 child rows", async () => {
-    const recipeA = crypto.randomUUID();
-    const recipeB = crypto.randomUUID();
+    const templateA = crypto.randomUUID();
+    const templateB = crypto.randomUUID();
     const matA = crypto.randomUUID();
     const matB = crypto.randomUUID();
     const matC = crypto.randomUUID();
@@ -332,28 +332,28 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     ]);
     [matA, matB, matC].forEach((x) => materialIds.add(x));
 
-    // Two recipes × 3 ordered items each ⇒ 6 recipe_items total. The
-    // snapshot maps model A → recipe A (3 materials) and model B → recipe B
+    // Two templates × 3 ordered items each ⇒ 6 template_items total. The
+    // snapshot maps model A → template A (3 materials) and model B → template B
     // (3 materials), producing 6 quoteVersionMaterials rows.
-    await db.insert(recipes).values([
-      { id: recipeA, ownerId, name: `r-${recipeA}`, unitCost: "300.000000000000000000" },
-      { id: recipeB, ownerId, name: `r-${recipeB}`, unitCost: "600.000000000000000000" },
+    await db.insert(templates).values([
+      { id: templateA, ownerId, name: `r-${templateA}`, unitCost: "300.000000000000000000" },
+      { id: templateB, ownerId, name: `r-${templateB}`, unitCost: "600.000000000000000000" },
     ]);
-    recipeIds.add(recipeA).add(recipeB);
-    await db.insert(recipeItems).values([
-      { id: crypto.randomUUID(), recipeId: recipeA, materialId: matA, position: 1, quantity: "10" },
-      { id: crypto.randomUUID(), recipeId: recipeA, materialId: matB, position: 2, quantity: "5" },
-      { id: crypto.randomUUID(), recipeId: recipeA, materialId: matC, position: 3, quantity: "3" },
-      { id: crypto.randomUUID(), recipeId: recipeB, materialId: matA, position: 1, quantity: "20" },
-      { id: crypto.randomUUID(), recipeId: recipeB, materialId: matB, position: 2, quantity: "10" },
-      { id: crypto.randomUUID(), recipeId: recipeB, materialId: matC, position: 3, quantity: "6" },
+    templateIds.add(templateA).add(templateB);
+    await db.insert(templateItems).values([
+      { id: crypto.randomUUID(), templateId: templateA, materialId: matA, position: 1, quantity: "10" },
+      { id: crypto.randomUUID(), templateId: templateA, materialId: matB, position: 2, quantity: "5" },
+      { id: crypto.randomUUID(), templateId: templateA, materialId: matC, position: 3, quantity: "3" },
+      { id: crypto.randomUUID(), templateId: templateB, materialId: matA, position: 1, quantity: "20" },
+      { id: crypto.randomUUID(), templateId: templateB, materialId: matB, position: 2, quantity: "10" },
+      { id: crypto.randomUUID(), templateId: templateB, materialId: matC, position: 3, quantity: "6" },
     ]);
 
     const quoteId = await createDraft();
     const s: QuoteSnapshot = buildQuoteSnapshot({
       models: [
-        { recipeId: recipeA, quantity: "2", perUnitCostDecimal: "300" },
-        { recipeId: recipeB, quantity: "1", perUnitCostDecimal: "600" },
+        { recipeId: templateA, quantity: "2", perUnitCostDecimal: "300" },
+        { recipeId: templateB, quantity: "1", perUnitCostDecimal: "600" },
       ],
       indirectCosts: [
         { name: "labor", amount: "50" },
@@ -373,7 +373,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       .where(and(eq(quoteVersionModels.quoteId, quoteId), eq(quoteVersionModels.versionNo, 1)));
     expect(models).toHaveLength(2);
     expect(models.map((m) => m.position)).toEqual([1, 2]);
-    expect(models.map((m) => m.recipeId)).toEqual([recipeA, recipeB]);
+    expect(models.map((m) => m.templateId)).toEqual([templateA, templateB]);
 
     const matRows = await db
       .select()

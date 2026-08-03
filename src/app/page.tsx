@@ -38,12 +38,14 @@ export default async function Home() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-muted">
+      <header className="flex flex-col gap-4 rounded-2xl bg-brand-gradient p-6 text-on-brand shadow sm:p-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-on-brand/80">
           Calculadora Flor
         </p>
-        <h1 className="text-3xl font-semibold text-wrap-balance">Inicio</h1>
-        <p className="text-sm text-ink-muted">Resumen de tu catálogo y cotizaciones activas.</p>
+        <h1 className="text-3xl font-semibold text-wrap-balance">🕯️ Calculadora de Velas Flor</h1>
+        <p className="max-w-2xl text-sm text-on-brand/85">
+          Organizá tus insumos, plantillas y cotizaciones desde un solo lugar.
+        </p>
       </header>
 
       {totalsEmpty ? (
@@ -85,6 +87,7 @@ export default async function Home() {
       ) : (
         <section aria-label="Resumen" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <SummaryCard
+            icon="📦"
             title="Materiales"
             count={materials.length}
             singular="material"
@@ -93,6 +96,7 @@ export default async function Home() {
             cta="Ver materiales"
           />
           <SummaryCard
+            icon="📋"
             title="Plantillas"
             count={templates.length}
             singular="plantilla"
@@ -101,6 +105,7 @@ export default async function Home() {
             cta="Ver plantillas"
           />
           <SummaryCard
+            icon="🧮"
             title="Cotizaciones activas"
             count={quotes.length}
             singular="cotización activa"
@@ -133,9 +138,9 @@ export default async function Home() {
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
             {recentQuotes.map(({ quote }) => (
-              <li
+            <li
                 key={quote.id}
-                className="rounded-2xl border border-border-subtle bg-surface p-4 shadow-sm"
+                className="rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1"
               >
                 <Link
                   href={`/quotes/${quote.id}`}
@@ -172,6 +177,7 @@ export default async function Home() {
 }
 
 function SummaryCard({
+  icon,
   title,
   count,
   singular,
@@ -179,6 +185,7 @@ function SummaryCard({
   href,
   cta,
 }: {
+  icon: string;
   title: string;
   count: number;
   singular: string;
@@ -188,7 +195,8 @@ function SummaryCard({
 }) {
   const noun = count === 1 ? singular : plural;
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform hover:-translate-y-1">
+      <span className="text-3xl" aria-hidden="true">{icon}</span>
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-muted">{title}</p>
       <p className="text-3xl font-semibold text-ink" aria-label={`${count} ${noun}`}>
         {count}

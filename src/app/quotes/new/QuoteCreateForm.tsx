@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -525,21 +525,34 @@ function BulkDiscountEditor({
   minQty: string;
   onMinQtyChange: (next: string) => void;
 }) {
+  // Track the last valid value in a ref so we can recover when the user
+  // clears the field and then types something invalid. Without this, the
+  // closure-captured `percent` would be empty after clear, defeating the
+  // "preserve previous valid value" contract.
+  const lastValidPercent = useRef(percent);
+  const lastValidMinQty = useRef(minQty);
+  useEffect(() => {
+    if (percent !== "") lastValidPercent.current = percent;
+  }, [percent]);
+  useEffect(() => {
+    if (minQty !== "") lastValidMinQty.current = minQty;
+  }, [minQty]);
+
   // Filter percent values: allow empty (cleared), digits + at most one dot,
   // reject negatives. Anything outside that set is dropped silently so the
   // previous valid value remains.
   function sanitizePercent(raw: string): string {
     if (raw === "") return raw;
-    if (!/^\d{0,3}(\.\d{0,2})?$/.test(raw)) return percent;
+    if (!/^\d{0,3}(\.\d{0,2})?$/.test(raw)) return lastValidPercent.current;
     const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0 || n > 100) return percent;
+    if (!Number.isFinite(n) || n < 0 || n > 100) return lastValidPercent.current;
     return raw;
   }
   function sanitizeMinQty(raw: string): string {
     if (raw === "") return raw;
-    if (!/^\d{0,9}$/.test(raw)) return minQty;
+    if (!/^\d{0,9}$/.test(raw)) return lastValidMinQty.current;
     const n = Number(raw);
-    if (!Number.isFinite(n) || n < 1 || n > 1_000_000) return minQty;
+    if (!Number.isFinite(n) || n < 1 || n > 1_000_000) return lastValidMinQty.current;
     return raw;
   }
   return (

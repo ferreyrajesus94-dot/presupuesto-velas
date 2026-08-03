@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme/ThemeProvider";
 const NAV_ITEMS = [
   { href: "/", label: "Inicio" },
   { href: "/materials", label: "Materiales" },
-  { href: "/recipes", label: "Recetas" },
+  { href: "/templates", label: "Plantillas" },
   { href: "/quotes", label: "Cotizaciones" },
 ];
 

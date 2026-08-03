@@ -59,7 +59,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
         {
           id: quote.quote.id,
           models: models.map((m) => ({
-            recipeId: m.recipeId,
+            recipeId: m.templateId,
             quantity: m.quantity,
             perUnitCost: m.unitCost,
             lineTotal: m.lineTotal,
@@ -115,7 +115,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
               key={`${m.quoteId}-${m.versionNo}-${m.position}`}
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-surface-soft px-3 py-2"
             >
-              <span className="font-medium text-ink">{m.recipeName}</span>
+              <span className="font-medium text-ink">{m.templateName}</span>
               <span className="text-sm text-ink-muted">Cantidad: {m.quantity}</span>
               <span className="min-w-0 break-words text-sm font-semibold text-ink">
                 {formatArsFromDecimalString(m.lineTotal)}

@@ -20,7 +20,7 @@ function projectListItem(record: QuoteRecord): QuoteListItem | null {
     models: record.models
       .filter((row) => row.versionNo === quote.currentVersion)
       .map((row) => ({
-        recipeId: row.recipeId,
+        recipeId: row.templateId,
         quantity: row.quantity,
         perUnitCost: row.unitCost,
         lineTotal: row.lineTotal,

@@ -24,8 +24,8 @@ function snapshotFromQuote(quote: Quote, visibility: WhatsAppVisibility) {
     snapshot: projectQuote(
       {
         id: quote.quote.id,
-        models: models.map(({ recipeId, quantity, unitCost, lineTotal }) => ({
-          recipeId,
+        models: models.map(({ templateId, quantity, unitCost, lineTotal }) => ({
+          recipeId: templateId,
           quantity,
           perUnitCost: unitCost,
           lineTotal,
@@ -47,15 +47,15 @@ function snapshotFromQuote(quote: Quote, visibility: WhatsAppVisibility) {
       },
       visibility,
     ),
-    recipeNames: models.map(({ recipeName }) => recipeName),
+    templateNames: models.map(({ templateName }) => templateName),
   };
 }
 
 export function buildWhatsAppShareText(quote: Quote, visibility: WhatsAppVisibility): string {
-  const { snapshot, recipeNames } = snapshotFromQuote(quote, visibility);
+  const { snapshot, templateNames } = snapshotFromQuote(quote, visibility);
   const modelLines = snapshot.models.map(
     (model, index) =>
-      `• ${model.quantity} × ${recipeNames[index] ?? model.recipeId}: ${formatArsFromDecimalString(model.lineTotal)}`,
+      `• ${model.quantity} × ${templateNames[index] ?? model.recipeId}: ${formatArsFromDecimalString(model.lineTotal)}`,
   );
   const sections = [
     `*Cotización — ${quote.quote.customerName?.trim() || "Sin cliente"}*\nVencimiento: ${formatDate(snapshot.expirationDate)}`,

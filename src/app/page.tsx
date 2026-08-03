@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireOwner } from "@/server/auth/requireOwner";
 import { listMaterials } from "@/server/repositories/materials";
-import { listRecipes } from "@/server/repositories/recipes";
+import { listTemplates } from "@/server/repositories/templates";
 import { listQuotes } from "@/server/repositories/quotes";
 
 const MAX_RECENT_QUOTES = 5;
@@ -27,13 +27,13 @@ function statusLabel(status: QuoteStatus): string {
 
 export default async function Home() {
   const owner = await requireOwner();
-  const [materials, recipes, quotes] = await Promise.all([
+  const [materials, templates, quotes] = await Promise.all([
     listMaterials(owner.id),
-    listRecipes(owner.id),
+    listTemplates(owner.id),
     listQuotes(owner.id),
   ]);
 
-  const totalsEmpty = materials.length === 0 && recipes.length === 0 && quotes.length === 0;
+  const totalsEmpty = materials.length === 0 && templates.length === 0 && quotes.length === 0;
   const recentQuotes = quotes.slice(-MAX_RECENT_QUOTES).reverse();
 
   return (
@@ -69,10 +69,10 @@ export default async function Home() {
               Ir a Materiales
             </Link>
             <Link
-              href="/recipes"
+              href="/templates"
               className="inline-flex min-h-11 items-center rounded-md border border-border-subtle bg-surface px-4 text-ink hover:bg-surface-soft"
             >
-              Ir a Recetas
+              Ir a Plantillas
             </Link>
             <Link
               href="/quotes/new"
@@ -93,12 +93,12 @@ export default async function Home() {
             cta="Ver materiales"
           />
           <SummaryCard
-            title="Recetas"
-            count={recipes.length}
-            singular="receta"
-            plural="recetas"
-            href="/recipes"
-            cta="Ver recetas"
+            title="Plantillas"
+            count={templates.length}
+            singular="plantilla"
+            plural="plantillas"
+            href="/templates"
+            cta="Ver plantillas"
           />
           <SummaryCard
             title="Cotizaciones activas"

@@ -1,26 +1,26 @@
 import { requireOwner } from "@/server/auth/requireOwner";
 import { listMaterials } from "@/server/repositories/materials";
-import { countArchivedRecipes, listRecipes } from "@/server/repositories/recipes";
-import { RecipeCreateForm, type RecipeMaterialOption } from "./RecipeCreateForm";
-import { RecipesList, type RecipeListItem } from "./RecipesList";
-import { resolveRecipeView, type RecipeView } from "./RecipeViewFilter";
+import { countArchivedTemplates, listTemplates } from "@/server/repositories/templates";
+import { TemplateCreateForm, type TemplateMaterialOption } from "./TemplateCreateForm";
+import { TemplatesList, type TemplateListItem } from "./TemplatesList";
+import { resolveTemplateView, type TemplateView } from "./TemplateViewFilter";
 
-const VIEW_VISIBILITY: Record<RecipeView, { includeArchived: boolean }> = {
+const VIEW_VISIBILITY: Record<TemplateView, { includeArchived: boolean }> = {
   active: { includeArchived: false },
   all: { includeArchived: true },
 };
 
-// PR3v.next: the edit form preloads each active recipe's ordered items.
-// The repository persists the items in the recipe's chosen unit (after
+// PR3v.next: the edit form preloads each active template's ordered items.
+// The repository persists the items in the template's chosen unit (after
 // normalization to the material's baseUnit), and the projection layer
 // lifts the unit display from the catalog so the Client Component
 // receives only serializable strings.
 const FALLBACK_UNIT = "g";
 
-function projectRecipeItems(
+function projectTemplateItems(
   rows: ReadonlyArray<{ materialId: string; quantity: string; position: number }>,
-  materialsById: ReadonlyMap<string, RecipeMaterialOption>,
-): RecipeListItem["items"] {
+  materialsById: ReadonlyMap<string, TemplateMaterialOption>,
+): TemplateListItem["items"] {
   return rows
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -31,28 +31,28 @@ function projectRecipeItems(
     }));
 }
 
-export default async function RecipesPage({
+export default async function TemplatesPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const owner = await requireOwner();
   const { view: rawView } = await searchParams;
-  const view = resolveRecipeView(rawView);
+  const view = resolveTemplateView(rawView);
   const visibility = VIEW_VISIBILITY[view];
-  const records = await listRecipes(owner.id, visibility);
+  const records = await listTemplates(owner.id, visibility);
 
   // Mirror materials: only query the archived count when the active list
   // might be empty — keeps the happy path to a single query and supports
   // the view-aware empty state for archived-only owners.
   const archivedCount =
-    view === "active" && records.length === 0 ? await countArchivedRecipes(owner.id) : 0;
+    view === "active" && records.length === 0 ? await countArchivedTemplates(owner.id) : 0;
 
   // The create and edit forms both accept active materials. We fetch the
   // catalog here so the Client Components receive a stable, owner-scoped
   // list and stay decoupled from the server repository layer.
   const activeMaterials = await listMaterials(owner.id, { includeArchived: false });
-  const materialOptions: RecipeMaterialOption[] = activeMaterials.map((m) => ({
+  const materialOptions: TemplateMaterialOption[] = activeMaterials.map((m) => ({
     id: m.id,
     name: m.name,
     baseUnit: m.baseUnit,
@@ -60,13 +60,13 @@ export default async function RecipesPage({
   }));
   const materialsById = new Map(materialOptions.map((m) => [m.id, m] as const));
 
-  const items: RecipeListItem[] = records.map(({ recipe, items: recipeItems }) => ({
-    id: recipe.id,
-    name: recipe.name,
-    unitCost: recipe.unitCost,
-    archivedAt: recipe.archivedAt,
-    itemCount: recipeItems.length,
-    items: projectRecipeItems(recipeItems, materialsById),
+  const items: TemplateListItem[] = records.map(({ template, items: templateItems }) => ({
+    id: template.id,
+    name: template.name,
+    unitCost: template.unitCost,
+    archivedAt: template.archivedAt,
+    itemCount: templateItems.length,
+    items: projectTemplateItems(templateItems, materialsById),
   }));
 
   return (
@@ -76,17 +76,17 @@ export default async function RecipesPage({
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Recetas</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">Plantillas</h1>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
-        <RecipesList
-          recipes={items}
+        <TemplatesList
+          templates={items}
           view={view}
           archivedCount={archivedCount}
           materials={materialOptions}
         />
-        <RecipeCreateForm materials={materialOptions} />
+        <TemplateCreateForm materials={materialOptions} />
       </div>
     </div>
   );

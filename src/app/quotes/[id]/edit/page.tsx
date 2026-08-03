@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOwner } from "@/server/auth/requireOwner";
 import { getQuote } from "@/server/repositories/quotes";
-import { listRecipes } from "@/server/repositories/recipes";
+import { listTemplates } from "@/server/repositories/templates";
 import { isExpiredSent } from "@/domain/quoteExpired";
 import QuoteEditForm from "./QuoteEditForm";
 
@@ -52,10 +52,10 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
   const quote = await getQuote(owner.id, id);
   if (!quote) notFound();
   const isDraft = quote.quote.status === "draft";
-  const recipes = isDraft
-    ? (await listRecipes(owner.id))
-        .filter(({ recipe }) => recipe.archivedAt === null)
-        .map(({ recipe }) => recipe)
+  const templates = isDraft
+    ? (await listTemplates(owner.id))
+        .filter(({ template }) => template.archivedAt === null)
+        .map(({ template }) => template)
     : [];
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
@@ -76,7 +76,7 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
         </h1>
       </header>
       {isDraft ? (
-        <QuoteEditForm quote={quote} recipes={recipes} />
+        <QuoteEditForm quote={quote} templates={templates} />
       ) : (
         <section className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm">
           <p className="text-sm text-ink-muted">

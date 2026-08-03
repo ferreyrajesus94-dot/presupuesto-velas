@@ -9,7 +9,7 @@ import { quoteDraftInputSchema } from "@/server/validation/quoteSchema";
 import { appendQuoteVersionAction } from "@/server/actions/quotes";
 import { deleteQuoteDraftAction } from "@/server/actions/quotes-delete";
 import type { QuoteRecord } from "@/server/repositories/quotes";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 import { ModelLineEditor } from "@/app/quotes/new/ModelLineEditor";
 import { IndirectCostEditor } from "@/app/quotes/new/IndirectCostEditor";
 import { QuoteVisibilityToggles } from "@/app/quotes/new/QuoteVisibilityToggles";
@@ -27,14 +27,14 @@ export type QuoteEditFormValues = z.input<typeof formSchema>;
  */
 export default function QuoteEditForm({
   quote,
-  recipes,
+  templates,
 }: {
   quote: QuoteRecord;
-  recipes: readonly Recipe[];
+  templates: readonly Template[];
 }) {
-  const sortedRecipes = useMemo(
-    () => [...recipes].sort((a, b) => a.name.localeCompare(b.name)),
-    [recipes],
+  const sortedTemplates = useMemo(
+    () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
+    [templates],
   );
   const version = quote.versions.find(({ versionNo }) => versionNo === quote.quote.currentVersion);
   const models = quote.models.filter((row) => row.versionNo === quote.quote.currentVersion);
@@ -53,7 +53,7 @@ export default function QuoteEditForm({
     depositPercent: version?.depositPercent ?? "0",
     indirectCosts: indirects.map((ic) => ({ name: ic.name, amount: ic.amount })),
     models: models.map((m) => ({
-      recipeId: m.recipeId,
+      recipeId: m.templateId,
       quantity: m.quantity,
     })),
     visibility: {
@@ -82,17 +82,17 @@ export default function QuoteEditForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
 
-  const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
+  const templateById = useMemo(() => new Map(templates.map((r) => [r.id, r])), [templates]);
 
   const onSubmit = (data: QuoteEditFormValues): void => {
     setSubmitError(null);
     startTransition(async () => {
       const enrichedModels = data.models.map((m) => {
-        const recipe = recipeById.get(m.recipeId);
+        const template = templateById.get(m.recipeId);
         return {
           recipeId: m.recipeId,
           quantity: m.quantity,
-          perUnitCostDecimal: recipe?.unitCost ?? "0",
+          perUnitCostDecimal: template?.unitCost ?? "0",
         };
       });
       const result = await appendQuoteVersionAction(
@@ -178,7 +178,7 @@ export default function QuoteEditForm({
         </div>
         <ModelLineEditor
           control={control}
-          recipes={sortedRecipes}
+          templates={sortedTemplates}
           fieldArray={modelsFieldArray}
           onAppend={() => modelsFieldArray.append({ recipeId: "", quantity: "1" })}
           errorBag={modelErrors}

@@ -18,7 +18,7 @@ import { suggestDepositPercent } from "@/domain/quoteDepositSuggestion";
 import { formatArsFromDecimalString } from "@/lib/moneyFormat";
 import { quoteDraftInputSchema } from "@/server/validation/quoteSchema";
 import { createQuoteDraftAction, appendQuoteVersionAction } from "@/server/actions/quotes";
-import type { Recipe } from "@/server/repositories/recipes";
+import type { Template } from "@/server/repositories/templates";
 import { ModelLineEditor, computeLineTotal } from "./ModelLineEditor";
 import { QuoteVisibilityToggles } from "./QuoteVisibilityToggles";
 import { IndirectCostEditor } from "./IndirectCostEditor";
@@ -49,10 +49,10 @@ const defaultIndirectCosts = DEFAULT_INDIRECT_COST_NAMES.map((name) => ({
   amount: "0",
 }));
 
-export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
-  const sortedRecipes = useMemo(
-    () => [...recipes].sort((a, b) => a.name.localeCompare(b.name)),
-    [recipes],
+export function QuoteCreateForm({ templates }: { templates: readonly Template[] }) {
+  const sortedTemplates = useMemo(
+    () => [...templates].sort((a, b) => a.name.localeCompare(b.name)),
+    [templates],
   );
   const {
     control,
@@ -89,18 +89,18 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
   const watchedProfit = useWatch({ control, name: "profit" });
   const watchedDepositPercent =
     useWatch({ control, name: "depositPercent" }) ?? DEFAULT_QUOTE_DEPOSIT_PERCENT;
-  const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
+  const templateById = useMemo(() => new Map(templates.map((r) => [r.id, r])), [templates]);
 
   const materialsTotal = useMemo(
     () =>
       watchedModels.reduce((acc, m) => {
-        const recipe = m.recipeId ? recipeById.get(m.recipeId) : undefined;
-        if (!recipe) return acc;
-        const lineTotal = computeLineTotal(recipe.unitCost, m.quantity);
+        const template = m.recipeId ? templateById.get(m.recipeId) : undefined;
+        if (!template) return acc;
+        const lineTotal = computeLineTotal(template.unitCost, m.quantity);
         if (lineTotal === null) return acc;
         return acc.add(lineTotal);
       }, new Decimal(0)),
-    [watchedModels, recipeById],
+    [watchedModels, templateById],
   );
 
   const indirectTotal = useMemo(
@@ -175,13 +175,13 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
       }
       const quoteId = draft.value.quote.id;
       const lockVersion = draft.value.quote.lockVersion;
-      // Inject each model's `perUnitCostDecimal` from the recipes catalog.
+      // Inject each model's `perUnitCostDecimal` from the templates catalog.
       const enrichedModels = data.models.map((m) => {
-        const recipe = recipeById.get(m.recipeId);
+        const template = templateById.get(m.recipeId);
         return {
           recipeId: m.recipeId,
           quantity: m.quantity,
-          perUnitCostDecimal: recipe?.unitCost ?? "0",
+          perUnitCostDecimal: template?.unitCost ?? "0",
         };
       });
       const version = await appendQuoteVersionAction(
@@ -262,7 +262,7 @@ export function QuoteCreateForm({ recipes }: { recipes: readonly Recipe[] }) {
         </div>
         <ModelLineEditor
           control={control}
-          recipes={sortedRecipes}
+          templates={sortedTemplates}
           fieldArray={modelsFieldArray}
           onAppend={() => modelsFieldArray.append(blankModel())}
           errorBag={modelErrors}

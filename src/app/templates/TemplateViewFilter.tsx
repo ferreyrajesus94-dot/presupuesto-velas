@@ -1,20 +1,20 @@
 import Link from "next/link";
 
 const VIEWS = [
-  { key: "active", label: "Activas", href: "/recipes" },
-  { key: "all", label: "Mostrar archivadas", href: "/recipes?view=all" },
+  { key: "active", label: "Activas", href: "/templates" },
+  { key: "all", label: "Mostrar archivadas", href: "/templates?view=all" },
 ] as const;
 
-export type RecipeView = (typeof VIEWS)[number]["key"];
+export type TemplateView = (typeof VIEWS)[number]["key"];
 
-export function resolveRecipeView(raw: string | string[] | undefined): RecipeView {
+export function resolveTemplateView(raw: string | string[] | undefined): TemplateView {
   const value = Array.isArray(raw) ? raw[0] : raw;
   return value === "all" ? "all" : "active";
 }
 
-export function RecipeViewFilter({ current }: { current: RecipeView }) {
+export function TemplateViewFilter({ current }: { current: TemplateView }) {
   return (
-    <nav aria-label="Filtro de vista de recetas" className="flex flex-wrap gap-2">
+    <nav aria-label="Filtro de vista de plantillas" className="flex flex-wrap gap-2">
       {VIEWS.map((view) => {
         const isCurrent = view.key === current;
         return (

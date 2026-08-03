@@ -1,23 +1,23 @@
 import Link from "next/link";
 import { requireOwner } from "@/server/auth/requireOwner";
-import { listRecipes } from "@/server/repositories/recipes";
+import { listTemplates } from "@/server/repositories/templates";
 import { QuoteCreateForm } from "./QuoteCreateForm";
 
 /**
  * PR4g.2 — `/quotes/new` Server Component loader.
  *
- * Authenticate via `requireOwner()`, fetch active recipes (no archived), and
+ * Authenticate via `requireOwner()`, fetch active templates (no archived), and
  * mount the Client Component form shell. Indirects, deposit auto-suggest, and
  * submission wiring are PR4g.3.
  */
 export default async function NewQuotePage() {
   const owner = await requireOwner();
-  const records = await listRecipes(owner.id);
-  // active only; archived recipes excluded — the form must not let the user
-  // pick an archived recipe because its items/cost are frozen for history.
-  const activeRecipes = records
-    .filter(({ recipe }) => recipe.archivedAt === null)
-    .map(({ recipe }) => recipe);
+  const records = await listTemplates(owner.id);
+  // active only; archived templates excluded — the form must not let the user
+  // pick an archived template because its items/cost are frozen for history.
+  const activeTemplates = records
+    .filter(({ template }) => template.archivedAt === null)
+    .map(({ template }) => template);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <nav>
@@ -34,7 +34,7 @@ export default async function NewQuotePage() {
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-ink">Nueva cotización</h1>
       </header>
-      <QuoteCreateForm recipes={activeRecipes} />
+      <QuoteCreateForm templates={activeTemplates} />
     </main>
   );
 }

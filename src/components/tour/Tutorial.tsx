@@ -416,7 +416,7 @@ function TutorialDialog({
           <button
             type="button"
             onClick={onSkip}
-            className="font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
+            className="font-semibold text-brand-strong underline decoration-brand-strong/40 underline-offset-4 hover:text-ink"
           >
             Saltar tour
           </button>

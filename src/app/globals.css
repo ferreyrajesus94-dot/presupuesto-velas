@@ -1,19 +1,53 @@
 @import "tailwindcss";
 
+/*
+ * Presupuesto Velas — Theme foundation
+ * ---------------------------------------------------------------------------
+ * Light, dark, and auto (follows OS prefers-color-scheme). Every component
+ * MUST consume these tokens via `var(--pv-*)` or the bridged Tailwind
+ * `--color-*` aliases; no hard-coded color literals are allowed in component
+ * CSS. The `auto` mode is a meta-mode — the anti-flash script in
+ * `app/layout.tsx` resolves it before paint by reading
+ * `localStorage["pv-theme"]` and `matchMedia("(prefers-color-scheme: dark)")`.
+ *
+ * Transitions animate ONLY `background-color`, `color`, and `border-color` at
+ * 280ms; `@media (prefers-reduced-motion: reduce)` collapses them to 0ms.
+ */
+
 :root {
-  --pv-canvas: #fff8f8;
-  --pv-surface: #fffdfd;
+  --pv-canvas: #fff7fa;
+  --pv-surface: #fff1f4;
   --pv-surface-raised: #ffffff;
-  --pv-surface-soft: #fceef0;
-  --pv-ink: #33272a;
-  --pv-ink-muted: #67565a;
-  --pv-border-subtle: #e8cdd2;
-  --pv-control: #a87981;
-  --pv-brand: #6f3540;
+  --pv-surface-soft: #fde2eb;
+  --pv-ink: #2b0d18;
+  --pv-ink-muted: #6f4a59;
+  --pv-border-subtle: #f1c8d4;
+  --pv-control: #b88a99;
+  --pv-brand: #d6336c;
+  --pv-brand-strong: #ad1d54;
   --pv-on-brand: #ffffff;
-  --pv-focus: #7c3a47;
-  --pv-status-success: #365f49;
-  --pv-status-danger: #842f42;
+  --pv-focus: #d6336c;
+  --pv-status-success: #1f6f4a;
+  --pv-status-danger: #b3263c;
+  --pv-shadow: 0 8px 24px -16px rgba(214, 51, 108, 0.35);
+}
+
+[data-theme="dark"] {
+  --pv-canvas: #1a0d14;
+  --pv-surface: #221019;
+  --pv-surface-raised: #2c1320;
+  --pv-surface-soft: #3a1a2b;
+  --pv-ink: #fde2eb;
+  --pv-ink-muted: #c89aa9;
+  --pv-border-subtle: #4a2236;
+  --pv-control: #c89aa9;
+  --pv-brand: #ff7ba6;
+  --pv-brand-strong: #ff95b6;
+  --pv-on-brand: #1a0d14;
+  --pv-focus: #ff7ba6;
+  --pv-status-success: #5fc692;
+  --pv-status-danger: #ff8092;
+  --pv-shadow: 0 8px 24px -16px rgba(255, 123, 166, 0.45);
 }
 
 @theme inline {
@@ -26,6 +60,7 @@
   --color-border-subtle: var(--pv-border-subtle);
   --color-control: var(--pv-control);
   --color-brand: var(--pv-brand);
+  --color-brand-strong: var(--pv-brand-strong);
   --color-on-brand: var(--pv-on-brand);
   --color-focus: var(--pv-focus);
   --color-status-success: var(--pv-status-success);
@@ -34,18 +69,47 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Auto mode (no user choice, OS reports dark): mirror the dark tokens so that
+ * `prefers-color-scheme: dark` visitors get the dark palette without a stored
+ * preference and without waiting for JS.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --pv-canvas: #1a0d14;
+    --pv-surface: #221019;
+    --pv-surface-raised: #2c1320;
+    --pv-surface-soft: #3a1a2b;
+    --pv-ink: #fde2eb;
+    --pv-ink-muted: #c89aa9;
+    --pv-border-subtle: #4a2236;
+    --pv-control: #c89aa9;
+    --pv-brand: #ff7ba6;
+    --pv-brand-strong: #ff95b6;
+    --pv-on-brand: #1a0d14;
+    --pv-focus: #ff7ba6;
+    --pv-status-success: #5fc692;
+    --pv-status-danger: #ff8092;
+    --pv-shadow: 0 8px 24px -16px rgba(255, 123, 166, 0.45);
+  }
+}
+
 * {
   box-sizing: border-box;
 }
+
 html {
   background: var(--pv-canvas);
 }
+
 body {
   margin: 0;
   background: var(--pv-canvas);
   color: var(--pv-ink);
   font-family: var(--font-geist-sans), sans-serif;
+  transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
+
 a,
 button,
 input,
@@ -54,10 +118,12 @@ textarea {
   min-height: 44px;
   min-width: 44px;
 }
+
 :focus-visible {
   outline: 3px solid var(--pv-focus);
   outline-offset: 3px;
 }
+
 .skip-link {
   position: fixed;
   z-index: 50;
@@ -65,7 +131,63 @@ textarea {
   background: var(--pv-brand);
   color: var(--pv-on-brand);
   padding: 0.75rem 1rem;
+  transition: transform 200ms ease, background-color 280ms ease, color 280ms ease;
 }
+
 .skip-link:focus {
   transform: translateY(0);
+}
+
+/*
+ * Theme toggle (sun/moon, 44x44 circle, hover rotate 20deg on hover-capable
+ * pointers). Defined in plain CSS — no animation library, no framer-motion.
+ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--pv-border-subtle);
+  background: var(--pv-surface-raised);
+  color: var(--pv-ink);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease,
+    transform 200ms ease;
+}
+
+.theme-toggle__icon {
+  display: inline-block;
+  transition: transform 200ms ease;
+}
+
+@media (hover: hover) {
+  .theme-toggle:hover .theme-toggle__icon {
+    transform: rotate(20deg);
+  }
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .skip-link,
+  .theme-toggle,
+  .theme-toggle__icon {
+    transition-duration: 0ms;
+  }
+
+  @media (hover: hover) {
+    .theme-toggle:hover .theme-toggle__icon {
+      transform: none;
+    }
+  }
 }

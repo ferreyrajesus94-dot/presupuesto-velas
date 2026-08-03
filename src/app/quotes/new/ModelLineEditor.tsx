@@ -69,7 +69,6 @@ function ModelRow({
   index: number;
   control: Control<QuoteDraftFormValues>;
   templates: readonly Template[];
-  fieldArray: UseFieldArrayReturn<QuoteDraftFormValues, "models", "id">;
   onRemove: () => void;
   rowErrors: RowErrors | undefined;
 }) {

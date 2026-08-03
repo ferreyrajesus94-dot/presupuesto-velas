@@ -3,21 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { useState, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import {
-  RecipesArchiveFeedback,
-  useRecipeArchiveFeedback,
-} from "../../src/app/recipes/RecipesArchiveFeedback";
-import type { RecipeView } from "../../src/app/recipes/RecipeViewFilter";
+  TemplatesArchiveFeedback,
+  useTemplateArchiveFeedback,
+} from "../../src/app/templates/TemplatesArchiveFeedback";
+import type { TemplateView } from "../../src/app/templates/TemplateViewFilter";
 
 function Reporter({ op, name }: { op: "archive" | "restore"; name: string }) {
-  const { reportLifecycle } = useRecipeArchiveFeedback();
+  const { reportLifecycle } = useTemplateArchiveFeedback();
   return (
-    <button onClick={() => reportLifecycle({ operation: op, recipeId: name, recipeName: name })}>
+    <button onClick={() => reportLifecycle({ operation: op, templateId: name, templateName: name })}>
       {op} {name}
     </button>
   );
 }
 
-// PR3z.focus: reporters that mirror the real RecipeArchiveControl markers so
+// PR3z.focus: reporters that mirror the real TemplateArchiveControl markers so
 // the focus effect can find them by [data-archive-focus="next-row"] and
 // filter the source by [data-archive-source]. The "restored" reporter uses
 // the same markers but a restore op so the restore branch is exercised.
@@ -32,28 +32,28 @@ function FocusReporter({
   name: string;
   archived: boolean;
 }) {
-  const { reportLifecycle } = useRecipeArchiveFeedback();
+  const { reportLifecycle } = useTemplateArchiveFeedback();
   return (
     <button
       data-archive-focus={archived ? undefined : "next-row"}
       data-archive-source={id}
-      onClick={() => reportLifecycle({ operation: op, recipeId: id, recipeName: name })}
+      onClick={() => reportLifecycle({ operation: op, templateId: id, templateName: name })}
     >
       {op} {name}
     </button>
   );
 }
 
-describe("RecipesArchiveFeedback", () => {
+describe("TemplatesArchiveFeedback", () => {
   it("keeps the announcement after the source row unmounts", async () => {
     const user = userEvent.setup();
     function Harness(): ReactNode {
       const [showRow, setShowRow] = useState(true);
       return (
-        <RecipesArchiveFeedback view={"active" satisfies RecipeView}>
+        <TemplatesArchiveFeedback view={"active" satisfies TemplateView}>
           {showRow ? <Reporter op="archive" name="Citrus candle" /> : null}
           <button onClick={() => setShowRow(false)}>Revalidate</button>
-        </RecipesArchiveFeedback>
+        </TemplatesArchiveFeedback>
       );
     }
     render(<Harness />);
@@ -67,10 +67,10 @@ describe("RecipesArchiveFeedback", () => {
   it("replaces the previous announcement on a later operation", async () => {
     const user = userEvent.setup();
     render(
-      <RecipesArchiveFeedback view={"active" satisfies RecipeView}>
+      <TemplatesArchiveFeedback view={"active" satisfies TemplateView}>
         <Reporter op="archive" name="Citrus candle" />
         <Reporter op="restore" name="Vanilla candle" />
-      </RecipesArchiveFeedback>,
+      </TemplatesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
@@ -90,12 +90,12 @@ describe("RecipesArchiveFeedback", () => {
 // button that is about to unmount). The all view and the restore operation
 // must leave focus untouched — restore keeps the row mounted, so moving
 // focus would be jarring.
-describe("RecipesArchiveFeedback focus", () => {
+describe("TemplatesArchiveFeedback focus", () => {
   function ShowArchived() {
     // Mirrors the pre-slice data-archive-focus="show-archived" seam that
-    // already lives in RecipesList and RecipeViewFilter.
+    // already lives in TemplatesList and TemplateViewFilter.
     return (
-      <a href="/recipes?view=all" data-archive-focus="show-archived">
+      <a href="/templates?view=all" data-archive-focus="show-archived">
         Show archived
       </a>
     );
@@ -108,10 +108,10 @@ describe("RecipesArchiveFeedback focus", () => {
     // on the surviving sibling — never the source itself.
     const user = userEvent.setup();
     render(
-      <RecipesArchiveFeedback view={"active" satisfies RecipeView}>
-        <FocusReporter op="archive" id="recipe-citrus" name="Citrus candle" archived={false} />
-        <FocusReporter op="archive" id="recipe-vanilla" name="Vanilla candle" archived={false} />
-      </RecipesArchiveFeedback>,
+      <TemplatesArchiveFeedback view={"active" satisfies TemplateView}>
+        <FocusReporter op="archive" id="template-citrus" name="Citrus candle" archived={false} />
+        <FocusReporter op="archive" id="template-vanilla" name="Vanilla candle" archived={false} />
+      </TemplatesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
@@ -132,11 +132,11 @@ describe("RecipesArchiveFeedback focus", () => {
     // order, which is the row that occupies the source's prior position.
     const user = userEvent.setup();
     render(
-      <RecipesArchiveFeedback view={"active" satisfies RecipeView}>
-        <FocusReporter op="archive" id="recipe-citrus" name="Citrus candle" archived={false} />
-        <FocusReporter op="archive" id="recipe-vanilla" name="Vanilla candle" archived={false} />
-        <FocusReporter op="archive" id="recipe-cinnamon" name="Cinnamon candle" archived={false} />
-      </RecipesArchiveFeedback>,
+      <TemplatesArchiveFeedback view={"active" satisfies TemplateView}>
+        <FocusReporter op="archive" id="template-citrus" name="Citrus candle" archived={false} />
+        <FocusReporter op="archive" id="template-vanilla" name="Vanilla candle" archived={false} />
+        <FocusReporter op="archive" id="template-cinnamon" name="Cinnamon candle" archived={false} />
+      </TemplatesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Vanilla candle" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Vanilla candle archivada.");
@@ -154,10 +154,10 @@ describe("RecipesArchiveFeedback focus", () => {
     // context.
     const user = userEvent.setup();
     render(
-      <RecipesArchiveFeedback view={"active" satisfies RecipeView}>
-        <FocusReporter op="archive" id="recipe-citrus" name="Citrus candle" archived={false} />
+      <TemplatesArchiveFeedback view={"active" satisfies TemplateView}>
+        <FocusReporter op="archive" id="template-citrus" name="Citrus candle" archived={false} />
         <ShowArchived />
-      </RecipesArchiveFeedback>,
+      </TemplatesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "archive Citrus candle" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle archivada.");
@@ -174,10 +174,10 @@ describe("RecipesArchiveFeedback focus", () => {
     // view === "active".
     const user = userEvent.setup();
     render(
-      <RecipesArchiveFeedback view={"all" satisfies RecipeView}>
-        <FocusReporter op="restore" id="recipe-citrus" name="Citrus candle" archived={true} />
+      <TemplatesArchiveFeedback view={"all" satisfies TemplateView}>
+        <FocusReporter op="restore" id="template-citrus" name="Citrus candle" archived={true} />
         <ShowArchived />
-      </RecipesArchiveFeedback>,
+      </TemplatesArchiveFeedback>,
     );
     await user.click(screen.getByRole("button", { name: "restore Citrus candle" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Citrus candle restaurada.");

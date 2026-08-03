@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRecipeInputSchema } from "../../src/server/validation/recipeSchema";
+import { createTemplateInputSchema } from "../../src/server/validation/templateSchema";
 
 const OWNER_ID = "owner-1";
 const materials = [
@@ -33,17 +33,17 @@ const materials = [
   },
 ] as const;
 
-const schema = createRecipeInputSchema(OWNER_ID, materials);
-const validRecipe = {
+const schema = createTemplateInputSchema(OWNER_ID, materials);
+const validTemplate = {
   name: "Floral candle",
   items: [{ materialId: "wax", quantity: "110", unit: "g" }],
 };
 
 function messages(result: ReturnType<typeof schema.safeParse>): string[] {
-  return result.success ? [] : result.error.issues.map(({ message }) => message);
+  return result.success ? [] : result.error.issues.map(({ message }: { message: string }) => message);
 }
 
-describe("recipe input schema", () => {
+describe("template input schema", () => {
   it("trims the name, normalizes ordered items, and projects exact Decimal cost", () => {
     const result = schema.parse({
       name: "  Floral candle  ",
@@ -64,16 +64,16 @@ describe("recipe input schema", () => {
   });
 
   it.each([
-    ["blank name", { ...validRecipe, name: " " }, "Name is required"],
-    ["empty item list", { ...validRecipe, items: [] }, "Add at least one recipe item"],
+    ["blank name", { ...validTemplate, name: " " }, "Name is required"],
+    ["empty item list", { ...validTemplate, items: [] }, "Add at least one template item"],
     [
       "zero quantity",
-      { ...validRecipe, items: [{ ...validRecipe.items[0], quantity: "0" }] },
+      { ...validTemplate, items: [{ ...validTemplate.items[0], quantity: "0" }] },
       "Item quantity must be positive",
     ],
     [
       "negative quantity",
-      { ...validRecipe, items: [{ ...validRecipe.items[0], quantity: "-1" }] },
+      { ...validTemplate, items: [{ ...validTemplate.items[0], quantity: "-1" }] },
       "Enter a quantity with up to 6 decimal places",
     ],
   ])("rejects %s", (_case, input, message) => {
@@ -84,27 +84,27 @@ describe("recipe input schema", () => {
     "rejects unavailable owner-scoped material reference %s without distinguishing it",
     (materialId) => {
       const result = schema.safeParse({
-        ...validRecipe,
-        items: [{ ...validRecipe.items[0], materialId }],
+        ...validTemplate,
+        items: [{ ...validTemplate.items[0], materialId }],
       });
 
       expect(messages(result)).toContain("Material is unavailable");
     },
   );
 
-  it("rejects archived material references on recipe writes", () => {
+  it("rejects archived material references on template writes", () => {
     const result = schema.safeParse({
-      ...validRecipe,
-      items: [{ ...validRecipe.items[0], materialId: "archived-dye" }],
+      ...validTemplate,
+      items: [{ ...validTemplate.items[0], materialId: "archived-dye" }],
     });
 
-    expect(messages(result)).toContain("Archived materials cannot be added to recipes");
+    expect(messages(result)).toContain("Archived materials cannot be added to templates");
   });
 
   it("rejects a line unit from a different material dimension", () => {
     const result = schema.safeParse({
-      ...validRecipe,
-      items: [{ ...validRecipe.items[0], unit: "L" }],
+      ...validTemplate,
+      items: [{ ...validTemplate.items[0], unit: "L" }],
     });
 
     expect(messages(result)).toContain("Item unit must match the material dimension");
@@ -112,7 +112,7 @@ describe("recipe input schema", () => {
 
   it("rejects fractional count consumption after normalization", () => {
     const result = schema.safeParse({
-      ...validRecipe,
+      ...validTemplate,
       items: [{ materialId: "wick", quantity: "1.5", unit: "unit" }],
     });
 
@@ -121,8 +121,8 @@ describe("recipe input schema", () => {
 
   it("derives positions from array order instead of accepting caller positions", () => {
     const result = schema.safeParse({
-      ...validRecipe,
-      items: [{ ...validRecipe.items[0], position: 7 }],
+      ...validTemplate,
+      items: [{ ...validTemplate.items[0], position: 7 }],
     });
 
     expect(result.success).toBe(false);
@@ -130,24 +130,24 @@ describe("recipe input schema", () => {
 
   it("allows duplicate materials at distinct derived positions and sums both lines", () => {
     const result = schema.parse({
-      ...validRecipe,
+      ...validTemplate,
       items: [
         { materialId: "wax", quantity: "10", unit: "g" },
         { materialId: "wax", quantity: "0.02", unit: "kg" },
       ],
     });
 
-    expect(result.items.map(({ position }) => position)).toEqual([1, 2]);
-    expect(result.items.map(({ quantity }) => quantity)).toEqual(["10", "20"]);
+    expect(result.items.map(({ position }: { position: number }) => position)).toEqual([1, 2]);
+    expect(result.items.map(({ quantity }: { quantity: string }) => quantity)).toEqual(["10", "20"]);
     expect(result.unitCost).toBe("300");
   });
 
-  it("rejects a normalized quantity that exceeds recipe-item database scale", () => {
-    const kgSchema = createRecipeInputSchema(OWNER_ID, [
+  it("rejects a normalized quantity that exceeds template-item database scale", () => {
+    const kgSchema = createTemplateInputSchema(OWNER_ID, [
       { ...materials[0], id: "bulk-wax", baseUnit: "kg" },
     ]);
     const result = kgSchema.safeParse({
-      ...validRecipe,
+      ...validTemplate,
       items: [{ materialId: "bulk-wax", quantity: "0.000001", unit: "g" }],
     });
 
@@ -159,15 +159,15 @@ describe("recipe input schema", () => {
   it.each([
     ["overflow", "99999999999999999999.999999999999999999", "2"],
     ["round to zero", "0.000000000000000001", "0.000001"],
-  ])("rejects a projected recipe cost that would %s", (_case, unitCost, quantity) => {
-    const boundedSchema = createRecipeInputSchema(OWNER_ID, [
+  ])("rejects a projected template cost that would %s", (_case, unitCost, quantity) => {
+    const boundedSchema = createTemplateInputSchema(OWNER_ID, [
       { ...materials[0], id: "bounded-wax", unitCost },
     ]);
     const result = boundedSchema.safeParse({
-      ...validRecipe,
+      ...validTemplate,
       items: [{ materialId: "bounded-wax", quantity, unit: "g" }],
     });
 
-    expect(messages(result)).toContain("Recipe cost cannot be represented at database precision");
+    expect(messages(result)).toContain("Template cost cannot be represented at database precision");
   });
 });

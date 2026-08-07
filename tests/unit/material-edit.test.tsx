@@ -77,6 +77,7 @@ it("submits the material id and changed values, then reports success", async () 
   expect(submitted.get("id")).toBe(MATERIAL.id);
   expect(submitted.get("name")).toBe("Coconut wax");
   expect(submitted.get("purchasePrice")).toBe(MATERIAL.purchasePrice);
+  expect(submitted.get("unitCost")).toBeNull();
   expect(await screen.findByRole("status")).toHaveTextContent("Material actualizado.");
 });
 
@@ -112,5 +113,44 @@ it("shows a backend error and focuses a returned derived-cost field", async () =
   expect(await screen.findByRole("alert")).toHaveTextContent(message);
   await waitFor(() =>
     expect(screen.getByLabelText("Precio de compra (ARS) para Soy wax")).toHaveFocus(),
+  );
+});
+
+it("renders localized option text and a singular per-unit phrase in the derived unit-cost readonly field", () => {
+  // Soft UI contract: the compact MaterialEditForm must surface the same
+  // Spanish labels as the create form (visible text) while keeping the
+  // canonical <option value> tokens that the Server Action consumes.
+  render(<MaterialEditForm material={MATERIAL} />);
+
+  const dimensionOptions = Array.from(
+    screen.getByLabelText("Dimensión para Soy wax").querySelectorAll("option"),
+  );
+  expect(dimensionOptions.map((option) => option.textContent)).toEqual([
+    "Peso",
+    "Volumen",
+    "Longitud",
+    "Cantidad",
+  ]);
+  expect(dimensionOptions.map((option) => option.getAttribute("value"))).toEqual([
+    "mass",
+    "volume",
+    "length",
+    "count",
+  ]);
+
+  const baseUnitOptions = Array.from(
+    screen.getByLabelText("Unidad base para Soy wax").querySelectorAll("option"),
+  );
+  expect(baseUnitOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(baseUnitOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
+
+  const purchaseUnitOptions = Array.from(
+    screen.getByLabelText("Unidad de compra para Soy wax").querySelectorAll("option"),
+  );
+  expect(purchaseUnitOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(purchaseUnitOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
+
+  expect(screen.getByLabelText("Precio unitario derivado para Soy wax")).toHaveValue(
+    "ARS 10 por gramo",
   );
 });

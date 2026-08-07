@@ -27,7 +27,7 @@ vi.mock("../../src/server/actions/materials", () => ({
 }));
 
 import MaterialsPage from "../../src/app/materials/page";
-import { MaterialCreateForm } from "../../src/app/materials/MaterialCreateForm";
+import { MaterialCreateForm, MaterialForm } from "../../src/app/materials/MaterialCreateForm";
 
 function pageProps(view?: "active" | "all") {
   return { searchParams: Promise.resolve(view ? { view } : {}) };
@@ -77,7 +77,9 @@ it("shows an actionable empty state when the owner has no materials", async () =
   // Both the page header and the empty state render "Agregar insumo" links;
   // we assert the empty-state one (href="#new-material") is present.
   const addInsumoLinks = screen.getAllByRole("link", { name: /Agregar insumo/i });
-  const emptyStateCta = addInsumoLinks.find((link) => link.getAttribute("href") === "#new-material");
+  const emptyStateCta = addInsumoLinks.find(
+    (link) => link.getAttribute("href") === "#new-material",
+  );
   expect(emptyStateCta).toBeDefined();
 });
 
@@ -147,13 +149,34 @@ it("does not query archived count in the all view even when the list is empty", 
   expect(mocks.countArchivedMaterials).not.toHaveBeenCalled();
 });
 
-it("renders current materials, hides archived by default, and exposes the filter nav", async () => {
+it("renders compact editable columns, active row controls, and the current filter", async () => {
   mocks.listMaterials.mockResolvedValue([MATERIAL_ACTIVE]);
 
   render(await MaterialsPage(pageProps()));
 
-  expect(screen.getByRole("listitem")).toHaveTextContent("Soy wax");
-  expect(screen.getByRole("listitem")).toHaveTextContent("ARS 10 por g");
+  const list = screen.getByRole("list", { name: "Lista editable de materiales" });
+  const header = screen.getByTestId("materials-list-header");
+  expect(Array.from(header.querySelectorAll("span")).map((span) => span.textContent)).toEqual([
+    "Insumo",
+    "Dimensión",
+    "Unidad base",
+    "Unidad de compra",
+    "Cantidad de compra",
+    "Precio de compra",
+    "Precio unitario",
+    "Acciones",
+  ]);
+  const row = within(list).getByRole("listitem", { name: "Editar material: Soy wax" });
+  expect(within(row).getByRole("textbox", { name: "Nombre para Soy wax" })).toHaveValue("Soy wax");
+  expect(within(row).getByLabelText("Precio unitario derivado para Soy wax")).toHaveValue(
+    "ARS 10 por gramo",
+  );
+  expect(within(row).getByLabelText("Precio unitario derivado para Soy wax")).toHaveAttribute(
+    "readonly",
+  );
+  expect(within(row).getByRole("button", { name: "Guardar material" })).toBeInTheDocument();
+  expect(within(row).getByRole("button", { name: "Archivar Soy wax" })).toBeInTheDocument();
+  expect(row.querySelector("form form")).toBeNull();
   expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
   const nav = screen.getByRole("navigation", { name: /filtro de vista de materiales/i });
   expect(within(nav).getByRole("link", { name: /Activos/ })).toHaveAttribute("href", "/materials");
@@ -179,11 +202,67 @@ it("shows archived materials with restore controls, a badge, and the all view as
   expect(
     screen.queryByRole("heading", { name: "Editar material: Coconut wax" }),
   ).not.toBeInTheDocument();
+  const archivedRow = screen.getByRole("listitem", { name: "Material archivado: Coconut wax" });
+  expect(within(archivedRow).queryByRole("button", { name: "Guardar material" })).toBeNull();
   expect(screen.getByTestId("archived-badge")).toHaveTextContent("Archivado");
   expect(screen.getByRole("link", { name: /Mostrar archivados/ })).toHaveAttribute(
     "aria-current",
     "page",
   );
+});
+
+it("localizes the archived readonly path with localized dimension/unit labels and a singular per-unit phrase", async () => {
+  // Soft UI contract: the read-only archived row must show the canonical
+  // Argentine Spanish labels (dimension/unit/headers) and use the singular
+  // per-unit phrase for the derived unit cost, while keeping the underlying
+  // data shapes (`mass`, `g`, `kg`) intact for users who inspect the DOM.
+  mocks.listMaterials.mockResolvedValue([MATERIAL_ARCHIVED]);
+
+  render(await MaterialsPage(pageProps("all")));
+
+  const archivedRow = screen.getByRole("listitem", { name: "Material archivado: Coconut wax" });
+  expect(within(archivedRow).getByText("Peso")).toBeInTheDocument();
+  expect(within(archivedRow).getByText("Gramos")).toBeInTheDocument();
+  expect(within(archivedRow).getByText("Kilogramos")).toBeInTheDocument();
+  expect(within(archivedRow).getByText("ARS 8 por gramo")).toBeInTheDocument();
+  // Tech identifiers never appear as visible text in the readonly cells.
+  expect(within(archivedRow).queryByText("mass")).toBeNull();
+  expect(within(archivedRow).queryByText(/^\bg$|^\bkg$/)).toBeNull();
+});
+
+it("renders dimension/unit options with localized visible text and canonical <option> values", async () => {
+  // MaterialCreateForm: the dimension/unit selects must show the Spanish
+  // labels inside each <option> while keeping the underlying value= attribute
+  // exactly equal to the canonical enum token.
+  render(<MaterialCreateForm />);
+
+  const dimensionOptions = Array.from(
+    screen.getByLabelText("Dimensión").querySelectorAll("option"),
+  );
+  expect(dimensionOptions.map((option) => option.textContent)).toEqual([
+    "Peso",
+    "Volumen",
+    "Longitud",
+    "Cantidad",
+  ]);
+  expect(dimensionOptions.map((option) => option.getAttribute("value"))).toEqual([
+    "mass",
+    "volume",
+    "length",
+    "count",
+  ]);
+
+  const baseUnitOptions = Array.from(
+    screen.getByLabelText("Unidad base").querySelectorAll("option"),
+  );
+  expect(baseUnitOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(baseUnitOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
+
+  const purchaseUnitOptions = Array.from(
+    screen.getByLabelText("Unidad de compra").querySelectorAll("option"),
+  );
+  expect(purchaseUnitOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(purchaseUnitOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
 });
 
 async function fillMaterialForm(user: ReturnType<typeof userEvent.setup>) {
@@ -319,6 +398,94 @@ it("does not steal focus on unrelated rerenders after a server unit-cost error",
   await user.type(name, " updated");
 
   expect(name).toHaveFocus();
+});
+
+// Per-field contextual help: each input in the Materials form exposes a
+// discreet help icon that opens a labelled dialog with a short explanation
+// in Argentine Spanish. Only the field whose icon was triggered opens; the
+// page-level "Ayuda sobre insumos" button keeps working via the global
+// HelpModal and is intentionally untouched.
+describe("MaterialCreateForm — per-field FieldHelp", () => {
+  it("renders an accessible help button next to the Nombre label with a decorative SVG", () => {
+    render(<MaterialCreateForm />);
+
+    const trigger = screen.getByRole("button", { name: "Ayuda: Nombre" });
+    expect(trigger).toBeInTheDocument();
+    // 44×44 hit area inherited from `min-h-11 min-w-11`.
+    expect(trigger.className).toMatch(/min-h-11/);
+    expect(trigger.className).toMatch(/min-w-11/);
+    // The icon itself is decorative — the accessible name lives on the button.
+    expect(trigger.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("opens a labelled dialog with the field's Qué es / Por qué sections when the trigger is clicked", async () => {
+    const user = userEvent.setup();
+    render(<MaterialCreateForm />);
+
+    await user.click(screen.getByRole("button", { name: "Ayuda: Nombre" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Nombre" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(within(dialog).getByText("Qué es")).toBeInTheDocument();
+    expect(within(dialog).getByText(/nombre humano del insumo/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Por qué lo pedimos/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Lo usamos en plantillas y cotizaciones/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Tiene que ser único por owner/i)).toBeInTheDocument();
+  });
+
+  it("closes the dialog when Escape is pressed and returns focus to the field's icon", async () => {
+    const user = userEvent.setup();
+    render(<MaterialCreateForm />);
+
+    const trigger = screen.getByRole("button", { name: "Ayuda: Nombre" });
+    await user.click(trigger);
+    await screen.findByRole("dialog", { name: "Nombre" });
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("also exposes the help button for the row-only Precio unitario derivado field in row layout", () => {
+    render(<MaterialCreateForm />);
+    // In card layout the row-only field is hidden, so we only assert the
+    // card-layout buttons. The integration test below covers the row layout.
+    expect(screen.getByRole("button", { name: "Ayuda: Nombre" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ayuda: Precio de compra (ARS)" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("MaterialForm — per-field FieldHelp in row layout", () => {
+  it("renders zero per-field help triggers but keeps the read-only derived unit cost", () => {
+    const { container } = render(
+      <MaterialForm
+        action={vi.fn()}
+        defaultValues={{
+          name: "Soy wax",
+          dimension: "mass",
+          baseUnit: "g",
+          purchaseUnit: "kg",
+          purchaseQuantity: "1",
+          purchasePrice: "10000",
+        }}
+        idPrefix="edit-row"
+        labelSuffix=" para Soy wax"
+        title="Editar material: Soy wax"
+        submitLabel="Guardar material"
+        pendingLabel="Guardando material…"
+        successMessage="Material actualizado."
+        layout="row"
+        unitCost="10"
+      />,
+    );
+
+    const helpTriggers = container.querySelectorAll('[data-testid^="field-help-trigger-"]');
+    expect(helpTriggers).toHaveLength(0);
+    expect(screen.getByLabelText(/Precio unitario derivado/i)).toBeInTheDocument();
+  });
 });
 
 // R3-003 page-level composition: the feedback provider must survive the

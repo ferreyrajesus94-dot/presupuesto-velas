@@ -103,7 +103,9 @@ it.each([
   if (response.status === "success") {
     expect(await screen.findByRole("status")).toHaveTextContent("Plantilla actualizada.");
   } else {
-    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo actualizar la plantilla.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo actualizar la plantilla.",
+    );
   }
   const submitted = mocks.updateTemplateAction.mock.calls[0][1] as FormData;
   expect(submitted.get("id")).toBe("template-1");
@@ -114,4 +116,43 @@ it.each([
   expect(screen.getByRole("textbox", { name: "Nombre de Vanilla candle" })).toHaveValue(
     "Vanilla candle",
   );
+});
+
+it("renders unit options with localized labels while keeping canonical <option> values", async () => {
+  // Soft UI contract: TemplateEditForm must surface the Spanish plural
+  // labels in every <option> while keeping the canonical value tokens that
+  // the Server Action serializes into FormData.
+  const user = userEvent.setup();
+  render(
+    <TemplateEditForm
+      template={{
+        ...TEMPLATE,
+        items: [
+          { materialId: "wax", quantity: "100", unit: "g" as const },
+          { materialId: "wick", quantity: "2", unit: "unit" as const },
+        ],
+      }}
+      materials={MATERIALS}
+    />,
+  );
+
+  const massOptions = Array.from(
+    within(row(1)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(massOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(massOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
+
+  const countOptions = Array.from(
+    within(row(2)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(countOptions.map((option) => option.textContent)).toEqual(["Unidades"]);
+  expect(countOptions.map((option) => option.getAttribute("value"))).toEqual(["unit"]);
+
+  // Switching material re-flips the labels, never the canonical values.
+  await user.selectOptions(within(row(1)).getByLabelText("Material"), "Lavender scent");
+  const volumeOptions = Array.from(
+    within(row(1)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(volumeOptions.map((option) => option.textContent)).toEqual(["Mililitros", "Litros"]);
+  expect(volumeOptions.map((option) => option.getAttribute("value"))).toEqual(["ml", "L"]);
 });

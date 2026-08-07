@@ -46,12 +46,19 @@ const TEMPLATES: Template[] = [
     unitCost: "1000",
     archivedAt: null,
     createdAt: new Date(),
+    time: "0",
+    hourlyRate: "0",
+    overhead: "0",
+    marginPct: "30",
   },
 ];
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.createQuoteDraftAction.mockResolvedValue({ ok: true, value: { quote: { id: "q-1", lockVersion: 0 } } });
+  mocks.createQuoteDraftAction.mockResolvedValue({
+    ok: true,
+    value: { quote: { id: "q-1", lockVersion: 0 } },
+  });
   mocks.appendQuoteVersionAction.mockResolvedValue({ ok: true, value: { versionNo: 1 } });
 });
 

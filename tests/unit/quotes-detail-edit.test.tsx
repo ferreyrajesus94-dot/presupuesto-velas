@@ -60,6 +60,10 @@ const VANILLA: Template = {
   unitCost: "100",
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  time: "0",
+  hourlyRate: "0",
+  overhead: "0",
+  marginPct: "30",
 };
 
 /**

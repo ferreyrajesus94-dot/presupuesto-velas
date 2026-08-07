@@ -36,6 +36,10 @@ const VANILLA: Template = {
   unitCost: "100",
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  time: "0",
+  hourlyRate: "0",
+  overhead: "0",
+  marginPct: "30",
 };
 const CINNAMON: Template = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -44,6 +48,10 @@ const CINNAMON: Template = {
   unitCost: "200",
   archivedAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  time: "0",
+  hourlyRate: "0",
+  overhead: "0",
+  marginPct: "30",
 };
 const ARCHIVED: Template = {
   id: "33333333-3333-4333-8333-333333333333",
@@ -52,6 +60,10 @@ const ARCHIVED: Template = {
   unitCost: "50",
   archivedAt: new Date("2026-01-01T00:00:00Z"),
   createdAt: new Date("2025-12-01T00:00:00Z"),
+  time: "0",
+  hourlyRate: "0",
+  overhead: "0",
+  marginPct: "30",
 };
 const TEMPLATES = [VANILLA, CINNAMON];
 

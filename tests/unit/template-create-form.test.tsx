@@ -177,3 +177,34 @@ it("localizes a Server Action failure without changing submitted values", async 
   expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo crear la plantilla.");
   expect(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Vanilla candle");
 });
+
+it("renders unit options with localized labels while keeping canonical <option> values", async () => {
+  // Soft UI contract: the unit <select> must show the Spanish plural labels
+  // (Gramos, Mililitros, Unidades) but each <option value> stays equal to the
+  // canonical enum token the Server Action consumes.
+  const user = userEvent.setup();
+  render(<TemplateCreateForm materials={MATERIALS} />);
+
+  // Default row: Soy wax (mass) → options Gramos / Kilogramos.
+  const unitOptions = Array.from(
+    within(getRow(1)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(unitOptions.map((option) => option.textContent)).toEqual(["Gramos", "Kilogramos"]);
+  expect(unitOptions.map((option) => option.getAttribute("value"))).toEqual(["g", "kg"]);
+
+  // Switching to Lavender scent (volume) reflips the labels to volume units.
+  await user.selectOptions(within(getRow(1)).getByLabelText("Material"), "Lavender scent");
+  const volumeOptions = Array.from(
+    within(getRow(1)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(volumeOptions.map((option) => option.textContent)).toEqual(["Mililitros", "Litros"]);
+  expect(volumeOptions.map((option) => option.getAttribute("value"))).toEqual(["ml", "L"]);
+
+  // Switching to Cotton wick (count) whitelabels the singular Unidades case.
+  await user.selectOptions(within(getRow(1)).getByLabelText("Material"), "Cotton wick");
+  const countOptions = Array.from(
+    within(getRow(1)).getByLabelText("Unidad").querySelectorAll("option"),
+  );
+  expect(countOptions.map((option) => option.textContent)).toEqual(["Unidades"]);
+  expect(countOptions.map((option) => option.getAttribute("value"))).toEqual(["unit"]);
+});

@@ -96,6 +96,10 @@ export const materials = pgTable(
 );
 
 // Templates -------------------------------------------------------------
+// Calculator meta (time, hourly_rate, overhead, margin_pct) is persisted
+// alongside the derived unitCost so the workspace's live summary survives a
+// page refresh. Stored verbatim as decimal strings — the calculator's summary
+// helper already tolerates missing or empty values via safeDecimal(0).
 export const templates = pgTable(
   "templates",
   {
@@ -105,6 +109,10 @@ export const templates = pgTable(
       .references(() => appOwner.id),
     name: text("name").notNull(),
     unitCost: numeric("unit_cost", { precision: 38, scale: 18 }).notNull(),
+    time: numeric("time", { precision: 20, scale: 6 }).notNull().default("0"),
+    hourlyRate: numeric("hourly_rate", { precision: 20, scale: 6 }).notNull().default("0"),
+    overhead: numeric("overhead", { precision: 20, scale: 6 }).notNull().default("0"),
+    marginPct: numeric("margin_pct", { precision: 20, scale: 6 }).notNull().default("30"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -5,6 +5,9 @@ import { startTransition, useActionState, useEffect, useRef } from "react";
 import { useForm, useWatch, type FieldErrors, type UseFormReset } from "react-hook-form";
 import { createMaterialAction, type MaterialActionState } from "@/server/actions/materials";
 import { DIMENSIONS, UNITS_BY_DIMENSION } from "@/domain/units";
+import { formatArsDecimalDisplay, formatDecimalInput } from "@/lib/moneyFormat";
+import { dimensionLabel, unitLabel, unitSingularLabel } from "@/lib/unitLabels";
+import { FieldHelp } from "@/components/help/FieldHelp";
 import {
   materialInputSchema,
   type MaterialInput,
@@ -21,7 +24,8 @@ export const blankMaterialValues: MaterialInput = {
 };
 
 // U4: rosa-crema tokens; focus/touch targets inherit from globals.css.
-const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
+const controlClass =
+  "w-full min-w-0 rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 const selectClass = controlClass;
 type MaterialFormErrors = FieldErrors<MaterialInput> & {
   unitCost?: { message?: string };
@@ -41,13 +45,15 @@ type MaterialFormProps = {
   submitLabel?: string;
   pendingLabel?: string;
   successMessage?: string;
+  layout?: "card" | "row";
+  unitCost?: string;
   onSuccess?: (reset: UseFormReset<MaterialInput>) => void;
 };
 
-function options(values: readonly string[]) {
+function options(values: readonly string[], label: (value: string) => string) {
   return values.map((value) => (
     <option key={value} value={value}>
-      {value}
+      {label(value)}
     </option>
   ));
 }
@@ -61,6 +67,77 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
+const FIELD_HELP: Record<
+  keyof MaterialInput | "unitCost",
+  {
+    title: string;
+    intro: string;
+    bullets: readonly string[];
+    tip: string;
+  }
+> = {
+  name: {
+    title: "Nombre",
+    intro: 'Es el nombre humano del insumo (por ejemplo, "Cera de soja").',
+    bullets: ["Lo usamos en plantillas y cotizaciones para identificar el material."],
+    tip: "Tiene que ser único por owner; si ya existe uno igual, el server lo rechaza.",
+  },
+  dimension: {
+    title: "Dimensión",
+    intro: "Es la magnitud física del insumo: peso, volumen, longitud o cantidad.",
+    bullets: ["Sirve para impedir que sumes, por ejemplo, gramos con mililitros."],
+    tip: "Cambiar la dimensión reinicia las unidades base y de compra a la primera opción válida.",
+  },
+  baseUnit: {
+    title: "Unidad base",
+    intro: "Es la unidad en la que se expresa el costo unitario del insumo.",
+    bullets: [
+      "Las plantillas multiplican cantidades por este costo unitario, por eso debe ser estable.",
+    ],
+    tip: "Una vez que el material entra en una plantilla, no podés cambiar la unidad base.",
+  },
+  purchaseUnit: {
+    title: "Unidad de compra",
+    intro: "Es la unidad en la que comprás el material en tu proveedor.",
+    bullets: [
+      "A partir de la cantidad y del precio de compra, calculamos el costo por unidad base.",
+    ],
+    tip: "Tiene que compartir dimensión con la unidad base (no podés mezclar kg con ml).",
+  },
+  purchaseQuantity: {
+    title: "Cantidad de compra",
+    intro: "Cuánto comprás en la unidad de compra (por ejemplo, 1 kilogramo o 5 litros).",
+    bullets: ["Sirve para convertir el precio de compra al costo por unidad base."],
+    tip: "En dimensión Cantidad, la cantidad tiene que ser un entero.",
+  },
+  purchasePrice: {
+    title: "Precio de compra (ARS)",
+    intro: "Cuánto pagás por esa cantidad de compra, en pesos argentinos.",
+    bullets: ["Combinado con la cantidad, define el costo unitario base del insumo."],
+    tip: "Ajustá este campo cuando cambian los precios del proveedor; el costo unitario se recalcula solo.",
+  },
+  unitCost: {
+    title: "Precio unitario derivado",
+    intro:
+      "Es el costo por unidad base que el sistema calcula a partir del precio y la cantidad de compra.",
+    bullets: ["Es el valor que multiplica las cantidades en cada plantilla."],
+    tip: "Si ves un valor raro, revisá las unidades base y de compra antes de archivar el material.",
+  },
+};
+
+function FieldHelpIcon({ fieldKey }: { fieldKey: keyof MaterialInput | "unitCost" }) {
+  const content = FIELD_HELP[fieldKey];
+  return (
+    <FieldHelp
+      id={fieldKey}
+      title={content.title}
+      intro={content.intro}
+      bullets={content.bullets}
+      tip={content.tip}
+    />
+  );
+}
+
 export function MaterialForm({
   action = createMaterialAction,
   defaultValues = blankMaterialValues,
@@ -71,9 +148,12 @@ export function MaterialForm({
   submitLabel = "Crear material",
   pendingLabel = "Creando material…",
   successMessage = "Material creado.",
+  layout = "card",
+  unitCost,
   onSuccess,
 }: MaterialFormProps) {
   const sectionId = idPrefix || "new-material";
+  const isRow = layout === "row";
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const {
     control,
@@ -134,6 +214,227 @@ export function MaterialForm({
     startTransition(() => formAction(new FormData(form)));
   }
 
+  const fieldLabelClass = isRow
+    ? "text-xs font-semibold uppercase tracking-wide text-ink-muted md:sr-only"
+    : undefined;
+  const formControlClass = isRow ? `${controlClass} text-sm` : controlClass;
+  const hasFeedback = Boolean(unitCostMessage || state.message || state.status === "success");
+  const feedback = hasFeedback ? (
+    <div
+      className={isRow ? "min-w-0 md:col-span-full md:col-start-1 md:row-start-2" : "sm:col-span-2"}
+    >
+      <FieldError id={errorId("unit-cost")} message={unitCostMessage} />
+      {state.message ? (
+        <p
+          role={state.status === "error" ? "alert" : "status"}
+          aria-live="polite"
+          className="text-sm text-status-danger"
+        >
+          {state.message}
+        </p>
+      ) : null}
+      {state.status === "success" ? (
+        <p role="status" aria-live="polite" className="text-sm text-status-success">
+          {successMessage}
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+  const currentSubmitLabel = pending ? pendingLabel : submitLabel;
+
+  const form = (
+    <form
+      onSubmit={handleSubmit(submit, focusDerivedCostError)}
+      noValidate
+      autoComplete="off"
+      aria-busy={pending}
+      className={isRow ? "contents" : "mt-5 grid gap-4 sm:grid-cols-2"}
+    >
+      {hiddenFields
+        ? Object.entries(hiddenFields).map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))
+        : null}
+      <div className="min-w-0">
+        {isRow ? <h3 className="sr-only">{title}</h3> : null}
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("name")}
+          >
+            <span className={fieldLabelClass}>{label("Nombre")}</span>
+            <input
+              id={inputId("name")}
+              {...register("name")}
+              aria-describedby={errorId("name")}
+              aria-invalid={Boolean(messageFor("name"))}
+              className={formControlClass}
+            />
+            <FieldError id={errorId("name")} message={messageFor("name")} />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="name" /> : null}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("dimension")}
+          >
+            <span className={fieldLabelClass}>{label("Dimensión")}</span>
+            <select
+              id={inputId("dimension")}
+              {...register("dimension")}
+              aria-describedby={errorId("dimension")}
+              aria-invalid={Boolean(messageFor("dimension"))}
+              className={isRow ? `${selectClass} text-sm` : selectClass}
+            >
+              {options(DIMENSIONS, dimensionLabel)}
+            </select>
+            <FieldError id={errorId("dimension")} message={messageFor("dimension")} />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="dimension" /> : null}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("base-unit")}
+          >
+            <span className={fieldLabelClass}>{label("Unidad base")}</span>
+            <select
+              id={inputId("base-unit")}
+              {...register("baseUnit")}
+              aria-describedby={errorId("base-unit")}
+              aria-invalid={Boolean(messageFor("baseUnit"))}
+              className={isRow ? `${selectClass} text-sm` : selectClass}
+            >
+              {options(units, unitLabel)}
+            </select>
+            <FieldError id={errorId("base-unit")} message={messageFor("baseUnit")} />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="baseUnit" /> : null}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("purchase-unit")}
+          >
+            <span className={fieldLabelClass}>{label("Unidad de compra")}</span>
+            <select
+              id={inputId("purchase-unit")}
+              {...register("purchaseUnit")}
+              aria-describedby={errorId("purchase-unit")}
+              aria-invalid={Boolean(messageFor("purchaseUnit"))}
+              className={isRow ? `${selectClass} text-sm` : selectClass}
+            >
+              {options(units, unitLabel)}
+            </select>
+            <FieldError id={errorId("purchase-unit")} message={messageFor("purchaseUnit")} />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="purchaseUnit" /> : null}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("purchase-quantity")}
+          >
+            <span className={fieldLabelClass}>{label("Cantidad de compra")}</span>
+            <input
+              id={inputId("purchase-quantity")}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              {...register("purchaseQuantity", {
+                setValueAs: (value) => (value === "" ? "" : formatDecimalInput(value)),
+              })}
+              aria-describedby={errorId("purchase-quantity")}
+              aria-invalid={Boolean(messageFor("purchaseQuantity"))}
+              className={`${formControlClass} tabular-nums`}
+            />
+            <FieldError
+              id={errorId("purchase-quantity")}
+              message={messageFor("purchaseQuantity")}
+            />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="purchaseQuantity" /> : null}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-start gap-1">
+          <label
+            className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+            htmlFor={inputId("purchase-price")}
+          >
+            <span className={fieldLabelClass}>{label("Precio de compra (ARS)")}</span>
+            <input
+              id={inputId("purchase-price")}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              {...register("purchasePrice", {
+                setValueAs: (value) => (value === "" ? "" : formatDecimalInput(value)),
+              })}
+              aria-describedby={`${errorId("purchase-price")} ${errorId("unit-cost")}`}
+              aria-invalid={Boolean(messageFor("purchasePrice") || unitCostMessage)}
+              className={`${formControlClass} tabular-nums`}
+            />
+            <FieldError id={errorId("purchase-price")} message={messageFor("purchasePrice")} />
+          </label>
+          {!isRow ? <FieldHelpIcon fieldKey="purchasePrice" /> : null}
+        </div>
+      </div>
+      {isRow ? (
+        <div className="min-w-0">
+          <div className="flex items-start gap-1">
+            <label
+              className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
+              htmlFor={inputId("unit-cost")}
+            >
+              <span className={fieldLabelClass}>{label("Precio unitario derivado")}</span>
+              <input
+                id={inputId("unit-cost")}
+                type="text"
+                value={`${unitCost ? formatArsDecimalDisplay(unitCost) : "ARS —"} por ${unitSingularLabel(defaultValues.baseUnit)}`}
+                readOnly
+                className={`${formControlClass} bg-surface-soft font-semibold tabular-nums`}
+              />
+            </label>
+          </div>
+        </div>
+      ) : null}
+      <div
+        className={
+          isRow ? "flex min-w-0 flex-col gap-1 md:col-start-8 md:row-start-1" : "sm:col-span-2"
+        }
+      >
+        {isRow ? <span className={fieldLabelClass}>Acción de edición</span> : null}
+        <button
+          type="submit"
+          disabled={pending}
+          aria-label={isRow ? currentSubmitLabel : undefined}
+          className={
+            isRow
+              ? "inline-flex min-h-11 w-full items-center justify-center rounded-md bg-brand px-3 text-sm font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+              : "inline-flex min-h-11 w-full items-center justify-center rounded-md bg-brand px-4 text-base font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+          }
+        >
+          {isRow ? (pending ? "Guardando…" : "Guardar") : currentSubmitLabel}
+        </button>
+      </div>
+      {feedback}
+    </form>
+  );
+
+  if (isRow) return form;
+
   return (
     <section
       id={sectionId}
@@ -143,110 +444,7 @@ export function MaterialForm({
       <h2 id={`${sectionId}-heading`} className="text-xl font-semibold">
         {title}
       </h2>
-      <form
-        onSubmit={handleSubmit(submit, focusDerivedCostError)}
-        noValidate
-        autoComplete="off"
-        className="mt-5 flex flex-col gap-4"
-      >
-        {hiddenFields
-          ? Object.entries(hiddenFields).map(([name, value]) => (
-              <input key={name} type="hidden" name={name} value={value} />
-            ))
-          : null}
-        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("name")}>
-          {label("Nombre")}
-          <input
-            id={inputId("name")}
-            {...register("name")}
-            aria-describedby={errorId("name")}
-            className={controlClass}
-          />
-          <FieldError id={errorId("name")} message={messageFor("name")} />
-        </label>
-        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("dimension")}>
-          {label("Dimensión")}
-          <select id={inputId("dimension")} {...register("dimension")} className={selectClass}>
-            {options(DIMENSIONS)}
-          </select>
-        </label>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("base-unit")}>
-            {label("Unidad base")}
-            <select
-              id={inputId("base-unit")}
-              {...register("baseUnit")}
-              aria-describedby={errorId("base-unit")}
-              className={selectClass}
-            >
-              {options(units)}
-            </select>
-            <FieldError id={errorId("base-unit")} message={messageFor("baseUnit")} />
-          </label>
-          <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-unit")}>
-            {label("Unidad de compra")}
-            <select
-              id={inputId("purchase-unit")}
-              {...register("purchaseUnit")}
-              aria-describedby={errorId("purchase-unit")}
-              className={selectClass}
-            >
-              {options(units)}
-            </select>
-            <FieldError id={errorId("purchase-unit")} message={messageFor("purchaseUnit")} />
-          </label>
-        </div>
-        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-quantity")}>
-          {label("Cantidad de compra")}
-          <input
-            id={inputId("purchase-quantity")}
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="any"
-            {...register("purchaseQuantity")}
-            aria-describedby={errorId("purchase-quantity")}
-            className={controlClass}
-          />
-          <FieldError id={errorId("purchase-quantity")} message={messageFor("purchaseQuantity")} />
-        </label>
-        <label className="flex flex-col gap-1 font-medium" htmlFor={inputId("purchase-price")}>
-          {label("Precio de compra (ARS)")}
-          <input
-            id={inputId("purchase-price")}
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            {...register("purchasePrice")}
-            aria-describedby={`${errorId("purchase-price")} ${errorId("unit-cost")}`}
-            className={controlClass}
-          />
-          <FieldError id={errorId("purchase-price")} message={messageFor("purchasePrice")} />
-        </label>
-        <FieldError id={errorId("unit-cost")} message={unitCostMessage} />
-        {state.message ? (
-          <p
-            role={state.status === "error" ? "alert" : "status"}
-            aria-live="polite"
-            className="text-sm text-status-danger"
-          >
-            {state.message}
-          </p>
-        ) : null}
-        {state.status === "success" ? (
-          <p role="status" aria-live="polite" className="text-sm text-status-success">
-            {successMessage}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={pending}
-          className="inline-flex min-h-11 items-center justify-center rounded-md bg-brand px-4 text-base font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
-        >
-          {pending ? pendingLabel : submitLabel}
-        </button>
-      </form>
+      {form}
     </section>
   );
 }

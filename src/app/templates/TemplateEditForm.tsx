@@ -5,11 +5,17 @@ import { startTransition, useActionState, useEffect, useMemo, useRef } from "rea
 import { useFieldArray, useForm, useWatch, type FieldErrors } from "react-hook-form";
 import { updateTemplateAction, type TemplateActionState } from "@/server/actions/templates";
 import { UNITS_BY_DIMENSION, getUnitDimension, type Unit } from "@/domain/units";
+import { unitLabel } from "@/lib/unitLabels";
 import { templateInputSchema, type TemplateInput } from "@/server/validation/templateSchema";
 
 export type TemplateEditItem = { materialId: string; quantity: string; unit: Unit };
 export type TemplateEditValue = { id: string; name: string; items: TemplateEditItem[] };
-export type TemplateMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
+export type TemplateMaterialOption = {
+  id: string;
+  name: string;
+  baseUnit: string;
+  unitCost: string;
+};
 
 const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 const selectClass = controlClass;
@@ -138,7 +144,7 @@ export function TemplateEditForm({
         key={field.id}
         aria-label={`Ingrediente ${index + 1}`}
         data-testid={`template-edit-item-${index + 1}`}
-           className="group flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 transition-transform pv-card-hover"
+        className="group flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 transition-transform pv-card-hover"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-ink-muted">Ingrediente {index + 1}</span>
@@ -152,10 +158,7 @@ export function TemplateEditForm({
           </button>
         </div>
         <div className="flex flex-col gap-1">
-          <label
-            className="font-medium text-ink"
-            htmlFor={`${sectionId}-item-${index}-material`}
-          >
+          <label className="font-medium text-ink" htmlFor={`${sectionId}-item-${index}-material`}>
             Material
           </label>
           <select
@@ -180,10 +183,7 @@ export function TemplateEditForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <label
-              className="font-medium text-ink"
-              htmlFor={`${sectionId}-item-${index}-quantity`}
-            >
+            <label className="font-medium text-ink" htmlFor={`${sectionId}-item-${index}-quantity`}>
               Cantidad
             </label>
             <input
@@ -215,7 +215,7 @@ export function TemplateEditForm({
             >
               {units.map((unit) => (
                 <option key={unit} value={unit}>
-                  {unit}
+                  {unitLabel(unit)}
                 </option>
               ))}
             </select>
@@ -230,7 +230,7 @@ export function TemplateEditForm({
     <section
       id={sectionId}
       aria-labelledby={`${sectionId}-heading`}
-       className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow"
     >
       <h3 id={`${sectionId}-heading`} className="text-base font-semibold text-ink">
         Editar plantilla: {template.name}
@@ -264,10 +264,10 @@ export function TemplateEditForm({
         <button
           type="button"
           onClick={() => append(blankItem)}
-           aria-label="Agregar ingrediente"
-           className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
-         >
-           ✨ + Material
+          aria-label="Agregar ingrediente"
+          className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
+        >
+          ✨ + Material
         </button>
         {state.message && state.status !== "success" ? (
           <p role="alert" aria-live="polite" className="text-sm text-status-danger">

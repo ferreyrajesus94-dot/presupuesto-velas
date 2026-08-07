@@ -5,12 +5,22 @@ import { startTransition, useActionState, useEffect, useMemo, useRef } from "rea
 import { useFieldArray, useForm, useWatch, type FieldErrors } from "react-hook-form";
 import { createTemplateAction, type TemplateActionState } from "@/server/actions/templates";
 import { UNITS_BY_DIMENSION, getUnitDimension, type Unit } from "@/domain/units";
+import { unitLabel } from "@/lib/unitLabels";
 import { templateInputSchema, type TemplateInput } from "@/server/validation/templateSchema";
 
-export type TemplateMaterialOption = { id: string; name: string; baseUnit: string; unitCost: string };
+export type TemplateMaterialOption = {
+  id: string;
+  name: string;
+  baseUnit: string;
+  unitCost: string;
+};
 const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 const selectClass = controlClass;
-const blankItem: TemplateInput["items"][number] = { materialId: "", quantity: "", unit: "g" as Unit };
+const blankItem: TemplateInput["items"][number] = {
+  materialId: "",
+  quantity: "",
+  unit: "g" as Unit,
+};
 const blankValues: TemplateInput = { name: "", items: [blankItem] };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -31,7 +41,11 @@ function serverItemMessage(state: TemplateActionState, index: number, field: str
   );
 }
 
-export function TemplateCreateForm({ materials }: { materials: readonly TemplateMaterialOption[] }) {
+export function TemplateCreateForm({
+  materials,
+}: {
+  materials: readonly TemplateMaterialOption[];
+}) {
   const sortedMaterials = useMemo(
     () => [...materials].sort((a, b) => a.name.localeCompare(b.name)),
     [materials],
@@ -208,7 +222,7 @@ export function TemplateCreateForm({ materials }: { materials: readonly Template
                     >
                       {units.map((unit) => (
                         <option key={unit} value={unit}>
-                          {unit}
+                          {unitLabel(unit)}
                         </option>
                       ))}
                     </select>

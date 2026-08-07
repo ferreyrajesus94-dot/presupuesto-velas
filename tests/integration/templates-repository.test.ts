@@ -18,7 +18,9 @@ const [
 const {
   archiveTemplate,
   countArchivedTemplates,
+  createBlankTemplate,
   createTemplate,
+  deleteTemplateRow,
   getTemplate,
   listTemplates,
   restoreTemplate,
@@ -166,9 +168,7 @@ describe("templates repository (integration vs dev branch)", () => {
 
     expect(await getTemplate(ownerId, templateId)).toBeNull();
     expect(
-      (await listTemplates(ownerId, { includeArchived: true })).map(
-        ({ template: row }) => row.id,
-      ),
+      (await listTemplates(ownerId, { includeArchived: true })).map(({ template: row }) => row.id),
     ).toContain(templateId);
   });
 
@@ -445,6 +445,105 @@ describe("templates repository (integration vs dev branch)", () => {
     });
   });
 
+  describe("createBlankTemplate + deleteTemplateRow", () => {
+    const createdBlankTemplateIds = new Set<string>();
+    const createdBlankMaterialIds = new Set<string>();
+
+    afterEach(async () => {
+      const templateIds = [...createdBlankTemplateIds];
+      if (templateIds.length > 0) {
+        await db.delete(templateItems).where(inArray(templateItems.templateId, templateIds));
+        await db.delete(templates).where(inArray(templates.id, templateIds));
+      }
+      createdBlankTemplateIds.clear();
+      const materialIds = [...createdBlankMaterialIds];
+      if (materialIds.length > 0) {
+        await db.delete(materials).where(inArray(materials.id, materialIds));
+      }
+      createdBlankMaterialIds.clear();
+    });
+
+    it("inserts a name-only template row with unitCost 0 and no items, returning the new Template", async () => {
+      const created = await createBlankTemplate(ownerId, `blank-${crypto.randomUUID()}`);
+      createdBlankTemplateIds.add(created.id);
+
+      expect(created.id).toMatch(/[0-9a-f-]{36}/);
+      expect(created.ownerId).toBe(ownerId);
+      expect(created.archivedAt).toBeNull();
+      // The schema column is `numeric`; drizzle returns strings for that type,
+      // so the zero unitCost round-trips as "0" / "0.000000000000000000".
+      expect(Number(created.unitCost)).toBe(0);
+
+      // The persisted row is readable through getTemplate, and has no items.
+      const fetched = await getTemplate(ownerId, created.id);
+      expect(fetched?.template.id).toBe(created.id);
+      expect(fetched?.items).toEqual([]);
+    });
+
+    it("maps duplicate names to DUPLICATE_NAME", async () => {
+      const name = `blank-dup-${crypto.randomUUID()}`;
+      const first = await createBlankTemplate(ownerId, name);
+      createdBlankTemplateIds.add(first.id);
+
+      await expect(createBlankTemplate(ownerId, name)).rejects.toBeInstanceOf(
+        TemplateRepositoryError,
+      );
+      await expect(createBlankTemplate(ownerId, name)).rejects.toMatchObject({
+        code: "DUPLICATE_NAME",
+      });
+    });
+
+    it("rejects createBlankTemplate for cross-owner lookups (no shared singleton)", async () => {
+      const created = await createBlankTemplate(ownerId, `blank-iso-${crypto.randomUUID()}`);
+      createdBlankTemplateIds.add(created.id);
+
+      // The insert succeeds for the real owner; a foreign owner never sees the
+      // row in their list / getTemplate scope because templates are owner-scoped.
+      expect(await getTemplate(crypto.randomUUID(), created.id)).toBeNull();
+    });
+
+    it("deleteTemplateRow cascades the items delete in one transaction and rejects missing ids", async () => {
+      const materialId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
+      createdBlankMaterialIds.add(materialId);
+
+      const created = await createTemplate(ownerId, {
+        name: `for-delete-${crypto.randomUUID()}`,
+        items: [{ materialId, quantity: "100", unit: "g" }],
+      });
+      createdBlankTemplateIds.add(created.template.id);
+
+      await expect(deleteTemplateRow(ownerId, created.template.id)).resolves.toBeUndefined();
+
+      // Row + items are gone.
+      expect(await getTemplate(ownerId, created.template.id)).toBeNull();
+      const stillItems = await db
+        .select({ id: templateItems.id })
+        .from(templateItems)
+        .where(eq(templateItems.templateId, created.template.id));
+      expect(stillItems).toHaveLength(0);
+
+      // Re-deleting must surface NOT_FOUND.
+      await expect(deleteTemplateRow(ownerId, created.template.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+
+    it("deleteTemplateRow rejects cross-owner ids as NOT_FOUND", async () => {
+      const created = await createBlankTemplate(ownerId, `blank-foreign-${crypto.randomUUID()}`);
+      createdBlankTemplateIds.add(created.id);
+
+      await expect(deleteTemplateRow(crypto.randomUUID(), created.id)).rejects.toBeInstanceOf(
+        TemplateRepositoryError,
+      );
+      await expect(deleteTemplateRow(crypto.randomUUID(), created.id)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+  });
+
   describe("update", () => {
     const createdUpdateTemplateIds = new Set<string>();
     const createdUpdateMaterialIds = new Set<string>();
@@ -695,6 +794,74 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(persisted?.template.unitCost).toBe("300.000000000000000000");
       expect(persisted?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
       expect(persisted?.items.map(({ quantity }) => quantity)).toEqual(["10.000000"]);
+    });
+
+    it("persists calculator meta fields (time / hourlyRate / overhead / marginPct) on create + update", async () => {
+      const waxId = crypto.randomUUID();
+      await db
+        .insert(materials)
+        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+      createdUpdateMaterialIds.add(waxId);
+
+      // Create with explicit meta — the repository persists the literal
+      // trimmed strings, so the returned record carries them verbatim.
+      const created = await createTemplate(ownerId, {
+        name: `meta-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+        time: "60",
+        hourlyRate: "1500",
+        overhead: "200",
+        marginPct: "40",
+      });
+      createdUpdateTemplateIds.add(created.template.id);
+
+      // Numeric(20, 6) round-trips as "60.000000" etc.
+      expect(created.template.time).toBe("60.000000");
+      expect(created.template.hourlyRate).toBe("1500.000000");
+      expect(created.template.overhead).toBe("200.000000");
+      expect(created.template.marginPct).toBe("40.000000");
+
+      const gotAfterCreate = await getTemplate(ownerId, created.template.id);
+      expect(gotAfterCreate?.template.time).toBe("60.000000");
+      expect(gotAfterCreate?.template.hourlyRate).toBe("1500.000000");
+      expect(gotAfterCreate?.template.overhead).toBe("200.000000");
+      expect(gotAfterCreate?.template.marginPct).toBe("40.000000");
+
+      // Update with no meta — empty strings fall back to the schema
+      // defaults (0/0/0/30) so the live summary helper never sees a NaN.
+      const updated = await updateTemplate(ownerId, created.template.id, {
+        name: `meta-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "100", unit: "g" }],
+      });
+      expect(updated.template.time).toBe("0.000000");
+      expect(updated.template.hourlyRate).toBe("0.000000");
+      expect(updated.template.overhead).toBe("0.000000");
+      expect(updated.template.marginPct).toBe("30.000000");
+
+      const gotAfterUpdate = await getTemplate(ownerId, created.template.id);
+      expect(gotAfterUpdate?.template.time).toBe("0.000000");
+      expect(gotAfterUpdate?.template.hourlyRate).toBe("0.000000");
+      expect(gotAfterUpdate?.template.overhead).toBe("0.000000");
+      expect(gotAfterUpdate?.template.marginPct).toBe("30.000000");
+
+      // Non-empty meta update round-trips verbatim.
+      const updated2 = await updateTemplate(ownerId, created.template.id, {
+        name: `meta-${crypto.randomUUID()}`,
+        items: [{ materialId: waxId, quantity: "50", unit: "g" }],
+        time: "90",
+        hourlyRate: "2000",
+        overhead: "150",
+        marginPct: "25",
+      });
+      expect(updated2.template.time).toBe("90.000000");
+      expect(updated2.template.hourlyRate).toBe("2000.000000");
+      expect(updated2.template.overhead).toBe("150.000000");
+      expect(updated2.template.marginPct).toBe("25.000000");
+      const gotAfterUpdate2 = await getTemplate(ownerId, created.template.id);
+      expect(gotAfterUpdate2?.template.time).toBe("90.000000");
+      expect(gotAfterUpdate2?.template.hourlyRate).toBe("2000.000000");
+      expect(gotAfterUpdate2?.template.overhead).toBe("150.000000");
+      expect(gotAfterUpdate2?.template.marginPct).toBe("25.000000");
     });
   });
 

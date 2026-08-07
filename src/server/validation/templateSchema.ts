@@ -4,6 +4,7 @@ import { UNITS, areUnitsCompatible, normalizeToBaseUnit } from "../../domain/uni
 
 const MAX_QUANTITY = decimal("999999999999999999.999999");
 const MAX_UNIT_COST = decimal("99999999999999999999.999999999999999999");
+const MAX_META = decimal("9999999999999999.999999");
 
 function safeDecimal(value: string) {
   try {
@@ -12,6 +13,46 @@ function safeDecimal(value: string) {
     return null;
   }
 }
+
+// Empty strings are accepted (the workspace leaves time/overhead empty by
+// default). Non-empty values must parse as positive decimals within the
+// numeric(20,6) column shape.
+const positiveDecimalString = z.string().refine(
+  (raw) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return true;
+    const v = safeDecimal(trimmed);
+    if (!v) return false;
+    if (v.isNaN() || !v.isFinite()) return false;
+    if (v.isNeg() || v.isZero()) return false;
+    return v.lte(MAX_META);
+  },
+  { message: "Ingresá un número positivo" },
+);
+
+// Margin accepts 0 as a valid value (free templates, give-aways). Empty stays
+// neutral at the calculator layer.
+const marginDecimalString = z.string().refine(
+  (raw) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return true;
+    const v = safeDecimal(trimmed);
+    if (!v) return false;
+    if (v.isNaN() || !v.isFinite()) return false;
+    if (v.isNeg()) return false;
+    return v.lte(MAX_META);
+  },
+  { message: "Ingresá un porcentaje válido" },
+);
+
+// .optional() so the parseInput() bridge does not require these fields on
+// createTemplate for legacy callers that still send only name + items.
+const metaShape = {
+  time: positiveDecimalString.optional(),
+  hourlyRate: positiveDecimalString.optional(),
+  overhead: positiveDecimalString.optional(),
+  marginPct: marginDecimalString.optional(),
+};
 
 const quantitySchema = z
   .string()
@@ -33,6 +74,7 @@ export const templateInputSchema = z.strictObject({
       }),
     )
     .min(1, "Add at least one template item"),
+  ...metaShape,
 });
 
 export type TemplateInput = z.input<typeof templateInputSchema>;
@@ -49,7 +91,30 @@ export type ParsedTemplateInput = {
   name: string;
   unitCost: string;
   items: Array<{ position: number; materialId: string; quantity: string }>;
+  time: string;
+  hourlyRate: string;
+  overhead: string;
+  marginPct: string;
 };
+
+// Trimmed, post-validation projection of the calculator meta fields. Empty
+// values stay as empty strings so the page-level default (marginPct "30",
+// time/hourlyRate/overhead "" → calculator reads 0) survives a round-trip
+// untouched, and non-empty values round-trip as the trimmed literal so we
+// never persist un-trimmed whitespace.
+export function parseTemplateMeta(raw: {
+  time?: string | null;
+  hourlyRate?: string | null;
+  overhead?: string | null;
+  marginPct?: string | null;
+}): { time: string; hourlyRate: string; overhead: string; marginPct: string } {
+  return {
+    time: (raw.time ?? "").trim(),
+    hourlyRate: (raw.hourlyRate ?? "").trim(),
+    overhead: (raw.overhead ?? "").trim(),
+    marginPct: (raw.marginPct ?? "").trim(),
+  };
+}
 
 export function createTemplateInputSchema(
   ownerId: string,
@@ -113,6 +178,14 @@ export function createTemplateInputSchema(
       return z.NEVER;
     }
 
-    return { name: input.name, unitCost: persistedCost.toFixed(), items };
+    return {
+      name: input.name,
+      unitCost: persistedCost.toFixed(),
+      items,
+      time: (input.time ?? "").trim(),
+      hourlyRate: (input.hourlyRate ?? "").trim(),
+      overhead: (input.overhead ?? "").trim(),
+      marginPct: (input.marginPct ?? "").trim(),
+    };
   });
 }

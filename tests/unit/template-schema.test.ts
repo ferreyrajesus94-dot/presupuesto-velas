@@ -40,7 +40,9 @@ const validTemplate = {
 };
 
 function messages(result: ReturnType<typeof schema.safeParse>): string[] {
-  return result.success ? [] : result.error.issues.map(({ message }: { message: string }) => message);
+  return result.success
+    ? []
+    : result.error.issues.map(({ message }: { message: string }) => message);
 }
 
 describe("template input schema", () => {
@@ -60,6 +62,10 @@ describe("template input schema", () => {
         { position: 1, materialId: "wax", quantity: "100" },
         { position: 2, materialId: "wick", quantity: "2" },
       ],
+      time: "",
+      hourlyRate: "",
+      overhead: "",
+      marginPct: "",
     });
   });
 
@@ -138,7 +144,10 @@ describe("template input schema", () => {
     });
 
     expect(result.items.map(({ position }: { position: number }) => position)).toEqual([1, 2]);
-    expect(result.items.map(({ quantity }: { quantity: string }) => quantity)).toEqual(["10", "20"]);
+    expect(result.items.map(({ quantity }: { quantity: string }) => quantity)).toEqual([
+      "10",
+      "20",
+    ]);
     expect(result.unitCost).toBe("300");
   });
 

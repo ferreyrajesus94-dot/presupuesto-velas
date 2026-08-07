@@ -1,23 +1,33 @@
 import Decimal from "decimal.js";
 
-/**
- * Pure ARS Decimal.js string formatter (PR4g.1).
- *
- * Pure: no React, no JS `Number` coercion on money, no I/O.
- * Decimal.js uses precision 50 + ROUND_HALF_UP per `src/domain/decimal.ts`
- * (design #998).
- *
- * Output shape: `ARS 1.234.567,50`
- *   - thousands separator `.`
- *   - decimal separator `,`
- *   - exactly two decimals (half-up rounding)
- *
- * Behaviour:
- *   - Empty / whitespace string  -> `ARS 0,00` (graceful)
- *   - Unparseable string         -> `ARS 0,00` (graceful)
- *   - Non-string input (null, undefined, number) -> throws
- *       `Error('formatArsFromDecimalString: invalid decimal')`
- */
+function formatThousands(integer: string): string {
+  const sign = integer.startsWith("-") ? "-" : "";
+  const digits = sign ? integer.slice(1) : integer;
+  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+}
+
+export function formatDecimalDisplay(decimalString: string): string {
+  const fixed = new Decimal(decimalString).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed();
+  const lastDot = fixed.lastIndexOf(".");
+  if (lastDot === -1) {
+    return formatThousands(fixed);
+  }
+  const intPart = fixed.slice(0, lastDot);
+  const decPart = fixed.slice(lastDot + 1).replace(/0+$/, "");
+  const comma = decPart ? `,${decPart}` : "";
+  return `${formatThousands(intPart)}${comma}`;
+}
+
+export function formatDecimalInput(decimalString: string): string {
+  if (typeof decimalString !== "string" || decimalString.trim() === "") {
+    return "";
+  }
+  try {
+    return new Decimal(decimalString.trim()).toFixed().replace(/\.0+$/, "");
+  } catch {
+    return decimalString;
+  }
+}
 
 export function formatArsFromDecimalString(decimalString: string): string {
   if (typeof decimalString !== "string") {
@@ -25,16 +35,17 @@ export function formatArsFromDecimalString(decimalString: string): string {
   }
 
   const trimmed = decimalString.trim();
-  if (trimmed === "") {
-    return "ARS 0,00";
-  }
+  if (trimmed === "") return "ARS 0,00";
 
   try {
     const fixed = new Decimal(trimmed).toFixed(2, Decimal.ROUND_HALF_UP);
     const [intPart, decPart = "00"] = fixed.split(".");
-    const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return `ARS ${withThousands},${decPart}`;
+    return `ARS ${formatThousands(intPart)},${decPart}`;
   } catch {
     return "ARS 0,00";
   }
+}
+
+export function formatArsDecimalDisplay(decimalString: string): string {
+  return `ARS ${formatDecimalDisplay(decimalString)}`;
 }

@@ -76,9 +76,7 @@ describe("Tutorial overlay (Phase 4.1)", () => {
       await user.click(screen.getByTestId("tour-next"));
     }
     await user.click(screen.getByTestId("tour-next"));
-    await waitFor(() =>
-      expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBe("1"),
-    );
+    await waitFor(() => expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBe("1"));
     expect(screen.queryByTestId("tour-root")).not.toBeInTheDocument();
   });
 

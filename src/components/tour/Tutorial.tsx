@@ -229,8 +229,8 @@ export function Tutorial() {
   }, [open, step, reducedMotion, stepIndex]);
 
   // Escape closes; focus is trapped inside the dialog via useFocusTrap so
-// Tab/Shift+Tab cycles between the close button, "Saltar tour", "Atrás",
-// and "Siguiente" — never escapes into the page below.
+  // Tab/Shift+Tab cycles between the close button, "Saltar tour", "Atrás",
+  // and "Siguiente" — never escapes into the page below.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
@@ -249,17 +249,21 @@ export function Tutorial() {
 
   return (
     <>
-      <button
-        type="button"
-        ref={triggerRef}
-        onClick={startTour}
-        aria-label="Iniciar tour guiado"
-        title="¿Cómo funciona? Iniciá el tour"
-        data-testid="tour-trigger"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-surface text-ink transition-transform hover:-translate-y-1"
-      >
-        <span aria-hidden="true">❓</span>
-      </button>
+      <div className="fixed bottom-4 right-4 z-[58]">
+        <button
+          type="button"
+          ref={triggerRef}
+          onClick={startTour}
+          aria-label="Iniciar tour guiado"
+          title="¿Cómo funciona? Iniciá el tour"
+          data-testid="tour-trigger"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-ink transition-transform hover:-translate-y-1"
+        >
+          <span aria-hidden="true" className="text-base leading-none">
+            ❓
+          </span>
+        </button>
+      </div>
       {open && step ? (
         <TutorialDialog
           step={step}
@@ -338,12 +342,7 @@ function TutorialDialog({
             ) : null}
           </mask>
         </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(43, 13, 24, 0.55)"
-          mask="url(#tour-mask)"
-        />
+        <rect width="100%" height="100%" fill="rgba(43, 13, 24, 0.55)" mask="url(#tour-mask)" />
       </svg>
       {spotlight ? (
         <div
@@ -378,7 +377,11 @@ function TutorialDialog({
         }
         style={{
           pointerEvents: "auto",
-          top: spotlight ? (cardBelow ? spotlight.top + spotlight.height + 24 : Math.max(24, spotlight.top - 320)) : "20%",
+          top: spotlight
+            ? cardBelow
+              ? spotlight.top + spotlight.height + 24
+              : Math.max(24, spotlight.top - 320)
+            : "20%",
         }}
       >
         <div className="flex items-center justify-between gap-2">
@@ -394,7 +397,10 @@ function TutorialDialog({
             <span aria-hidden="true">✕</span>
           </button>
         </div>
-        <h2 id="tour-title" className="mt-2 flex items-center gap-2 text-2xl font-semibold text-ink">
+        <h2
+          id="tour-title"
+          className="mt-2 flex items-center gap-2 text-2xl font-semibold text-ink"
+        >
           <span aria-hidden="true">{step.emoji}</span>
           {step.title}
         </h2>
@@ -409,9 +415,7 @@ function TutorialDialog({
             </li>
           ))}
         </ul>
-        <p className="mt-3 rounded-lg bg-surface-soft p-3 text-xs text-ink-muted">
-          💡 {step.tip}
-        </p>
+        <p className="mt-3 rounded-lg bg-surface-soft p-3 text-xs text-ink-muted">💡 {step.tip}</p>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"

@@ -3,12 +3,12 @@ import { listMaterials } from "@/server/repositories/materials";
 import { countArchivedTemplates, listTemplates } from "@/server/repositories/templates";
 import { TemplateViewFilter } from "./TemplateViewFilter";
 import { resolveTemplateView, type TemplateView } from "./TemplateViewFilter";
+import { PlantillasWorkspace } from "./PlantillasWorkspace";
 import {
-  PlantillasWorkspace,
   toClientTemplate,
   type PlantillaClientMaterial,
   type PlantillaClientTemplate,
-} from "./PlantillasWorkspace";
+} from "./types";
 
 const VIEW_VISIBILITY: Record<TemplateView, { includeArchived: boolean }> = {
   active: { includeArchived: false },
@@ -53,6 +53,10 @@ export default async function TemplatesPage({
           quantity: row.quantity,
           unit: materialOptions.find((m) => m.id === row.materialId)?.baseUnit ?? "g",
         })),
+        time: template.time,
+        hourlyRate: template.hourlyRate,
+        overhead: template.overhead,
+        marginPct: template.marginPct,
       },
       materialOptions,
     ),
@@ -66,20 +70,27 @@ export default async function TemplatesPage({
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
             Calculadora Flor
           </p>
-          <h1 aria-label="Plantillas" className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">📋 Plantillas</h1>
+          <h1
+            aria-label="Plantillas"
+            className="mt-2 text-3xl font-semibold text-ink text-wrap-balance"
+          >
+            📋 Plantillas
+          </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" data-help="templates" aria-label="Ayuda sobre plantillas" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
+          <button
+            type="button"
+            data-help="templates"
+            aria-label="Ayuda sobre plantillas"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1"
+          >
             ?
           </button>
         </div>
       </header>
 
       <TemplateViewFilter current={view} />
-      <PlantillasWorkspace
-        initialTemplates={initialTemplates}
-        materials={materialOptions}
-      />
+      <PlantillasWorkspace initialTemplates={initialTemplates} materials={materialOptions} />
       {archivedCount > 0 && view === "active" ? (
         <p className="text-xs text-ink-muted">
           {archivedCount === 1

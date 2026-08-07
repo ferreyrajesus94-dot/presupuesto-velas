@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => {
     updateTemplate: vi.fn(),
     archiveTemplate: vi.fn(),
     restoreTemplate: vi.fn(),
+    findNextDefaultTemplateName: vi.fn(),
+    createBlankTemplate: vi.fn(),
+    deleteTemplateRow: vi.fn(),
     revalidatePath: vi.fn(),
   };
 });
@@ -29,13 +32,19 @@ vi.mock("../../src/server/repositories/templates", () => ({
   updateTemplate: mocks.updateTemplate,
   archiveTemplate: mocks.archiveTemplate,
   restoreTemplate: mocks.restoreTemplate,
+  createBlankTemplate: mocks.createBlankTemplate,
+  findNextDefaultTemplateName: mocks.findNextDefaultTemplateName,
+  deleteTemplateRow: mocks.deleteTemplateRow,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
 import {
   archiveTemplateAction,
+  createBlankTemplateAction,
   createTemplateAction,
+  deleteTemplateAction,
   restoreTemplateAction,
+  saveTemplateAction,
   updateTemplateAction,
 } from "../../src/server/actions/templates";
 
@@ -214,6 +223,407 @@ describe("template Server Actions", () => {
     });
 
     expect(mocks.createTemplate).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("createBlankTemplateAction", () => {
+  it("persists a name-only template row, returns its id/name, and revalidates the catalog", async () => {
+    mocks.createBlankTemplate.mockResolvedValue({
+      id: "server-template-1",
+      name: "Nueva plantilla 1",
+    });
+
+    const data = new FormData();
+    data.set("name", "Nueva plantilla 1");
+    const result = await createBlankTemplateAction(data);
+
+    expect(result).toEqual({
+      status: "success",
+      id: "server-template-1",
+      name: "Nueva plantilla 1",
+    });
+    expect(mocks.createBlankTemplate).toHaveBeenCalledWith(OWNER.id, "Nueva plantilla 1");
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/templates");
+  });
+
+  it("trims the requested name before hitting the repository", async () => {
+    mocks.createBlankTemplate.mockResolvedValue({
+      id: "server-template-2",
+      name: "Nueva plantilla 3",
+    });
+
+    const data = new FormData();
+    data.set("name", "  Nueva plantilla 3  ");
+    await createBlankTemplateAction(data);
+
+    expect(mocks.createBlankTemplate).toHaveBeenCalledWith(OWNER.id, "Nueva plantilla 3");
+  });
+
+  it("auto-generates a default name when the name is empty", async () => {
+    mocks.findNextDefaultTemplateName.mockResolvedValue("Nueva plantilla 1");
+    mocks.createBlankTemplate.mockResolvedValue({
+      id: "server-template-2",
+      name: "Nueva plantilla 1",
+    });
+
+    const data = new FormData();
+    data.set("name", "   ");
+    const result = await createBlankTemplateAction(data);
+
+    expect(result).toEqual({
+      status: "success",
+      id: "server-template-2",
+      name: "Nueva plantilla 1",
+    });
+    expect(mocks.findNextDefaultTemplateName).toHaveBeenCalledWith(OWNER.id);
+    expect(mocks.createBlankTemplate).toHaveBeenCalledWith(OWNER.id, "Nueva plantilla 1");
+  });
+
+  it("uses distinct server-picked names for parallel default creations", async () => {
+    mocks.findNextDefaultTemplateName
+      .mockResolvedValueOnce("Nueva plantilla 1")
+      .mockResolvedValueOnce("Nueva plantilla 2");
+    mocks.createBlankTemplate
+      .mockResolvedValueOnce({ id: "server-template-1", name: "Nueva plantilla 1" })
+      .mockResolvedValueOnce({ id: "server-template-2", name: "Nueva plantilla 2" });
+
+    const [first, second] = await Promise.all([
+      createBlankTemplateAction(new FormData()),
+      createBlankTemplateAction(new FormData()),
+    ]);
+
+    expect(first).toEqual({
+      status: "success",
+      id: "server-template-1",
+      name: "Nueva plantilla 1",
+    });
+    expect(second).toEqual({
+      status: "success",
+      id: "server-template-2",
+      name: "Nueva plantilla 2",
+    });
+  });
+
+  it("maps DUPLICATE_NAME to a friendly Spanish message and skips revalidation", async () => {
+    mocks.createBlankTemplate.mockRejectedValue(
+      new mocks.RepositoryError("DUPLICATE_NAME", 'Template name "X" is already used'),
+    );
+
+    const data = new FormData();
+    data.set("name", "Nueva plantilla 2");
+    const result = await createBlankTemplateAction(data);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Ya existe una plantilla con ese nombre.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("X");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps unknown repository errors to a safe fallback without leaking details", async () => {
+    mocks.createBlankTemplate.mockRejectedValue(new Error("connection refused"));
+
+    const data = new FormData();
+    data.set("name", "Nueva plantilla 9");
+    const result = await createBlankTemplateAction(data);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "No se pudo crear la plantilla.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("connection");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteTemplateAction", () => {
+  function idForm(id: string): FormData {
+    const data = new FormData();
+    data.set("id", id);
+    return data;
+  }
+
+  it("hard-deletes the template row and revalidates the catalog on success", async () => {
+    mocks.deleteTemplateRow.mockResolvedValue(undefined);
+
+    const result = await deleteTemplateAction(idForm("template-1"));
+
+    expect(result).toEqual({ status: "success", id: "template-1" });
+    expect(mocks.deleteTemplateRow).toHaveBeenCalledWith(OWNER.id, "template-1");
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/templates");
+  });
+
+  it("returns a friendly Spanish error when the id is missing and skips the repository", async () => {
+    const data = new FormData();
+    const result = await deleteTemplateAction(data);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Falta el identificador de la plantilla.",
+    });
+    expect(mocks.deleteTemplateRow).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps NOT_FOUND to a friendly Spanish message without leaking the id", async () => {
+    mocks.deleteTemplateRow.mockRejectedValue(
+      new mocks.RepositoryError("NOT_FOUND", 'Template "ghost-id" was not found'),
+    );
+
+    const result = await deleteTemplateAction(idForm("ghost-id"));
+
+    expect(result).toEqual({
+      status: "error",
+      message: "No se pudo eliminar la plantilla.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("ghost-id");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps unknown repository errors to a safe fallback", async () => {
+    mocks.deleteTemplateRow.mockRejectedValue(new Error("connection refused"));
+
+    const result = await deleteTemplateAction(idForm("template-1"));
+
+    expect(result).toEqual({
+      status: "error",
+      message: "No se pudo eliminar la plantilla.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("connection");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+function saveForm(
+  over: Partial<{
+    id: string;
+    name: string;
+    items: unknown;
+    time: string;
+    hourlyRate: string;
+    overhead: string;
+    marginPct: string;
+  }> = {},
+): FormData {
+  const data = new FormData();
+  if (over.id !== undefined) data.set("id", over.id);
+  data.set("name", over.name ?? "Vanilla");
+  data.set("items", JSON.stringify(over.items ?? ITEMS));
+  data.set("time", over.time ?? "");
+  data.set("hourlyRate", over.hourlyRate ?? "");
+  data.set("overhead", over.overhead ?? "");
+  data.set("marginPct", over.marginPct ?? "");
+  return data;
+}
+
+describe("saveTemplateAction", () => {
+  it("creates the template when no id is provided and revalidates the catalog", async () => {
+    mocks.createTemplate.mockResolvedValue({
+      template: {
+        id: "server-template-1",
+        name: "Vanilla",
+        unitCost: "10",
+        archivedAt: null,
+        time: "0",
+        hourlyRate: "0",
+        overhead: "0",
+        marginPct: "30",
+      },
+      items: [],
+    });
+
+    const result = await saveTemplateAction(
+      saveForm({
+        name: "Vanilla",
+        time: "60",
+        hourlyRate: "1500",
+        overhead: "200",
+        marginPct: "35",
+      }),
+    );
+
+    expect(result).toEqual({
+      status: "success",
+      template: {
+        id: "server-template-1",
+        name: "Vanilla",
+        unitCost: "10",
+        archivedAt: null,
+        time: "0",
+        hourlyRate: "0",
+        overhead: "0",
+        marginPct: "30",
+      },
+      meta: {
+        unitCost: "10",
+        time: "0",
+        hourlyRate: "0",
+        overhead: "0",
+        marginPct: "30",
+      },
+    });
+    expect(mocks.createTemplate).toHaveBeenCalledWith(
+      OWNER.id,
+      expect.objectContaining({
+        name: "Vanilla",
+        time: "60",
+        hourlyRate: "1500",
+        overhead: "200",
+        marginPct: "35",
+      }),
+    );
+    expect(mocks.updateTemplate).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/templates");
+  });
+
+  it("updates the template when an id is provided and revalidates the catalog", async () => {
+    mocks.updateTemplate.mockResolvedValue({
+      template: {
+        id: "template-1",
+        name: "Renamed",
+        unitCost: "20",
+        archivedAt: null,
+        time: "30",
+        hourlyRate: "1500",
+        overhead: "100",
+        marginPct: "40",
+      },
+      items: [],
+    });
+
+    const result = await saveTemplateAction(saveForm({ id: "template-1", name: "Renamed" }));
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("expected success");
+    expect(result.template.id).toBe("template-1");
+    expect(result.template.time).toBe("30");
+    expect(mocks.updateTemplate).toHaveBeenCalledWith(
+      OWNER.id,
+      "template-1",
+      expect.objectContaining({ name: "Renamed" }),
+    );
+    expect(mocks.createTemplate).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/templates");
+  });
+
+  it("maps DUPLICATE_NAME to a friendly Spanish message without leaking the name", async () => {
+    mocks.createTemplate.mockRejectedValue(
+      new mocks.RepositoryError("DUPLICATE_NAME", 'Template name "X" is already used'),
+    );
+
+    const result = await saveTemplateAction(saveForm({ name: "Duplicado" }));
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Ya existe una plantilla con ese nombre.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("Duplicado");
+      expect(result.message).not.toContain("X");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps MATERIAL_UNAVAILABLE to a friendly Spanish message", async () => {
+    mocks.updateTemplate.mockRejectedValue(
+      new mocks.RepositoryError("MATERIAL_UNAVAILABLE", "ghost material id"),
+    );
+
+    const result = await saveTemplateAction(saveForm({ id: "template-1" }));
+
+    expect(result).toEqual({
+      status: "error",
+      message: "La plantilla referencia un material archivado o inexistente.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("ghost");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps NOT_FOUND to a friendly Spanish message when the row vanished", async () => {
+    mocks.updateTemplate.mockRejectedValue(
+      new mocks.RepositoryError("NOT_FOUND", 'Template "ghost-id" was not found'),
+    );
+
+    const result = await saveTemplateAction(saveForm({ id: "ghost-id" }));
+
+    expect(result).toEqual({
+      status: "error",
+      message: "No se encontró la plantilla para guardar.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("ghost-id");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed items payload without calling the repository", async () => {
+    const data = new FormData();
+    data.set("name", "Vanilla");
+    data.set("items", "not-json");
+
+    const result = await saveTemplateAction(data);
+
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.message).toBeDefined();
+    }
+    expect(mocks.createTemplate).not.toHaveBeenCalled();
+    expect(mocks.updateTemplate).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("returns schema field errors when name is empty or items are missing", async () => {
+    const result = await saveTemplateAction(saveForm({ name: "", items: [] }));
+
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.fieldErrors?.name).toEqual(["Name is required"]);
+      expect(result.fieldErrors?.items).toBeDefined();
+    }
+    expect(mocks.createTemplate).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps unknown repository errors to a safe fallback Spanish message", async () => {
+    mocks.createTemplate.mockRejectedValue(new Error("connection refused"));
+
+    const result = await saveTemplateAction(saveForm());
+
+    expect(result).toEqual({
+      status: "error",
+      message: "No se pudo guardar la plantilla.",
+    });
+    if (result.status === "error") {
+      expect(result.message).not.toContain("connection");
+    }
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("preserves unauthenticated denial before validation or mutation", async () => {
+    const error = Object.assign(new Error("__redirect:/sign-in"), {
+      __redirect: "/sign-in",
+    });
+    mocks.requireOwner.mockRejectedValue(error);
+
+    await expect(saveTemplateAction(saveForm())).rejects.toMatchObject({
+      __redirect: "/sign-in",
+    });
+    expect(mocks.createTemplate).not.toHaveBeenCalled();
+    expect(mocks.updateTemplate).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });

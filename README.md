@@ -132,4 +132,17 @@ After the first deploy succeeds:
 - [ ] First production deploy succeeded (`vercel --prod` or via Git integration).
 - [ ] Production smoke test (9 steps above) all pass.
 
+### Operator cleanup — legacy single-owner env
+
+PR5.archive (`sdd/auth-public-signup`) retired the legacy single-owner allowlist env vars `OWNER_USER_ID` and `OWNER_EMAIL`. After this PR merges, run the following once per Vercel environment to drop the stale keys (replace `production` with `preview` for the Preview environment):
+
+```bash
+vercel env rm OWNER_USER_ID production
+vercel env rm OWNER_EMAIL production
+vercel env rm TEST_OWNER_USER_ID production
+vercel env rm TEST_OWNER_EMAIL production
+```
+
+The keys are read by nothing in the codebase after this PR (`grep` confirms no production reference). Existing `app_user.role='owner'` rows survive — promotion is now driven by `BOOTSTRAP_OWNER_EMAIL` matching a verified sign-in, not by an env-allowlist check.
+
 For automated deploys, see [Vercel CLI with tokens](https://github.com/anthropics/skills/tree/main/skills/vercel-cli-with-tokens); for human-friendly setup, use the Vercel dashboard.

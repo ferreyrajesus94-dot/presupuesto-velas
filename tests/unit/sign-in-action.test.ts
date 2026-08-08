@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * PR2.auth-core (Task 2.7) — `signInAction` rewritten to drop the
- * legacy owner allowlist, call `upsertUser` (not `upsertOwner`), and
+ * legacy owner allowlist, call `upsertUser` (not `upsertUser`), and
  * honor the hidden `<input name="next">` field by redirecting to
  * `<next || '/'>`. Tests in this file assert the NEW behavior.
  *

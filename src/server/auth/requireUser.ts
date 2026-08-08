@@ -9,7 +9,7 @@ import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "./userEnv";
  *
  * Returns `{ id, email, role, emailVerified }` from any valid Neon Auth
  * session, atomically upserting the `app_user` row on first verified call.
- * Replaces `requireOwner()` (single-owner allowlist). Redirect semantics:
+ * Replaces the legacy single-owner allowlist guard. Redirect semantics:
  *
  *   - no session          → `redirect("/sign-in?next=<pathname || '/'>")`
  *   - session, !verified  → `redirect("/sign-in?hint=verify-email")`

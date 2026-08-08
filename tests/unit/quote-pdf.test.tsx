@@ -284,8 +284,8 @@ describe("GET /api/quotes/[id]/pdf route handler (PR5a)", () => {
   });
 
   it("redirects (throws) when the owner is missing — untrusted GET must never render a PDF", async () => {
-    // requireOwner throws a `redirect()` (Next.js). We mirror the
-    // redirect-as-thrown-error pattern from `tests/integration/requireOwner.test.ts`.
+    // requireUser throws a `redirect()` (Next.js). We mirror the
+    // redirect-as-thrown-error pattern from `tests/integration/require-user.test.ts`.
     mocks.requireUser.mockImplementation(() => {
       const err = new Error("NEXT_REDIRECT") as Error & { __redirect?: string };
       err.__redirect = "/sign-in";

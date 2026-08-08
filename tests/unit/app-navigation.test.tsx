@@ -38,4 +38,12 @@ describe("AppNav", () => {
       expect(container.querySelector("nav")).toBeNull();
     }
   });
+
+  it("renders no nav on /sign-up and /verify-email (auth pages)", () => {
+    for (const path of ["/sign-up", "/verify-email", "/sign-up/extra", "/verify-email/something"]) {
+      mocks.pathname = path;
+      const { container } = render(<AppNav />);
+      expect(container.querySelector("nav"), `nav should be hidden on ${path}`).toBeNull();
+    }
+  });
 });

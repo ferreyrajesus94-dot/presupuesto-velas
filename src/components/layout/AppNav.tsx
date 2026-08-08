@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/quotes", label: "Cotizaciones" },
 ];
 
-const HIDDEN_PREFIXES = ["/sign-in", "/403"];
+const HIDDEN_PREFIXES = ["/sign-in", "/sign-up", "/verify-email", "/403"];
 
 export function AppNav() {
   const pathname = usePathname() ?? "/";

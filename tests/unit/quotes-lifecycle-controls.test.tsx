@@ -19,7 +19,7 @@ vi.mock("@/server/actions/quotes", () => ({
 import { QuoteLifecycleControls } from "@/app/quotes/[id]/QuoteLifecycleControls";
 import type { QuoteRecord } from "@/server/repositories/quotes";
 
-const OWNER = { id: "owner-1", email: "owner@example.com" };
+const USER = { id: "owner-1", email: "owner@example.com" };
 const QUOTE_ID = "quote-1";
 const NOW = new Date("2026-04-01T12:00:00.000Z");
 
@@ -32,7 +32,7 @@ function buildQuoteRecord(
   return {
     quote: {
       id: QUOTE_ID,
-      ownerId: OWNER.id,
+      userId: USER.id,
       customerName: "Ana Pérez",
       expirationDate,
       status,

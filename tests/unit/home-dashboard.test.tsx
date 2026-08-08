@@ -1,14 +1,27 @@
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+/**
+ * PR2.auth-core (Task 2.8) — `home-dashboard.test.tsx` rewritten for the
+ * user era. `requireOwner` mock → `requireUser` mock; `ownerId` field
+ * inside returned row objects → `userId`. The dashboard component now
+ * expects `{ id, email, role, emailVerified }` from `requireUser()` but
+ * the dashboard only reads `.id`, so we keep the mock surface minimal.
+ */
+
 const mocks = vi.hoisted(() => ({
-  owner: { id: "owner-1", email: "owner@calculadora-flor.invalid" },
+  user: {
+    id: "user-1",
+    email: "user@calculadora-flor.invalid",
+    role: "user",
+    emailVerified: true,
+  },
   listMaterials: vi.fn(),
   listTemplates: vi.fn(),
   listQuotes: vi.fn(),
 }));
 
-vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: () => Promise.resolve(mocks.owner) }));
+vi.mock("@/server/auth/requireUser", () => ({ requireUser: () => Promise.resolve(mocks.user) }));
 vi.mock("@/server/repositories/materials", () => ({
   listMaterials: (...args: unknown[]) => mocks.listMaterials(...args),
 }));
@@ -33,7 +46,7 @@ function makeQuote({
   expirationDate: string;
 }) {
   return {
-    quote: { id, ownerId: mocks.owner.id, customerName, expirationDate, status },
+    quote: { id, userId: mocks.user.id, customerName, expirationDate, status },
     versions: [],
     models: [],
     materials: [],
@@ -79,7 +92,7 @@ describe("Home dashboard", () => {
     );
   });
 
-  it("starts all three owner-scoped reads before any one resolves", async () => {
+  it("starts all three user-scoped reads before any one resolves", async () => {
     const materials = deferred<unknown[]>();
     const templates = deferred<unknown[]>();
     const quotes = deferred<unknown[]>();
@@ -89,9 +102,9 @@ describe("Home dashboard", () => {
 
     const home = Home();
     await Promise.resolve();
-    expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1");
-    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1");
-    expect(mocks.listQuotes).toHaveBeenCalledWith("owner-1");
+    expect(mocks.listMaterials).toHaveBeenCalledWith("user-1");
+    expect(mocks.listTemplates).toHaveBeenCalledWith("user-1");
+    expect(mocks.listQuotes).toHaveBeenCalledWith("user-1");
     materials.resolve([]);
     templates.resolve([]);
     quotes.resolve([]);

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+/**
+ * PR2.auth-core (Task 2.8) — `material-actions.test.ts` rewritten for the
+ * user era. `requireOwner` mock → `requireUser` mock; "non-owner" denial
+ * case is removed because there is no more `/403` allowlist gate
+ * (VERIFY-GATE redirects unverified users via `requireUser` instead).
+ */
+
 const mocks = vi.hoisted(() => {
   class RepositoryError extends Error {
     constructor(
@@ -11,7 +18,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     RepositoryError,
-    requireOwner: vi.fn(),
+    requireUser: vi.fn(),
     createMaterial: vi.fn(),
     updateMaterial: vi.fn(),
     archiveMaterial: vi.fn(),
@@ -20,8 +27,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/server/auth/requireOwner", () => ({
-  requireOwner: mocks.requireOwner,
+vi.mock("../../src/server/auth/requireUser", () => ({
+  requireUser: mocks.requireUser,
 }));
 vi.mock("../../src/server/repositories/materials", () => ({
   MaterialRepositoryError: mocks.RepositoryError,
@@ -39,7 +46,12 @@ import {
   updateMaterialAction,
 } from "../../src/server/actions/materials";
 
-const OWNER = { id: "owner-1", email: "owner@example.com" };
+const USER = {
+  id: "user-1",
+  email: "user@example.com",
+  role: "user" as const,
+  emailVerified: true,
+};
 const MATERIAL = { id: "material-1" };
 const INITIAL_STATE = { status: "idle" as const };
 
@@ -62,25 +74,25 @@ function materialForm(name = "Soy wax") {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue(OWNER);
+  mocks.requireUser.mockResolvedValue(USER);
 });
 
 describe("material Server Actions", () => {
-  it("creates a material for the authenticated owner and revalidates the catalog", async () => {
+  it("creates a material for the authenticated user and revalidates the catalog", async () => {
     mocks.createMaterial.mockResolvedValue(MATERIAL);
 
     const result = await createMaterialAction(INITIAL_STATE, materialForm());
 
     expect(result).toEqual({ status: "success", materialId: "material-1" });
     expect(mocks.createMaterial).toHaveBeenCalledWith(
-      OWNER.id,
+      USER.id,
       expect.objectContaining({ name: "Soy wax" }),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/materials");
   });
 
-  it("updates only the current material for the owner", async () => {
+  it("updates only the current material for the user", async () => {
     mocks.updateMaterial.mockResolvedValue(MATERIAL);
 
     const result = await updateMaterialAction(
@@ -90,30 +102,30 @@ describe("material Server Actions", () => {
 
     expect(result).toEqual({ status: "success", materialId: "material-1" });
     expect(mocks.updateMaterial).toHaveBeenCalledWith(
-      OWNER.id,
+      USER.id,
       "material-1",
       expect.objectContaining({ name: "New wax" }),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/materials");
   });
 
-  it("archives an owner material", async () => {
+  it("archives a user material", async () => {
     mocks.archiveMaterial.mockResolvedValue(MATERIAL);
 
     const result = await archiveMaterialAction(INITIAL_STATE, form({ id: "material-1" }));
 
     expect(result).toEqual({ status: "success", materialId: "material-1" });
-    expect(mocks.archiveMaterial).toHaveBeenCalledWith(OWNER.id, "material-1");
+    expect(mocks.archiveMaterial).toHaveBeenCalledWith(USER.id, "material-1");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/materials");
   });
 
-  it("unarchives an owner material", async () => {
+  it("unarchives a user material", async () => {
     mocks.unarchiveMaterial.mockResolvedValue(MATERIAL);
 
     const result = await unarchiveMaterialAction(INITIAL_STATE, form({ id: "material-1" }));
 
     expect(result).toEqual({ status: "success", materialId: "material-1" });
-    expect(mocks.unarchiveMaterial).toHaveBeenCalledWith(OWNER.id, "material-1");
+    expect(mocks.unarchiveMaterial).toHaveBeenCalledWith(USER.id, "material-1");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/materials");
   });
 
@@ -141,14 +153,14 @@ describe("material Server Actions", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("maps not-found and cross-owner mutations to the same safe result", async () => {
+  it("maps not-found and cross-user mutations to the same safe result", async () => {
     mocks.updateMaterial.mockRejectedValue(
       new mocks.RepositoryError("NOT_FOUND", "secret-id details"),
     );
 
     const result = await updateMaterialAction(
       INITIAL_STATE,
-      form({ ...Object.fromEntries(materialForm()), id: "other-owner-material" }),
+      form({ ...Object.fromEntries(materialForm()), id: "other-user-material" }),
     );
 
     expect(result).toEqual({ status: "error", message: "Material could not be found." });
@@ -156,12 +168,9 @@ describe("material Server Actions", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["unauthenticated", "__redirect:/sign-in"],
-    ["non-owner", "__redirect:/403"],
-  ])("preserves %s denial before validation or mutation", async (_label, redirect) => {
-    const error = Object.assign(new Error(redirect), { __redirect: redirect.slice(11) });
-    mocks.requireOwner.mockRejectedValue(error);
+  it("preserves unauthenticated denial before validation or mutation", async () => {
+    const error = Object.assign(new Error("__redirect:/sign-in"), { __redirect: "/sign-in" });
+    mocks.requireUser.mockRejectedValue(error);
 
     await expect(createMaterialAction(INITIAL_STATE, materialForm())).rejects.toMatchObject({
       __redirect: error.__redirect,

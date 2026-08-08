@@ -38,9 +38,9 @@ async function getOwnerSingleton(): Promise<{ id: string } | null> {
   return rows[0] ?? null;
 }
 
-const materialFixture = (ownerId: string, id: string, name: string, unitCost: string) => ({
+const materialFixture = (userId: string, id: string, name: string, unitCost: string) => ({
   id,
-  ownerId,
+  userId,
   name,
   dimension: "mass" as const,
   baseUnit: "g",
@@ -51,7 +51,7 @@ const materialFixture = (ownerId: string, id: string, name: string, unitCost: st
 });
 
 async function insertTemplateFixture(args: {
-  ownerId: string;
+  userId: string;
   materialId: string;
   templateId: string;
   templateName: string;
@@ -61,7 +61,7 @@ async function insertTemplateFixture(args: {
 }): Promise<void> {
   await db.insert(templates).values({
     id: args.templateId,
-    ownerId: args.ownerId,
+    userId: args.userId,
     name: args.templateName,
     unitCost: args.unitCost,
   });
@@ -75,21 +75,21 @@ async function insertTemplateFixture(args: {
 }
 
 describe("templates repository (integration vs dev branch)", () => {
-  let ownerId = "";
+  let userId = "";
   let createdOwner = false;
   const createdTemplateIds = new Set<string>();
   const createdMaterialIds = new Set<string>();
 
   beforeAll(async () => {
-    const owner = await getOwnerSingleton();
-    if (owner) {
-      ownerId = owner.id;
+    const user = await getOwnerSingleton();
+    if (user) {
+      userId = user.id;
       return;
     }
-    ownerId = crypto.randomUUID();
+    userId = crypto.randomUUID();
     await db.insert(appUser).values({
-      id: ownerId,
-      email: `${ownerId}@calculadora-flor-test.invalid`,
+      id: userId,
+      email: `${userId}@calculadora-flor-test.invalid`,
       role: "owner",
       emailVerified: true,
     });
@@ -111,7 +111,7 @@ describe("templates repository (integration vs dev branch)", () => {
   });
 
   afterAll(async () => {
-    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, ownerId));
+    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, userId));
   });
 
   it("returns owner-scoped templates with position-ordered items and supports cross-owner / missing reads", async () => {
@@ -120,14 +120,14 @@ describe("templates repository (integration vs dev branch)", () => {
     await db
       .insert(materials)
       .values([
-        materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
-        materialFixture(ownerId, wickId, `wick-${wickId}`, "50.000000000000000000"),
+        materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+        materialFixture(userId, wickId, `wick-${wickId}`, "50.000000000000000000"),
       ]);
     createdMaterialIds.add(waxId).add(wickId);
 
     const templateId = crypto.randomUUID();
     await insertTemplateFixture({
-      ownerId,
+      userId,
       materialId: waxId,
       templateId,
       templateName: `floral-${templateId}`,
@@ -144,26 +144,26 @@ describe("templates repository (integration vs dev branch)", () => {
     });
     createdTemplateIds.add(templateId);
 
-    const got = await getTemplate(ownerId, templateId);
+    const got = await getTemplate(userId, templateId);
     expect(got?.items.map(({ position }) => position)).toEqual([1, 2]);
     expect(got?.items.map(({ materialId }) => materialId)).toEqual([waxId, wickId]);
     expect(got?.template.unitCost).toBe("1100.000000000000000000");
 
-    expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).toContain(templateId);
+    expect((await listTemplates(userId)).map(({ template: row }) => row.id)).toContain(templateId);
     expect(await getTemplate(crypto.randomUUID(), templateId)).toBeNull();
-    expect(await getTemplate(ownerId, crypto.randomUUID())).toBeNull();
+    expect(await getTemplate(userId, crypto.randomUUID())).toBeNull();
   });
 
   it("hides archived templates by default and returns them only in all visibility", async () => {
     const materialId = crypto.randomUUID();
     await db
       .insert(materials)
-      .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
+      .values(materialFixture(userId, materialId, `wax-${materialId}`, "10.000000000000000000"));
     createdMaterialIds.add(materialId);
 
     const templateId = crypto.randomUUID();
     await insertTemplateFixture({
-      ownerId,
+      userId,
       materialId,
       templateId,
       templateName: `archived-${templateId}`,
@@ -175,11 +175,11 @@ describe("templates repository (integration vs dev branch)", () => {
     await db
       .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(and(eq(templates.id, templateId), eq(templates.ownerId, ownerId)));
+      .where(and(eq(templates.id, templateId), eq(templates.userId, userId)));
 
-    expect(await getTemplate(ownerId, templateId)).toBeNull();
+    expect(await getTemplate(userId, templateId)).toBeNull();
     expect(
-      (await listTemplates(ownerId, { includeArchived: true })).map(({ template: row }) => row.id),
+      (await listTemplates(userId, { includeArchived: true })).map(({ template: row }) => row.id),
     ).toContain(templateId);
   });
 
@@ -187,7 +187,7 @@ describe("templates repository (integration vs dev branch)", () => {
     const materialId = crypto.randomUUID();
     await db
       .insert(materials)
-      .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
+      .values(materialFixture(userId, materialId, `wax-${materialId}`, "10.000000000000000000"));
     createdMaterialIds.add(materialId);
 
     const archivedAId = crypto.randomUUID();
@@ -195,7 +195,7 @@ describe("templates repository (integration vs dev branch)", () => {
     const activeId = crypto.randomUUID();
     for (const templateId of [archivedAId, archivedBId, activeId]) {
       await insertTemplateFixture({
-        ownerId,
+        userId,
         materialId,
         templateId,
         templateName: `count-${templateId}`,
@@ -208,12 +208,10 @@ describe("templates repository (integration vs dev branch)", () => {
     await db
       .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(
-        and(inArray(templates.id, [archivedAId, archivedBId]), eq(templates.ownerId, ownerId)),
-      );
+      .where(and(inArray(templates.id, [archivedAId, archivedBId]), eq(templates.userId, userId)));
 
     // Two archived rows for the owner: count must be exactly 2.
-    expect(await countArchivedTemplates(ownerId)).toBe(2);
+    expect(await countArchivedTemplates(userId)).toBe(2);
 
     // A foreign owner with no rows must see 0 — and the prior owner count
     // stays 2 (the function must not double-count or include other scopes).
@@ -230,7 +228,7 @@ describe("templates repository (integration vs dev branch)", () => {
       // Reuse the singleton owner row so all create tests share the same
       // owner scope as the read tests; this lets them exercise the unique
       // name index without provisioning extra app_owner rows.
-      createOwnerId = ownerId;
+      createOwnerId = userId;
     });
 
     afterEach(async () => {
@@ -305,7 +303,7 @@ describe("templates repository (integration vs dev branch)", () => {
       });
       createdCreateTemplateIds.add(first.template.id);
 
-      // DUPLICATE_NAME — the unique (ownerId, name) index must surface as the repository code.
+      // DUPLICATE_NAME — the unique (userId, name) index must surface as the repository code.
       await expect(
         createTemplate(createOwnerId, {
           name: sharedName,
@@ -475,37 +473,37 @@ describe("templates repository (integration vs dev branch)", () => {
     });
 
     it("inserts a name-only template row with unitCost 0 and no items, returning the new Template", async () => {
-      const created = await createBlankTemplate(ownerId, `blank-${crypto.randomUUID()}`);
+      const created = await createBlankTemplate(userId, `blank-${crypto.randomUUID()}`);
       createdBlankTemplateIds.add(created.id);
 
       expect(created.id).toMatch(/[0-9a-f-]{36}/);
-      expect(created.ownerId).toBe(ownerId);
+      expect(created.userId).toBe(userId);
       expect(created.archivedAt).toBeNull();
       // The schema column is `numeric`; drizzle returns strings for that type,
       // so the zero unitCost round-trips as "0" / "0.000000000000000000".
       expect(Number(created.unitCost)).toBe(0);
 
       // The persisted row is readable through getTemplate, and has no items.
-      const fetched = await getTemplate(ownerId, created.id);
+      const fetched = await getTemplate(userId, created.id);
       expect(fetched?.template.id).toBe(created.id);
       expect(fetched?.items).toEqual([]);
     });
 
     it("maps duplicate names to DUPLICATE_NAME", async () => {
       const name = `blank-dup-${crypto.randomUUID()}`;
-      const first = await createBlankTemplate(ownerId, name);
+      const first = await createBlankTemplate(userId, name);
       createdBlankTemplateIds.add(first.id);
 
-      await expect(createBlankTemplate(ownerId, name)).rejects.toBeInstanceOf(
+      await expect(createBlankTemplate(userId, name)).rejects.toBeInstanceOf(
         TemplateRepositoryError,
       );
-      await expect(createBlankTemplate(ownerId, name)).rejects.toMatchObject({
+      await expect(createBlankTemplate(userId, name)).rejects.toMatchObject({
         code: "DUPLICATE_NAME",
       });
     });
 
     it("rejects createBlankTemplate for cross-owner lookups (no shared singleton)", async () => {
-      const created = await createBlankTemplate(ownerId, `blank-iso-${crypto.randomUUID()}`);
+      const created = await createBlankTemplate(userId, `blank-iso-${crypto.randomUUID()}`);
       createdBlankTemplateIds.add(created.id);
 
       // The insert succeeds for the real owner; a foreign owner never sees the
@@ -517,19 +515,19 @@ describe("templates repository (integration vs dev branch)", () => {
       const materialId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, materialId, `wax-${materialId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, materialId, `wax-${materialId}`, "10.000000000000000000"));
       createdBlankMaterialIds.add(materialId);
 
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `for-delete-${crypto.randomUUID()}`,
         items: [{ materialId, quantity: "100", unit: "g" }],
       });
       createdBlankTemplateIds.add(created.template.id);
 
-      await expect(deleteTemplateRow(ownerId, created.template.id)).resolves.toBeUndefined();
+      await expect(deleteTemplateRow(userId, created.template.id)).resolves.toBeUndefined();
 
       // Row + items are gone.
-      expect(await getTemplate(ownerId, created.template.id)).toBeNull();
+      expect(await getTemplate(userId, created.template.id)).toBeNull();
       const stillItems = await db
         .select({ id: templateItems.id })
         .from(templateItems)
@@ -537,13 +535,13 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(stillItems).toHaveLength(0);
 
       // Re-deleting must surface NOT_FOUND.
-      await expect(deleteTemplateRow(ownerId, created.template.id)).rejects.toMatchObject({
+      await expect(deleteTemplateRow(userId, created.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
     });
 
     it("deleteTemplateRow rejects cross-owner ids as NOT_FOUND", async () => {
-      const created = await createBlankTemplate(ownerId, `blank-foreign-${crypto.randomUUID()}`);
+      const created = await createBlankTemplate(userId, `blank-foreign-${crypto.randomUUID()}`);
       createdBlankTemplateIds.add(created.id);
 
       await expect(deleteTemplateRow(crypto.randomUUID(), created.id)).rejects.toBeInstanceOf(
@@ -579,19 +577,19 @@ describe("templates repository (integration vs dev branch)", () => {
       await db
         .insert(materials)
         .values([
-          materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
-          materialFixture(ownerId, scentId, `scent-${scentId}`, "20.000000000000000000"),
+          materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+          materialFixture(userId, scentId, `scent-${scentId}`, "20.000000000000000000"),
         ]);
       createdUpdateMaterialIds.add(waxId).add(scentId);
 
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `original-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
       createdUpdateTemplateIds.add(created.template.id);
       expect(created.template.unitCost).toBe("1000.000000000000000000");
 
-      const updated = await updateTemplate(ownerId, created.template.id, {
+      const updated = await updateTemplate(userId, created.template.id, {
         name: `floral-${crypto.randomUUID()}`,
         items: [
           { materialId: scentId, quantity: "50", unit: "g" },
@@ -607,7 +605,7 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(updated.items.map(({ quantity }) => quantity)).toEqual(["50", "100"]);
 
       // Persisted state must reflect the replacement (no stale items remain).
-      const got = await getTemplate(ownerId, created.template.id);
+      const got = await getTemplate(userId, created.template.id);
       expect(got?.template.unitCost).toBe("2000.000000000000000000");
       expect(got?.items.map(({ materialId }) => materialId)).toEqual([scentId, waxId]);
     });
@@ -616,10 +614,10 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `arch-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
@@ -629,7 +627,7 @@ describe("templates repository (integration vs dev branch)", () => {
       await db
         .update(templates)
         .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-        .where(and(eq(templates.id, created.template.id), eq(templates.ownerId, ownerId)));
+        .where(and(eq(templates.id, created.template.id), eq(templates.userId, userId)));
 
       const draft: Parameters<typeof updateTemplate>[2] = {
         name: `renamed-${crypto.randomUUID()}`,
@@ -638,18 +636,18 @@ describe("templates repository (integration vs dev branch)", () => {
       const otherOwnerId = crypto.randomUUID();
 
       // Archived template + cross-owner + missing template must all reject updates.
-      await expect(updateTemplate(ownerId, created.template.id, draft)).rejects.toMatchObject({
+      await expect(updateTemplate(userId, created.template.id, draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
       await expect(updateTemplate(otherOwnerId, created.template.id, draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(updateTemplate(ownerId, crypto.randomUUID(), draft)).rejects.toMatchObject({
+      await expect(updateTemplate(userId, crypto.randomUUID(), draft)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
       // The original archived template row and items remain intact.
-      const stillArchived = await getTemplate(ownerId, created.template.id, {
+      const stillArchived = await getTemplate(userId, created.template.id, {
         includeArchived: true,
       });
       expect(stillArchived?.template.archivedAt).toBeInstanceOf(Date);
@@ -660,28 +658,28 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
-      const first = await createTemplate(ownerId, {
+      const first = await createTemplate(userId, {
         name: `first-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
-      const second = await createTemplate(ownerId, {
+      const second = await createTemplate(userId, {
         name: `second-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "50", unit: "g" }],
       });
       createdUpdateTemplateIds.add(first.template.id).add(second.template.id);
 
       await expect(
-        updateTemplate(ownerId, second.template.id, {
+        updateTemplate(userId, second.template.id, {
           name: first.template.name,
           items: [{ materialId: waxId, quantity: "50", unit: "g" }],
         }),
       ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
 
       // The rejected rename must leave the template name and items untouched.
-      const stillSecond = await getTemplate(ownerId, second.template.id);
+      const stillSecond = await getTemplate(userId, second.template.id);
       expect(stillSecond?.template.name).toBe(second.template.name);
       expect(stillSecond?.template.unitCost).toBe("500.000000000000000000");
       expect(stillSecond?.items.map(({ quantity }) => quantity)).toEqual(["50.000000"]);
@@ -691,15 +689,15 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       const archivedId = crypto.randomUUID();
       await db.insert(materials).values([
-        materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+        materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"),
         {
-          ...materialFixture(ownerId, archivedId, `arch-${archivedId}`, "10.000000000000000000"),
+          ...materialFixture(userId, archivedId, `arch-${archivedId}`, "10.000000000000000000"),
           archivedAt: new Date("2026-01-01T00:00:00Z"),
         },
       ]);
       createdUpdateMaterialIds.add(waxId).add(archivedId);
 
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `mat-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
@@ -707,7 +705,7 @@ describe("templates repository (integration vs dev branch)", () => {
 
       // Archived material reference must reject the update.
       await expect(
-        updateTemplate(ownerId, created.template.id, {
+        updateTemplate(userId, created.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [
             { materialId: waxId, quantity: "100", unit: "g" },
@@ -717,14 +715,14 @@ describe("templates repository (integration vs dev branch)", () => {
       ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
       // Missing material reference (also cross-owner by FOR SHARE scope) must reject.
       await expect(
-        updateTemplate(ownerId, created.template.id, {
+        updateTemplate(userId, created.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [{ materialId: crypto.randomUUID(), quantity: "10", unit: "g" }],
         }),
       ).rejects.toMatchObject({ code: "MATERIAL_UNAVAILABLE" });
 
       // The original template must still be intact after the rejected updates.
-      const stillOriginal = await getTemplate(ownerId, created.template.id);
+      const stillOriginal = await getTemplate(userId, created.template.id);
       expect(stillOriginal?.template.name).toBe(created.template.name);
       expect(stillOriginal?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
     });
@@ -733,11 +731,11 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
       // Seed an active template so updateTemplate has a row to lock and replace.
-      const seeded = await createTemplate(ownerId, {
+      const seeded = await createTemplate(userId, {
         name: `seed-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
@@ -776,7 +774,7 @@ describe("templates repository (integration vs dev branch)", () => {
         // SHARE snapshot of the owner's materials blocks until the held tx
         // commits. After the held tx commits, updateTemplate reads the new
         // unitCost (30) and the renormalized template cost is 10 * 30 = 300.
-        const updatePromise = updateTemplate(ownerId, seeded.template.id, {
+        const updatePromise = updateTemplate(userId, seeded.template.id, {
           name: `renamed-${crypto.randomUUID()}`,
           items: [{ materialId: waxId, quantity: "10", unit: "g" }],
         });
@@ -801,7 +799,7 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(updated?.items.map(({ quantity }) => quantity)).toEqual(["10"]);
 
       // The replacement must persist atomically: no stale items remain.
-      const persisted = await getTemplate(ownerId, seeded.template.id);
+      const persisted = await getTemplate(userId, seeded.template.id);
       expect(persisted?.template.unitCost).toBe("300.000000000000000000");
       expect(persisted?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
       expect(persisted?.items.map(({ quantity }) => quantity)).toEqual(["10.000000"]);
@@ -811,12 +809,12 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdUpdateMaterialIds.add(waxId);
 
       // Create with explicit meta — the repository persists the literal
       // trimmed strings, so the returned record carries them verbatim.
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `meta-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
         time: "60",
@@ -832,7 +830,7 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(created.template.overhead).toBe("200.000000");
       expect(created.template.marginPct).toBe("40.000000");
 
-      const gotAfterCreate = await getTemplate(ownerId, created.template.id);
+      const gotAfterCreate = await getTemplate(userId, created.template.id);
       expect(gotAfterCreate?.template.time).toBe("60.000000");
       expect(gotAfterCreate?.template.hourlyRate).toBe("1500.000000");
       expect(gotAfterCreate?.template.overhead).toBe("200.000000");
@@ -840,7 +838,7 @@ describe("templates repository (integration vs dev branch)", () => {
 
       // Update with no meta — empty strings fall back to the schema
       // defaults (0/0/0/30) so the live summary helper never sees a NaN.
-      const updated = await updateTemplate(ownerId, created.template.id, {
+      const updated = await updateTemplate(userId, created.template.id, {
         name: `meta-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
@@ -849,14 +847,14 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(updated.template.overhead).toBe("0.000000");
       expect(updated.template.marginPct).toBe("30.000000");
 
-      const gotAfterUpdate = await getTemplate(ownerId, created.template.id);
+      const gotAfterUpdate = await getTemplate(userId, created.template.id);
       expect(gotAfterUpdate?.template.time).toBe("0.000000");
       expect(gotAfterUpdate?.template.hourlyRate).toBe("0.000000");
       expect(gotAfterUpdate?.template.overhead).toBe("0.000000");
       expect(gotAfterUpdate?.template.marginPct).toBe("30.000000");
 
       // Non-empty meta update round-trips verbatim.
-      const updated2 = await updateTemplate(ownerId, created.template.id, {
+      const updated2 = await updateTemplate(userId, created.template.id, {
         name: `meta-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "50", unit: "g" }],
         time: "90",
@@ -868,7 +866,7 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(updated2.template.hourlyRate).toBe("2000.000000");
       expect(updated2.template.overhead).toBe("150.000000");
       expect(updated2.template.marginPct).toBe("25.000000");
-      const gotAfterUpdate2 = await getTemplate(ownerId, created.template.id);
+      const gotAfterUpdate2 = await getTemplate(userId, created.template.id);
       expect(gotAfterUpdate2?.template.time).toBe("90.000000");
       expect(gotAfterUpdate2?.template.hourlyRate).toBe("2000.000000");
       expect(gotAfterUpdate2?.template.overhead).toBe("150.000000");
@@ -900,12 +898,12 @@ describe("templates repository (integration vs dev branch)", () => {
       await db
         .insert(materials)
         .values([
-          materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"),
-          materialFixture(ownerId, scentId, `scent-${scentId}`, "20.000000000000000000"),
+          materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"),
+          materialFixture(userId, scentId, `scent-${scentId}`, "20.000000000000000000"),
         ]);
       createdArchiveMaterialIds.add(waxId).add(scentId);
 
-      const created = await createTemplate(ownerId, {
+      const created = await createTemplate(userId, {
         name: `floral-${crypto.randomUUID()}`,
         items: [
           { materialId: waxId, quantity: "100", unit: "g" },
@@ -916,25 +914,23 @@ describe("templates repository (integration vs dev branch)", () => {
       expect(created.template.archivedAt).toBeNull();
 
       // Archive — returns the template with archivedAt populated, items unchanged.
-      const archived = await archiveTemplate(ownerId, created.template.id);
+      const archived = await archiveTemplate(userId, created.template.id);
       expect(archived.id).toBe(created.template.id);
       expect(archived.archivedAt).toBeInstanceOf(Date);
       expect(archived.unitCost).toBe(created.template.unitCost);
       expect(archived.name).toBe(created.template.name);
 
       // Active list hides the archived template; all-visibility surfaces it.
-      expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).not.toContain(
+      expect((await listTemplates(userId)).map(({ template: row }) => row.id)).not.toContain(
         created.template.id,
       );
       expect(
-        (await listTemplates(ownerId, { includeArchived: true })).map(
-          ({ template: row }) => row.id,
-        ),
+        (await listTemplates(userId, { includeArchived: true })).map(({ template: row }) => row.id),
       ).toContain(created.template.id);
 
       // getTemplate mirrors the visibility: hidden by default, included when requested.
-      expect(await getTemplate(ownerId, created.template.id)).toBeNull();
-      const archivedView = await getTemplate(ownerId, created.template.id, {
+      expect(await getTemplate(userId, created.template.id)).toBeNull();
+      const archivedView = await getTemplate(userId, created.template.id, {
         includeArchived: true,
       });
       expect(archivedView?.template.archivedAt).toBeInstanceOf(Date);
@@ -945,16 +941,16 @@ describe("templates repository (integration vs dev branch)", () => {
       ]);
 
       // Restore — clears archivedAt; items are preserved verbatim.
-      const restored = await restoreTemplate(ownerId, created.template.id);
+      const restored = await restoreTemplate(userId, created.template.id);
       expect(restored.id).toBe(created.template.id);
       expect(restored.archivedAt).toBeNull();
       expect(restored.unitCost).toBe(created.template.unitCost);
 
       // Active list contains the restored template; all-visibility still surfaces it.
-      expect((await listTemplates(ownerId)).map(({ template: row }) => row.id)).toContain(
+      expect((await listTemplates(userId)).map(({ template: row }) => row.id)).toContain(
         created.template.id,
       );
-      const restoredView = await getTemplate(ownerId, created.template.id);
+      const restoredView = await getTemplate(userId, created.template.id);
       expect(restoredView?.template.archivedAt).toBeNull();
       expect(restoredView?.items.map(({ materialId }) => materialId)).toEqual([waxId, scentId]);
       expect(restoredView?.items.map(({ quantity }) => quantity)).toEqual([
@@ -967,16 +963,16 @@ describe("templates repository (integration vs dev branch)", () => {
       const waxId = crypto.randomUUID();
       await db
         .insert(materials)
-        .values(materialFixture(ownerId, waxId, `wax-${waxId}`, "10.000000000000000000"));
+        .values(materialFixture(userId, waxId, `wax-${waxId}`, "10.000000000000000000"));
       createdArchiveMaterialIds.add(waxId);
 
-      const active = await createTemplate(ownerId, {
+      const active = await createTemplate(userId, {
         name: `active-${crypto.randomUUID()}`,
         items: [{ materialId: waxId, quantity: "100", unit: "g" }],
       });
       createdArchiveTemplateIds.add(active.template.id);
 
-      const archived = await archiveTemplate(ownerId, active.template.id);
+      const archived = await archiveTemplate(userId, active.template.id);
       expect(archived.archivedAt).toBeInstanceOf(Date);
 
       const otherOwnerId = crypto.randomUUID();
@@ -992,13 +988,13 @@ describe("templates repository (integration vs dev branch)", () => {
       await expect(archiveTemplate(otherOwnerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(archiveTemplate(ownerId, active.template.id)).rejects.toBeInstanceOf(
+      await expect(archiveTemplate(userId, active.template.id)).rejects.toBeInstanceOf(
         TemplateRepositoryError,
       );
-      await expect(archiveTemplate(ownerId, active.template.id)).rejects.toMatchObject({
+      await expect(archiveTemplate(userId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(archiveTemplate(ownerId, missingId)).rejects.toMatchObject({
+      await expect(archiveTemplate(userId, missingId)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
@@ -1009,7 +1005,7 @@ describe("templates repository (integration vs dev branch)", () => {
       await expect(restoreTemplate(otherOwnerId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      await expect(restoreTemplate(ownerId, missingId)).rejects.toMatchObject({
+      await expect(restoreTemplate(userId, missingId)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
@@ -1017,15 +1013,15 @@ describe("templates repository (integration vs dev branch)", () => {
       // valid transition is restore → active; re-archive while archived must
       // also reject (already covered above), then restore flips state, then
       // a second restore while now-active must reject with NOT_FOUND.
-      const restored = await restoreTemplate(ownerId, active.template.id);
+      const restored = await restoreTemplate(userId, active.template.id);
       expect(restored.archivedAt).toBeNull();
-      await expect(restoreTemplate(ownerId, active.template.id)).rejects.toMatchObject({
+      await expect(restoreTemplate(userId, active.template.id)).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
 
       // The original template row must still exist with its items intact after
       // every rejected call.
-      const finalView = await getTemplate(ownerId, active.template.id);
+      const finalView = await getTemplate(userId, active.template.id);
       expect(finalView?.template.archivedAt).toBeNull();
       expect(finalView?.items.map(({ materialId }) => materialId)).toEqual([waxId]);
       expect(finalView?.items.map(({ quantity }) => quantity)).toEqual(["100.000000"]);

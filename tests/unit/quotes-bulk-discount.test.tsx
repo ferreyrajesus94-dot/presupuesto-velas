@@ -41,7 +41,7 @@ import type { Template } from "../../src/server/repositories/templates";
 const TEMPLATES: Template[] = [
   {
     id: "t-1",
-    ownerId: "owner-1",
+    userId: "user-1",
     name: "Vanilla candle",
     unitCost: "1000",
     archivedAt: null,

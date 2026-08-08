@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   renderToBuffer: vi.fn<(arg: unknown) => Promise<Buffer>>(async () =>
     Buffer.from("%PDF-1.4\n%fake-pdf-bytes-for-tests\n%%EOF"),
   ),
-  requireOwner: vi.fn<() => Promise<unknown>>(),
+  requireUser: vi.fn<() => Promise<unknown>>(),
   getQuote: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }));
 
@@ -43,7 +43,7 @@ vi.mock("@react-pdf/renderer", () => ({
   renderToBuffer: mocks.renderToBuffer,
 }));
 
-vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
+vi.mock("@/server/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/server/repositories/quotes", () => ({ getQuote: mocks.getQuote }));
 
 // SUT — imports must come AFTER the vi.mock calls.
@@ -59,7 +59,7 @@ function makeQuoteRecord(overrides: Partial<QuoteRecord> = {}): QuoteRecord {
   return {
     quote: {
       id: "quote-abc-123",
-      ownerId: "owner-1",
+      userId: "user-1",
       customerName: "Ana Pérez",
       expirationDate: "2026-12-31",
       status: "draft",
@@ -164,9 +164,9 @@ function pdfAllText(tree: unknown): string {
 
 beforeEach(() => {
   mocks.renderToBuffer.mockClear();
-  mocks.requireOwner.mockReset();
+  mocks.requireUser.mockReset();
   mocks.getQuote.mockReset();
-  mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.requireUser.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   mocks.getQuote.mockResolvedValue(makeQuoteRecord());
 });
 
@@ -286,7 +286,7 @@ describe("GET /api/quotes/[id]/pdf route handler (PR5a)", () => {
   it("redirects (throws) when the owner is missing — untrusted GET must never render a PDF", async () => {
     // requireOwner throws a `redirect()` (Next.js). We mirror the
     // redirect-as-thrown-error pattern from `tests/integration/requireOwner.test.ts`.
-    mocks.requireOwner.mockImplementation(() => {
+    mocks.requireUser.mockImplementation(() => {
       const err = new Error("NEXT_REDIRECT") as Error & { __redirect?: string };
       err.__redirect = "/sign-in";
       throw err;

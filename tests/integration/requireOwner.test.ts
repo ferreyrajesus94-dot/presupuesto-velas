@@ -72,9 +72,9 @@ describe("requireOwner (synchronized deny test)", () => {
           headers: { "Content-Type": "application/json" },
         }),
     ) as typeof fetch;
-    const owner = await requireOwner();
-    expect(owner.id).toBe("owner-1");
-    expect(owner.email.toLowerCase()).toBe("owner@example.com");
+    const user = await requireOwner();
+    expect(user.id).toBe("owner-1");
+    expect(user.email.toLowerCase()).toBe("owner@example.com");
     // Verify the /get-session call used the cookie we set
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const [url, init] = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];

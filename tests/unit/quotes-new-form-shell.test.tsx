@@ -4,12 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireOwner: vi.fn(),
+  requireUser: vi.fn(),
   listTemplates: vi.fn(),
   createQuoteDraftAction: vi.fn(),
   appendQuoteVersionAction: vi.fn(),
 }));
-vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
+vi.mock("@/server/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/server/repositories/templates", () => ({ listTemplates: mocks.listTemplates }));
 // PR4g.3 — `QuoteCreateForm` now imports the server actions; mock them so the
 // module load does not transitively require `DATABASE_URL` (the quotes repo
@@ -31,7 +31,7 @@ import type { Template } from "@/server/repositories/templates";
 
 const VANILLA: Template = {
   id: "11111111-1111-4111-8111-111111111111",
-  ownerId: "owner-1",
+  userId: "user-1",
   name: "Vanilla candle",
   unitCost: "100",
   archivedAt: null,
@@ -43,7 +43,7 @@ const VANILLA: Template = {
 };
 const CINNAMON: Template = {
   id: "22222222-2222-4222-8222-222222222222",
-  ownerId: "owner-1",
+  userId: "user-1",
   name: "Cinnamon candle",
   unitCost: "200",
   archivedAt: null,
@@ -55,7 +55,7 @@ const CINNAMON: Template = {
 };
 const ARCHIVED: Template = {
   id: "33333333-3333-4333-8333-333333333333",
-  ownerId: "owner-1",
+  userId: "user-1",
   name: "Old template",
   unitCost: "50",
   archivedAt: new Date("2026-01-01T00:00:00Z"),
@@ -76,7 +76,7 @@ const defaultExp = (days = 14, now = new Date()): string => {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useRealTimers();
-  mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.requireUser.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   mocks.listTemplates.mockResolvedValue([]);
 });
 
@@ -89,8 +89,8 @@ describe("/quotes/new page loader", () => {
     mocks.listTemplates.mockResolvedValue(TEMPLATES.map((template) => ({ template, items: [] })));
     const element = await NewQuotePage();
     render(element);
-    expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
-    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1");
+    expect(mocks.requireUser).toHaveBeenCalledTimes(1);
+    expect(mocks.listTemplates).toHaveBeenCalledWith("user-1");
     expect(screen.getByRole("link", { name: /Cotizaciones/ })).toHaveAttribute("href", "/quotes");
     // Page mounts exactly one H1; the form uses an aria-label (not a heading).
     expect(screen.getAllByRole("heading", { name: "Nueva cotización" })).toHaveLength(1);

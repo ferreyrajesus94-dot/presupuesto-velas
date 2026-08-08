@@ -52,22 +52,22 @@ async function getOwnerSingleton(): Promise<{ id: string } | null> {
 }
 
 describe("appendQuoteVersion (integration vs dev branch)", () => {
-  let ownerId = "";
+  let userId = "";
   let createdOwner = false;
   const quoteIds = new Set<string>();
   const templateIds = new Set<string>();
   const materialIds = new Set<string>();
 
   beforeAll(async () => {
-    const owner = await getOwnerSingleton();
-    if (owner) {
-      ownerId = owner.id;
+    const user = await getOwnerSingleton();
+    if (user) {
+      userId = user.id;
       return;
     }
-    ownerId = crypto.randomUUID();
+    userId = crypto.randomUUID();
     await db.insert(appUser).values({
-      id: ownerId,
-      email: `${ownerId}@calculadora-flor-test.invalid`,
+      id: userId,
+      email: `${userId}@calculadora-flor-test.invalid`,
       role: "owner",
       emailVerified: true,
     });
@@ -102,7 +102,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
   afterAll(async () => {
     // Belt-and-suspenders after the last afterEach plus singleton cleanup.
     await sweep();
-    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, ownerId));
+    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, userId));
   });
 
   // Tiny 1-model / 0-indirect / fixed-0-profit snapshot for fast tests.
@@ -125,7 +125,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     await db.insert(materials).values([
       {
         id: materialId,
-        ownerId,
+        userId,
         name: `m-${materialId}`,
         dimension: "mass" as const,
         baseUnit: "g",
@@ -138,7 +138,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     materialIds.add(materialId);
     await db
       .insert(templates)
-      .values([{ id: templateId, ownerId, name: `r-${templateId}`, unitCost: templateCost }]);
+      .values([{ id: templateId, userId, name: `r-${templateId}`, unitCost: templateCost }]);
     templateIds.add(templateId);
     await db.insert(templateItems).values([
       {
@@ -153,7 +153,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
   }
 
   async function createDraft(): Promise<string> {
-    const { quote } = await createQuoteDraft(ownerId, { expirationDate: "2026-12-31" });
+    const { quote } = await createQuoteDraft(userId, { expirationDate: "2026-12-31" });
     quoteIds.add(quote.id);
     return quote.id;
   }
@@ -166,9 +166,9 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     );
     const quoteId = await createDraft();
 
-    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(templateId, "2", "100"), 0);
+    const r1 = await appendQuoteVersion(userId, quoteId, snap(templateId, "2", "100"), 0);
     expect(r1.quote.id).toBe(quoteId);
-    expect(r1.quote.ownerId).toBe(ownerId);
+    expect(r1.quote.userId).toBe(userId);
     expect(r1.quote.currentVersion).toBe(1);
     expect(r1.quote.lockVersion).toBe(1);
     expect(r1.quote.status).toBe("draft");
@@ -199,7 +199,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       "50.000000000000000000",
     );
     const quoteId = await createDraft();
-    const r1 = await appendQuoteVersion(ownerId, quoteId, snap(templateId, "1", "5000"), 0);
+    const r1 = await appendQuoteVersion(userId, quoteId, snap(templateId, "1", "5000"), 0);
     expect(r1.quote.currentVersion).toBe(1);
     expect(r1.quote.lockVersion).toBe(1);
     // The transaction bumped both counters in one UPDATE — the returned
@@ -222,17 +222,17 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     const quoteId = await createDraft();
     const s = snap(templateId, "1", "100");
 
-    await appendQuoteVersion(ownerId, quoteId, s, 0); // 0 → 1
+    await appendQuoteVersion(userId, quoteId, s, 0); // 0 → 1
     const after1 = (await db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1))[0]!;
     expect(after1.lockVersion).toBe(1);
 
     // A parallel call bumps to lockVersion=2; then we attempt V3 with the
     // now-stale expectedLockVersion=1 → LOCK_VERSION_MISMATCH.
-    await appendQuoteVersion(ownerId, quoteId, s, after1.lockVersion);
-    await expect(appendQuoteVersion(ownerId, quoteId, s, 1)).rejects.toBeInstanceOf(
+    await appendQuoteVersion(userId, quoteId, s, after1.lockVersion);
+    await expect(appendQuoteVersion(userId, quoteId, s, 1)).rejects.toBeInstanceOf(
       QuoteRepositoryError,
     );
-    await expect(appendQuoteVersion(ownerId, quoteId, s, 1)).rejects.toMatchObject({
+    await expect(appendQuoteVersion(userId, quoteId, s, 1)).rejects.toMatchObject({
       code: "LOCK_VERSION_MISMATCH",
     });
   });
@@ -246,21 +246,21 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     const quoteId = await createDraft();
     const s = snap(templateId, "1", "100");
 
-    await appendQuoteVersion(ownerId, quoteId, s, 0);
+    await appendQuoteVersion(userId, quoteId, s, 0);
     // Status FSM transaction is deferred to PR4c; mutate the row directly
     // to exercise the terminal-status guard inside appendQuoteVersion.
     await db
       .update(quotes)
       .set({ status: "accepted" })
-      .where(and(eq(quotes.id, quoteId), eq(quotes.ownerId, ownerId)));
+      .where(and(eq(quotes.id, quoteId), eq(quotes.userId, userId)));
     const fresh = (await db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1))[0]!;
     expect(fresh.status).toBe("accepted");
     expect(fresh.lockVersion).toBe(1);
 
-    await expect(appendQuoteVersion(ownerId, quoteId, s, fresh.lockVersion)).rejects.toBeInstanceOf(
+    await expect(appendQuoteVersion(userId, quoteId, s, fresh.lockVersion)).rejects.toBeInstanceOf(
       QuoteRepositoryError,
     );
-    await expect(appendQuoteVersion(ownerId, quoteId, s, fresh.lockVersion)).rejects.toMatchObject({
+    await expect(appendQuoteVersion(userId, quoteId, s, fresh.lockVersion)).rejects.toMatchObject({
       code: "TERMINAL_STATUS",
     });
 
@@ -286,8 +286,8 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     // exactly one with LOCK_VERSION_MISMATCH (the lockVersion has moved
     // by the time the second sees it).
     const [p1, p2] = await Promise.allSettled([
-      appendQuoteVersion(ownerId, quoteId, s, 0),
-      appendQuoteVersion(ownerId, quoteId, s, 0),
+      appendQuoteVersion(userId, quoteId, s, 0),
+      appendQuoteVersion(userId, quoteId, s, 0),
     ]);
     const fulfilled = [p1, p2].filter(
       (v): v is PromiseFulfilledResult<Awaited<ReturnType<typeof appendQuoteVersion>>> =>
@@ -304,7 +304,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     const fresh = (await db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1))[0]!;
     expect(fresh.lockVersion).toBe(1);
     expect(fresh.currentVersion).toBe(1);
-    const retried = await appendQuoteVersion(ownerId, quoteId, s, fresh.lockVersion);
+    const retried = await appendQuoteVersion(userId, quoteId, s, fresh.lockVersion);
     expect(retried.version.versionNo).toBe(2);
     expect(retried.quote.currentVersion).toBe(2);
     expect(retried.quote.lockVersion).toBe(2);
@@ -327,7 +327,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     await db.insert(materials).values([
       {
         id: matA,
-        ownerId,
+        userId,
         name: `wax-${matA}`,
         dimension: "mass" as const,
         baseUnit: "g",
@@ -338,7 +338,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       },
       {
         id: matB,
-        ownerId,
+        userId,
         name: `scent-${matB}`,
         dimension: "mass" as const,
         baseUnit: "g",
@@ -349,7 +349,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       },
       {
         id: matC,
-        ownerId,
+        userId,
         name: `wick-${matC}`,
         dimension: "mass" as const,
         baseUnit: "g",
@@ -365,8 +365,8 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
     // snapshot maps model A → template A (3 materials) and model B → template B
     // (3 materials), producing 6 quoteVersionMaterials rows.
     await db.insert(templates).values([
-      { id: templateA, ownerId, name: `r-${templateA}`, unitCost: "300.000000000000000000" },
-      { id: templateB, ownerId, name: `r-${templateB}`, unitCost: "600.000000000000000000" },
+      { id: templateA, userId, name: `r-${templateA}`, unitCost: "300.000000000000000000" },
+      { id: templateB, userId, name: `r-${templateB}`, unitCost: "600.000000000000000000" },
     ]);
     templateIds.add(templateA).add(templateB);
     await db.insert(templateItems).values([
@@ -429,7 +429,7 @@ describe("appendQuoteVersion (integration vs dev branch)", () => {
       expirationDate: "2026-12-31",
     });
 
-    const r1 = await appendQuoteVersion(ownerId, quoteId, s, 0);
+    const r1 = await appendQuoteVersion(userId, quoteId, s, 0);
     expect(r1.version.versionNo).toBe(1);
 
     const models = await db

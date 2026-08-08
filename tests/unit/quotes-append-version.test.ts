@@ -34,18 +34,18 @@ vi.mock("../../db/client", () => ({ db: dbMock }));
 
 import { appendQuoteVersion } from "../../src/server/repositories/quotes.append";
 
-const OWNER = "owner-1";
+const USER = "user-1";
 const QUOTE_ID = "q-1";
 
 const quote = (overrides: Record<string, unknown> = {}) => ({
   id: QUOTE_ID,
-  ownerId: OWNER,
+  userId: USER,
   status: "draft",
   currentVersion: 0,
   lockVersion: 0,
   ...overrides,
 });
-const recipe = (id: string) => ({ id, ownerId: OWNER, name: id });
+const recipe = (id: string) => ({ id, userId: USER, name: id });
 const item = (recipeId: string, materialId: string, quantity: string) => ({
   recipeId,
   materialId,
@@ -53,7 +53,7 @@ const item = (recipeId: string, materialId: string, quantity: string) => ({
 });
 const material = (id: string, unitCost: string) => ({
   id,
-  ownerId: OWNER,
+  userId: USER,
   name: id,
   unitCost,
 });
@@ -113,13 +113,13 @@ describe("appendQuoteVersion — typed errors", () => {
     ["TERMINAL_STATUS", quote({ status: "rejected", lockVersion: 0 }), 0],
   ] as const)("throws %s for the right precondition", async (code, quoteRow, expectedLock) => {
     txRef.current!.rowsQueue = [[quoteRow]];
-    await expect(appendQuoteVersion(OWNER, QUOTE_ID, snap2(), expectedLock)).rejects.toMatchObject({
+    await expect(appendQuoteVersion(USER, QUOTE_ID, snap2(), expectedLock)).rejects.toMatchObject({
       code,
     });
   });
 
   it.each([
-    ["missing id", OWNER, "missing-id"],
+    ["missing id", USER, "missing-id"],
     ["cross-owner", "other-owner", QUOTE_ID],
   ] as const)("throws NOT_FOUND for %s", async (_label, owner, id) => {
     txRef.current!.rowsQueue = [[]];
@@ -140,7 +140,7 @@ describe("appendQuoteVersion — success path", () => {
       1,
       2,
     );
-    const r = await appendQuoteVersion(OWNER, QUOTE_ID, snap2(), 0);
+    const r = await appendQuoteVersion(USER, QUOTE_ID, snap2(), 0);
     expect(r.quote.currentVersion).toBe(1);
     expect(r.quote.lockVersion).toBe(1);
   });
@@ -164,7 +164,7 @@ describe("appendQuoteVersion — success path", () => {
       1,
       1,
     );
-    await appendQuoteVersion(OWNER, QUOTE_ID, snap, 0);
+    await appendQuoteVersion(USER, QUOTE_ID, snap, 0);
     const inserts = (txRef.current!.insert as ReturnType<typeof vi.fn>).mock.calls;
     const values = (txRef.current!.values as ReturnType<typeof vi.fn>).mock.calls;
     const rows = values[inserts.findIndex(([t]) => t === quoteVersionMaterials)][0] as Array<

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
-  requireOwner: vi.fn(),
+  requireUser: vi.fn(),
   listQuotes: vi.fn(),
   getQuote: vi.fn(),
 }));
@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push }),
   useSearchParams: () => new URLSearchParams("sort=recent"),
 }));
-vi.mock("../../src/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
+vi.mock("../../src/server/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
 vi.mock("../../src/server/repositories/quotes", () => ({
   listQuotes: mocks.listQuotes,
   getQuote: mocks.getQuote,
@@ -48,7 +48,7 @@ function renderList(quotes: QuoteListItem[], view: "active" | "archived" = "acti
 }
 
 function record(status: "draft" | "sent" | "accepted" | "rejected") {
-  const quote = { ...base, ownerId: "owner-1", status, currentVersion: 1 };
+  const quote = { ...base, ownerId: "user-1", status, currentVersion: 1 };
   return {
     quote,
     versions: [{ versionNo: 1, finalPrice: base.total, createdAt: NOW }],
@@ -64,7 +64,7 @@ function readSource(relPath: string): string {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.requireUser.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   mocks.listQuotes.mockResolvedValue([]);
   mocks.getQuote.mockResolvedValue(null);
 });
@@ -72,9 +72,7 @@ beforeEach(() => {
 describe("quotes list", () => {
   it("renders an actionable empty state", () => {
     renderList([]);
-    expect(
-      screen.getByRole("heading", { name: /Aún no tenés cotizaciones/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Aún no tenés cotizaciones/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /\+ Crear cotización/i })).toHaveAttribute(
       "href",
       "/quotes/new",
@@ -218,8 +216,8 @@ describe("/quotes page", () => {
 
       render(await QuotesPage({ searchParams }));
 
-      expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
-      expect(mocks.listQuotes).toHaveBeenCalledWith("owner-1", visibility);
+      expect(mocks.requireUser).toHaveBeenCalledTimes(1);
+      expect(mocks.listQuotes).toHaveBeenCalledWith("user-1", visibility);
       expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
     },
   );

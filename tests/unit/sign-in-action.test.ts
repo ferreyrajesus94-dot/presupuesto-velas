@@ -70,18 +70,16 @@ describe("signInAction user-era rewrite (PR2 task 2.7)", () => {
     mocks.upsertUserMock.mockReset();
     mocks.redirectMock.mockClear();
     // default upsertUser returns a minimal AppUser-shape row
-    mocks.upsertUserMock.mockImplementation(async (input: {
-      id: string;
-      email: string;
-      emailVerified: boolean;
-    }) => ({
-      id: input.id,
-      email: input.email,
-      role: "user",
-      emailVerified: input.emailVerified,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    mocks.upsertUserMock.mockImplementation(
+      async (input: { id: string; email: string; emailVerified: boolean }) => ({
+        id: input.id,
+        email: input.email,
+        role: "user",
+        emailVerified: input.emailVerified,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -114,12 +112,11 @@ describe("signInAction user-era rewrite (PR2 task 2.7)", () => {
     async (cookieName) => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue(
-          NEON_OK(
-            { id: "u-1", email: "anyone@example.com", emailVerified: true },
-            cookieName,
+        vi
+          .fn()
+          .mockResolvedValue(
+            NEON_OK({ id: "u-1", email: "anyone@example.com", emailVerified: true }, cookieName),
           ),
-        ),
       );
 
       await expect(
@@ -193,24 +190,19 @@ describe("signInAction user-era rewrite (PR2 task 2.7)", () => {
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    mocks.upsertUserMock.mockImplementation(async (input: {
-      id: string;
-      email: string;
-      emailVerified: boolean;
-    }) => ({
-      id: input.id,
-      email: input.email,
-      role: "owner",
-      emailVerified: input.emailVerified,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    mocks.upsertUserMock.mockImplementation(
+      async (input: { id: string; email: string; emailVerified: boolean }) => ({
+        id: input.id,
+        email: input.email,
+        role: "owner",
+        emailVerified: input.emailVerified,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
 
     await expect(
-      signInAction(
-        {},
-        makeFormData({ email: "bootstrap-owner@example.com", password: "secret" }),
-      ),
+      signInAction({}, makeFormData({ email: "bootstrap-owner@example.com", password: "secret" })),
     ).rejects.toMatchObject({ __redirect: "/" });
 
     expect(mocks.upsertUserMock).toHaveBeenCalledWith({
@@ -260,12 +252,14 @@ describe("signInAction user-era rewrite (PR2 task 2.7)", () => {
   it("returns a form error when the response lacks a supported session cookie", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        NEON_OK(
-          { id: "u-1", email: "anyone@example.com", emailVerified: true },
-          "other-auth.session_token",
+      vi
+        .fn()
+        .mockResolvedValue(
+          NEON_OK(
+            { id: "u-1", email: "anyone@example.com", emailVerified: true },
+            "other-auth.session_token",
+          ),
         ),
-      ),
     );
 
     const result = await signInAction(

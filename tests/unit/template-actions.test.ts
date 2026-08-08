@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     RepositoryError,
-    requireOwner: vi.fn(),
+    requireUser: vi.fn(),
     createTemplate: vi.fn(),
     updateTemplate: vi.fn(),
     archiveTemplate: vi.fn(),
@@ -23,8 +23,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/server/auth/requireOwner", () => ({
-  requireOwner: mocks.requireOwner,
+vi.mock("../../src/server/auth/requireUser", () => ({
+  requireUser: mocks.requireUser,
 }));
 vi.mock("../../src/server/repositories/templates", () => ({
   TemplateRepositoryError: mocks.RepositoryError,
@@ -48,7 +48,7 @@ import {
   updateTemplateAction,
 } from "../../src/server/actions/templates";
 
-const OWNER = { id: "owner-1", email: "owner@example.com" };
+const OWNER = { id: "user-1", email: "user@example.com" };
 const TEMPLATE_RECORD = { template: { id: "template-1" }, items: [] };
 const TEMPLATE = { id: "template-1" };
 const INITIAL_STATE = { status: "idle" as const };
@@ -70,7 +70,7 @@ function templateForm(name = "Vanilla", items = ITEMS) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue(OWNER);
+  mocks.requireUser.mockResolvedValue(OWNER);
 });
 
 describe("template Server Actions", () => {
@@ -216,7 +216,7 @@ describe("template Server Actions", () => {
     ["non-owner", "__redirect:/403"],
   ])("preserves %s denial before validation or mutation", async (_label, redirect) => {
     const error = Object.assign(new Error(redirect), { __redirect: redirect.slice(11) });
-    mocks.requireOwner.mockRejectedValue(error);
+    mocks.requireUser.mockRejectedValue(error);
 
     await expect(createTemplateAction(INITIAL_STATE, templateForm())).rejects.toMatchObject({
       __redirect: error.__redirect,
@@ -617,7 +617,7 @@ describe("saveTemplateAction", () => {
     const error = Object.assign(new Error("__redirect:/sign-in"), {
       __redirect: "/sign-in",
     });
-    mocks.requireOwner.mockRejectedValue(error);
+    mocks.requireUser.mockRejectedValue(error);
 
     await expect(saveTemplateAction(saveForm())).rejects.toMatchObject({
       __redirect: "/sign-in",

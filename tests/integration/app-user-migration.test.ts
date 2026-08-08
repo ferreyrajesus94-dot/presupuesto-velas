@@ -94,12 +94,12 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
     type Row = { id: string; email: string; role: string; email_verified: boolean };
     const rows = (result as unknown as { rows: Row[] }).rows;
     expect(rows.length).toBeGreaterThanOrEqual(1);
-    const owner = rows[0];
-    expect(owner.role).toBe("owner");
-    expect(owner.email_verified).toBe(true);
-    expect(owner.id).toMatch(/[0-9a-f-]{36}/i);
+    const user = rows[0];
+    expect(user.role).toBe("owner");
+    expect(user.email_verified).toBe(true);
+    expect(user.id).toMatch(/[0-9a-f-]{36}/i);
     // email must be a valid (non-empty) identifier
-    expect(owner.email.length).toBeGreaterThan(3);
+    expect(user.email.length).toBeGreaterThan(3);
   });
 
   it("retargets every domain-table FK from app_owner to app_user", async () => {

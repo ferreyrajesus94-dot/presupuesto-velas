@@ -23,7 +23,7 @@ import type { QuoteStatus } from "@/domain/snapshot";
 
 interface QuoteShaped {
   readonly id: string;
-  readonly ownerId: string;
+  readonly userId: string;
   readonly customerName: string | null;
   readonly status: QuoteStatus;
   readonly expirationDate: string;
@@ -44,7 +44,7 @@ const REJECTED: QuoteStatus = "rejected";
 function mkQuote(overrides: Partial<QuoteShaped> = {}): QuoteShaped {
   return {
     id: "q-fixed",
-    ownerId: "owner-1",
+    userId: "user-1",
     customerName: null,
     status: SENT,
     expirationDate: "2026-01-15",

@@ -162,18 +162,21 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
     );
 
     expect(result.errors?._form).toBeDefined();
-    expect(result.errors?._form?.[0]).toMatch(/already|exists|registered/i);
+    // Localized user-facing copy — "Ya existe una cuenta con ese email."
+    expect(result.errors?._form?.[0]).toMatch(/ya existe|cuenta|email/i);
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
   });
 
   it("returns state.errors._form when Neon rejects a weak password (400) and does not redirect", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ message: "Password is too weak — use at least 8 characters" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ message: "Password is too weak — use at least 8 characters" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await signUpAction(
@@ -186,7 +189,8 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
     );
 
     expect(result.errors?._form).toBeDefined();
-    expect(result.errors?._form?.[0]).toMatch(/password/i);
+    // Localized user-facing copy — "La contraseña no cumple los requisitos..."
+    expect(result.errors?._form?.[0]).toMatch(/contraseñ|requisitos|seguridad/i);
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
   });
@@ -231,9 +235,7 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
   });
 
   it("returns a uniform network-error state.errors._form when Neon is unreachable", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(null, { status: 502 }),
-    );
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await signUpAction(

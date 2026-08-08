@@ -81,7 +81,7 @@ export type TemplateInput = z.input<typeof templateInputSchema>;
 
 export type TemplateMaterialReference = {
   id: string;
-  ownerId: string;
+  userId: string;
   baseUnit: string;
   unitCost: string;
   archivedAt: Date | null;
@@ -117,12 +117,12 @@ export function parseTemplateMeta(raw: {
 }
 
 export function createTemplateInputSchema(
-  ownerId: string,
+  userId: string,
   materials: readonly TemplateMaterialReference[],
 ) {
-  const ownerMaterials = new Map(
+  const userMaterials = new Map(
     materials
-      .filter((material) => material.ownerId === ownerId)
+      .filter((material) => material.userId === userId)
       .map((material) => [material.id, material]),
   );
 
@@ -136,7 +136,7 @@ export function createTemplateInputSchema(
     };
 
     input.items.forEach((item, index) => {
-      const material = ownerMaterials.get(item.materialId);
+      const material = userMaterials.get(item.materialId);
       if (!material) {
         issue(["items", index, "materialId"], "Material is unavailable");
         return;

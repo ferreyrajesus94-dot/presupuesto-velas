@@ -24,7 +24,7 @@ import type { Template } from "@/server/repositories/templates";
 
 const VANILLA: Template = {
   id: "11111111-1111-4111-8111-111111111111",
-  ownerId: "owner-1",
+  userId: "user-1",
   name: "Vanilla candle",
   unitCost: "100",
   archivedAt: null,
@@ -42,7 +42,7 @@ beforeEach(() => {
   mocks.createQuoteDraftAction.mockResolvedValue({
     ok: true,
     value: {
-      quote: { id: "q1", ownerId: "owner-1", status: "draft", lockVersion: 0 },
+      quote: { id: "q1", userId: "user-1", status: "draft", lockVersion: 0 },
       versions: [],
       models: [],
       materials: [],
@@ -52,7 +52,7 @@ beforeEach(() => {
   mocks.appendQuoteVersionAction.mockResolvedValue({
     ok: true,
     value: {
-      quote: { id: "q1", ownerId: "owner-1", status: "draft", lockVersion: 1 },
+      quote: { id: "q1", userId: "user-1", status: "draft", lockVersion: 1 },
       version: { quoteId: "q1", versionNo: 1 },
     },
   });

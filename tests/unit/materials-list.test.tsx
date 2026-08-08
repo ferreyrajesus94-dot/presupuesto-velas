@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireOwner: vi.fn(),
+  requireUser: vi.fn(),
   listMaterials: vi.fn(),
   countArchivedMaterials: vi.fn(),
   createMaterialAction: vi.fn(),
@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   unarchiveMaterialAction: vi.fn(),
 }));
 
-vi.mock("../../src/server/auth/requireOwner", () => ({
-  requireOwner: mocks.requireOwner,
+vi.mock("../../src/server/auth/requireUser", () => ({
+  requireUser: mocks.requireUser,
 }));
 vi.mock("../../src/server/repositories/materials", () => ({
   listMaterials: mocks.listMaterials,
@@ -58,7 +58,7 @@ const MATERIAL_ARCHIVED = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.requireUser.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   mocks.listMaterials.mockResolvedValue([]);
   mocks.countArchivedMaterials.mockResolvedValue(0);
   mocks.createMaterialAction.mockResolvedValue({ status: "success", materialId: "material-1" });
@@ -115,7 +115,7 @@ it("shows a view-aware empty state when active list is empty but archived record
   // only match (no extra empty-state CTA was rendered).
   expect(emptyStateCta).toBeDefined();
   // And confirm we did NOT render the empty-state heading.
-  expect(mocks.countArchivedMaterials).toHaveBeenCalledWith("owner-1");
+  expect(mocks.countArchivedMaterials).toHaveBeenCalledWith("user-1");
 });
 
 it("uses singular copy when only one archived material exists", async () => {
@@ -177,7 +177,7 @@ it("renders compact editable columns, active row controls, and the current filte
   expect(within(row).getByRole("button", { name: "Guardar material" })).toBeInTheDocument();
   expect(within(row).getByRole("button", { name: "Archivar Soy wax" })).toBeInTheDocument();
   expect(row.querySelector("form form")).toBeNull();
-  expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
+  expect(mocks.listMaterials).toHaveBeenCalledWith("user-1", { includeArchived: false });
   const nav = screen.getByRole("navigation", { name: /filtro de vista de materiales/i });
   expect(within(nav).getByRole("link", { name: /Activos/ })).toHaveAttribute("href", "/materials");
   expect(within(nav).getByRole("link", { name: /Activos/ })).toHaveAttribute(
@@ -195,7 +195,7 @@ it("shows archived materials with restore controls, a badge, and the all view as
 
   render(await MaterialsPage(pageProps("all")));
 
-  expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: true });
+  expect(mocks.listMaterials).toHaveBeenCalledWith("user-1", { includeArchived: true });
   expect(screen.getByRole("button", { name: "Archivar Soy wax" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Restaurar Coconut wax" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Editar material: Soy wax" })).toBeInTheDocument();

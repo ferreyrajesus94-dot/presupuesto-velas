@@ -65,13 +65,13 @@ If you want system libraries installed alongside the browser, run `npx playwrigh
 
 ## Deploy on Vercel
 
-Calculadora Flor is a single-owner Next.js 16 app with a serverless Postgres backend (Neon) and managed auth (Neon Auth). Production deployment uses Vercel with the environment variables declared in `.env.example`.
+Calculadora Flor is a multi-user Next.js 16 app with a serverless Postgres backend (Neon) and managed auth (Neon Auth). One Neon Auth account is auto-promoted to `role='owner'` via the `BOOTSTRAP_OWNER_EMAIL` env var; all other verified signers land as `role='user'`. Production deployment uses Vercel with the environment variables declared in `.env.example`.
 
 ### Prerequisites
 
 1. **Neon project** in region `aws-sa-east-1` (São Paulo). Neon region is immutable post-create — verify before production.
 2. **Neon Auth** provisioned on the project (Better Auth, branch-scoped base URL + JWKS URL).
-3. **Single owner account** already created in Neon Auth; capture `OWNER_USER_ID` and `OWNER_EMAIL` from the auth dashboard.
+3. **Bootstrap owner account** already created in Neon Auth. Add its email to `BOOTSTRAP_OWNER_EMAIL` in Vercel env so the matching verified sign-in is auto-promoted to `role='owner'` in `app_user` (ROLE-MODEL scenario). Leave the env unset to default every verified signer to `role='user'`.
 4. **Vercel account** with this repo imported (or `vercel link` from a local clone).
 
 ### Region selection
@@ -96,15 +96,14 @@ Vercel project region **must be `gru1`** (São Paulo) to minimize latency from A
 
 Configure the following in the Vercel project (Settings → Environment Variables). All values are **server-only**; never prefix any of them with `NEXT_PUBLIC_`.
 
-| Variable             | Environment         | Required for                                                                                                                 |
-| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `APP_BASE_URL`       | Production, Preview | Server-side auth callbacks (use the canonical Vercel URL, e.g. `https://presupuesto-velas.vercel.app`)                       |
-| `DATABASE_URL`       | Production, Preview | Runtime queries (use the **pooled** endpoint — hostname ends in `-pooler`)                                                   |
-| `DIRECT_URL`         | Production, Preview | Migrations only (use the **direct/unpooled** endpoint; `drizzle.config.ts` also reads `DATABASE_URL_UNPOOLED` as a fallback) |
-| `NEON_AUTH_BASE_URL` | Production, Preview | Neon Auth (Better Auth) base URL — branch-scoped                                                                             |
-| `NEON_AUTH_JWKS_URL` | Production, Preview | Neon Auth JWKS endpoint for session validation                                                                               |
-| `OWNER_USER_ID`      | Production, Preview | Single-owner allowlist (server-side `requireOwner()` check)                                                                  |
-| `OWNER_EMAIL`        | Production, Preview | Single-owner allowlist (server-side `requireOwner()` check)                                                                  |
+| Variable                | Environment         | Required for                                                                                                                                             |
+| ----------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_BASE_URL`          | Production, Preview | Server-side auth callbacks (use the canonical Vercel URL, e.g. `https://presupuesto-velas.vercel.app`)                                                   |
+| `DATABASE_URL`          | Production, Preview | Runtime queries (use the **pooled** endpoint — hostname ends in `-pooler`)                                                                               |
+| `DIRECT_URL`            | Production, Preview | Migrations only (use the **direct/unpooled** endpoint; `drizzle.config.ts` also reads `DATABASE_URL_UNPOOLED` as a fallback)                             |
+| `NEON_AUTH_BASE_URL`    | Production, Preview | Neon Auth (Better Auth) base URL — branch-scoped                                                                                                         |
+| `NEON_AUTH_JWKS_URL`    | Production, Preview | Neon Auth JWKS endpoint for session validation                                                                                                           |
+| `BOOTSTRAP_OWNER_EMAIL` | Production, Preview | **Optional**. Email that auto-promotes a verified Neon Auth sign-in to `role='owner'` in `app_user`. Unset = all verified signers land as `role='user'`. |
 
 Local development uses `.env.local` (never committed) with the same keys.
 
@@ -126,11 +125,24 @@ After the first deploy succeeds:
 
 - [ ] Neon project exists in `aws-sa-east-1`.
 - [ ] Neon Auth provisioned on the project.
-- [ ] Owner account created; `OWNER_USER_ID` and `OWNER_EMAIL` captured.
+- [ ] Bootstrap owner account created in Neon Auth; its email added to `BOOTSTRAP_OWNER_EMAIL` in Vercel env (Production + Preview).
 - [ ] Vercel project created in region `gru1`.
-- [ ] All seven environment variables from the table above are set in Vercel (Production + Preview environments).
+- [ ] All six environment variables from the table above are set in Vercel (Production + Preview environments).
 - [ ] No env var is prefixed with `NEXT_PUBLIC_`.
 - [ ] First production deploy succeeded (`vercel --prod` or via Git integration).
 - [ ] Production smoke test (9 steps above) all pass.
+
+### Operator cleanup — legacy single-owner env
+
+PR5.archive (`sdd/auth-public-signup`) retired the legacy single-owner allowlist env vars `OWNER_USER_ID` and `OWNER_EMAIL`. After this PR merges, run the following once per Vercel environment to drop the stale keys (replace `production` with `preview` for the Preview environment):
+
+```bash
+vercel env rm OWNER_USER_ID production
+vercel env rm OWNER_EMAIL production
+vercel env rm TEST_OWNER_USER_ID production
+vercel env rm TEST_OWNER_EMAIL production
+```
+
+The keys are read by nothing in the codebase after this PR (`grep` confirms no production reference). Existing `app_user.role='owner'` rows survive — promotion is now driven by `BOOTSTRAP_OWNER_EMAIL` matching a verified sign-in, not by an env-allowlist check.
 
 For automated deploys, see [Vercel CLI with tokens](https://github.com/anthropics/skills/tree/main/skills/vercel-cli-with-tokens); for human-friendly setup, use the Vercel dashboard.

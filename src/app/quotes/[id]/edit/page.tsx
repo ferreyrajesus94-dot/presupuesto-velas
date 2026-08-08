@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { getQuote } from "@/server/repositories/quotes";
 import { listTemplates } from "@/server/repositories/templates";
 import { isExpiredSent } from "@/domain/quoteExpired";
@@ -47,13 +47,13 @@ function displayEditStatus(
  * snapshot pre-filled.
  */
 export default async function QuoteEditPage({ params }: { params: Promise<{ id: string }> }) {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const { id } = await params;
-  const quote = await getQuote(owner.id, id);
+  const quote = await getQuote(user.id, id);
   if (!quote) notFound();
   const isDraft = quote.quote.status === "draft";
   const templates = isDraft
-    ? (await listTemplates(owner.id))
+    ? (await listTemplates(user.id))
         .filter(({ template }) => template.archivedAt === null)
         .map(({ template }) => template)
     : [];

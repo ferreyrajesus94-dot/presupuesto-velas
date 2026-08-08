@@ -11,6 +11,25 @@ import {
   type TemplateMaterialReference,
 } from "../validation/templateSchema";
 
+/**
+ * PR2.auth-core (Task 2.8) — Templates repository rewritten for the user
+ * era. Every public function takes a `userId: string` parameter and
+ * scopes every read/write by it. The DB column is `user_id`; the JS-side
+ * `ownerId` compat shim is gone.
+ *
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` and every cross-user write throws
+ * `TemplateRepositoryError("NOT_FOUND")`. The action layer maps both
+ * surfaces to a generic "Template could not be found" message so an
+ * attacker cannot distinguish "id does not exist" from "id belongs to
+ * another user" — see `tests/integration/data-isolation.test.ts` for
+ * the contract proof.
+ *
+ * Caller invariant: `userId` is sourced from `requireUser()` only. No
+ * caller may supply a different id; cross-user attempts surface as
+ * `NOT_FOUND`.
+ */
+
 // Calculator meta persisted alongside the derived unitCost. The repository
 // stores whatever the input provides (already trimmed by the validation
 // layer) as a verbatim numeric string so the column round-trip stays
@@ -69,13 +88,13 @@ function notFound(id: string): TemplateRepositoryError {
 }
 
 export async function findNextDefaultTemplateName(
-  ownerId: string,
+  userId: string,
   prefix = "Nueva plantilla",
 ): Promise<string> {
   const rows = await db
     .select({ name: templates.name })
     .from(templates)
-    .where(and(eq(templates.ownerId, ownerId), like(templates.name, `${prefix} %`)));
+    .where(and(eq(templates.userId, userId), like(templates.name, `${prefix} %`)));
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const suffixPattern = new RegExp(`^${escapedPrefix} (\\d+)$`);
   let max = 0;
@@ -89,11 +108,11 @@ export async function findNextDefaultTemplateName(
 // "no active templates, archived exist" empty state without a second full
 // template fetch. Mirrors countArchivedMaterials so the page-level wiring
 // is symmetric across the two catalogs.
-export async function countArchivedTemplates(ownerId: string): Promise<number> {
+export async function countArchivedTemplates(userId: string): Promise<number> {
   const rows = await db
     .select({ id: templates.id })
     .from(templates)
-    .where(and(eq(templates.ownerId, ownerId), isNotNull(templates.archivedAt)));
+    .where(and(eq(templates.userId, userId), isNotNull(templates.archivedAt)));
   return rows.length;
 }
 
@@ -116,7 +135,7 @@ function materialReferences(
 ): TemplateMaterialReference[] {
   return rows.map((row) => ({
     id: row.id,
-    ownerId: row.ownerId,
+    userId: row.userId,
     baseUnit: row.baseUnit,
     unitCost: row.unitCost,
     archivedAt: row.archivedAt,
@@ -124,12 +143,12 @@ function materialReferences(
 }
 
 function parseInput(
-  ownerId: string,
+  userId: string,
   input: TemplateInput,
   materialRows: readonly (typeof materials.$inferSelect)[],
 ): ParsedTemplateInput {
   try {
-    return createTemplateInputSchema(ownerId, materialReferences(materialRows)).parse(input);
+    return createTemplateInputSchema(userId, materialReferences(materialRows)).parse(input);
   } catch (error) {
     if (
       error instanceof ZodError &&
@@ -170,10 +189,10 @@ function records(
 }
 
 export async function listTemplates(
-  ownerId: string,
+  userId: string,
   visibility: TemplateVisibility = {},
 ): Promise<TemplateRecord[]> {
-  const conditions = [eq(templates.ownerId, ownerId)];
+  const conditions = [eq(templates.userId, userId)];
   if (!visibility.includeArchived) conditions.push(isNull(templates.archivedAt));
   const rows = await db
     .select()
@@ -184,11 +203,11 @@ export async function listTemplates(
 }
 
 export async function getTemplate(
-  ownerId: string,
+  userId: string,
   id: string,
   visibility: TemplateVisibility = {},
 ): Promise<TemplateRecord | null> {
-  const conditions = [eq(templates.ownerId, ownerId), eq(templates.id, id)];
+  const conditions = [eq(templates.userId, userId), eq(templates.id, id)];
   if (!visibility.includeArchived) conditions.push(isNull(templates.archivedAt));
   const rows = await db
     .select()
@@ -200,11 +219,11 @@ export async function getTemplate(
 }
 
 export async function createTemplate(
-  ownerId: string,
+  userId: string,
   input: TemplateInput,
 ): Promise<TemplateRecord> {
   // FOR SHARE serializes the template validation snapshot against any
-  // concurrent UPDATE on the owner's materials. While this transaction is
+  // concurrent UPDATE on the user's materials. While this transaction is
   // open, an in-flight archive or price update on those rows must wait for
   // our commit. Our SELECT then reads the latest committed snapshot once
   // the lock clears, closing the TOCTOU window between reading materials
@@ -215,9 +234,9 @@ export async function createTemplate(
     const materialRows = await tx
       .select()
       .from(materials)
-      .where(eq(materials.ownerId, ownerId))
+      .where(eq(materials.userId, userId))
       .for("share");
-    const parsed = parseInput(ownerId, input, materialRows);
+    const parsed = parseInput(userId, input, materialRows);
     const meta = normalizeMeta(input);
 
     const templateId = crypto.randomUUID();
@@ -226,7 +245,7 @@ export async function createTemplate(
         .insert(templates)
         .values({
           id: templateId,
-          ownerId,
+          userId,
           name: parsed.name,
           unitCost: parsed.unitCost,
           time: meta.time,
@@ -254,7 +273,7 @@ export async function createTemplate(
   });
 }
 
-// createBlankTemplate inserts an owner-scoped template row only, with no
+// createBlankTemplate inserts a user-scoped template row only, with no
 // items. The workspace's "Nueva plantilla" CTA uses this to persist an
 // empty placeholder before the user adds materials; the existing
 // createTemplate path requires at least one item by schema, so this stays
@@ -263,7 +282,7 @@ export async function createTemplate(
 // seed default time/hourlyRate/overhead/marginPct; omitted values fall back
 // to the schema defaults so the live summary widget never shows a NaN.
 export async function createBlankTemplate(
-  ownerId: string,
+  userId: string,
   name: string,
   meta: TemplateMetaInput = {},
 ): Promise<Template> {
@@ -274,7 +293,7 @@ export async function createBlankTemplate(
       .insert(templates)
       .values({
         id: templateId,
-        ownerId,
+        userId,
         name,
         unitCost: "0",
         time: normalized.time,
@@ -293,17 +312,17 @@ export async function createBlankTemplate(
   }
 }
 
-// deleteTemplateRow hard-deletes an owner-scoped template and its items.
+// deleteTemplateRow hard-deletes a user-scoped template and its items.
 // FOR UPDATE on the template row blocks concurrent archive / restore on
 // the same id while the delete commits; the items cascade manually because
 // the schema does not declare ON DELETE CASCADE on template_items. Cross-
-// owner ids and missing ids both surface as NOT_FOUND.
-export async function deleteTemplateRow(ownerId: string, id: string): Promise<void> {
+// user ids and missing ids both surface as NOT_FOUND.
+export async function deleteTemplateRow(userId: string, id: string): Promise<void> {
   return db.transaction(async (tx) => {
     const [template] = await tx
       .select({ id: templates.id })
       .from(templates)
-      .where(and(eq(templates.ownerId, ownerId), eq(templates.id, id)))
+      .where(and(eq(templates.userId, userId), eq(templates.id, id)))
       .for("update");
     if (!template) throw notFound(id);
     await tx.delete(templateItems).where(eq(templateItems.templateId, id));
@@ -316,7 +335,7 @@ export async function deleteTemplateRow(ownerId: string, id: string): Promise<vo
 }
 
 export async function updateTemplate(
-  ownerId: string,
+  userId: string,
   id: string,
   input: TemplateInput,
 ): Promise<TemplateRecord> {
@@ -324,18 +343,16 @@ export async function updateTemplate(
     const [template] = await tx
       .select()
       .from(templates)
-      .where(
-        and(eq(templates.ownerId, ownerId), eq(templates.id, id), isNull(templates.archivedAt)),
-      )
+      .where(and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)))
       .for("update");
     if (!template) throw notFound(id);
 
     const materialRows = await tx
       .select()
       .from(materials)
-      .where(eq(materials.ownerId, ownerId))
+      .where(eq(materials.userId, userId))
       .for("share");
-    const parsed = parseInput(ownerId, input, materialRows);
+    const parsed = parseInput(userId, input, materialRows);
     const meta = normalizeMeta(input);
 
     await tx.delete(templateItems).where(eq(templateItems.templateId, id));
@@ -370,23 +387,21 @@ export async function updateTemplate(
   });
 }
 
-// archiveTemplate archives an active owner-scoped template and preserves its
+// archiveTemplate archives an active user-scoped template and preserves its
 // items. The transaction takes FOR UPDATE on the active template row only:
 // - archived rows are excluded by `isNull(archivedAt)`, so re-archiving
-//   and cross-owner / missing ids both surface as NOT_FOUND;
+//   and cross-user / missing ids both surface as NOT_FOUND;
 // - the items table is not touched, so any historical quote versions
 //   referencing the template keep their snapshots verbatim.
 // Materials are not touched, so no FOR SHARE on materials is required and
 // the global lock-order invariant (template before materials whenever both
 // are touched) does not apply on this path.
-export async function archiveTemplate(ownerId: string, id: string): Promise<Template> {
+export async function archiveTemplate(userId: string, id: string): Promise<Template> {
   return db.transaction(async (tx) => {
     const [template] = await tx
       .select()
       .from(templates)
-      .where(
-        and(eq(templates.ownerId, ownerId), eq(templates.id, id), isNull(templates.archivedAt)),
-      )
+      .where(and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)))
       .for("update");
     if (!template) throw notFound(id);
     const [archived] = await tx
@@ -399,18 +414,18 @@ export async function archiveTemplate(ownerId: string, id: string): Promise<Temp
   });
 }
 
-// restoreTemplate restores an archived owner-scoped template and preserves its
-// items. Mirrors archiveTemplate: FOR UPDATE only on the archived row
-// (`isNotNull(archivedAt)`), so already-active rows and cross-owner /
+// restoreTemplate restores an archived user-scoped template and preserves
+// its items. Mirrors archiveTemplate: FOR UPDATE only on the archived row
+// (`isNotNull(archivedAt)`), so already-active rows and cross-user /
 // missing ids surface as NOT_FOUND. Items stay intact across the
 // transition; only archivedAt flips to NULL.
-export async function restoreTemplate(ownerId: string, id: string): Promise<Template> {
+export async function restoreTemplate(userId: string, id: string): Promise<Template> {
   return db.transaction(async (tx) => {
     const [template] = await tx
       .select()
       .from(templates)
       .where(
-        and(eq(templates.ownerId, ownerId), eq(templates.id, id), isNotNull(templates.archivedAt)),
+        and(eq(templates.userId, userId), eq(templates.id, id), isNotNull(templates.archivedAt)),
       )
       .for("update");
     if (!template) throw notFound(id);

@@ -12,11 +12,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 const TEST_NAME_PREFIX = "Nueva plantilla";
 
-// The workspace reads OWNER_USER_ID / OWNER_EMAIL from the server-side
-// env, so a successful sign-in must match those credentials. The
-// corresponding password lives in PROD_OWNER_PASSWORD in .env.local (it's
-// the same owner email used locally — `flor@velas.invalid`).
-const EMAIL = process.env.TEST_OWNER_EMAIL || process.env.OWNER_EMAIL || "";
+// The E2E workspace signs in as the locally-stored Neon Auth owner account
+// (`flor@velas.invalid`). PR5.archive retired the legacy `OWNER_*` allowlist
+// env vars; the matching email + password below are the only operator-facing
+// knobs left for local E2E. `TEST_OWNER_PASSWORD` is the only surviving
+// `TEST_OWNER_*` key (kept for local convenience).
+const EMAIL = process.env.PROD_OWNER_EMAIL || "";
 const PASSWORD = process.env.TEST_OWNER_PASSWORD || process.env.PROD_OWNER_PASSWORD || "";
 
 test.describe.configure({ mode: "serial" });
@@ -77,9 +78,7 @@ test("Guardar persists template edits across a hard reload", async ({ page }) =>
   // We anchor on `.first()` after click — the same card survives the
   // save action (which only mutates, doesn't reorder).
   const headingMatch = new RegExp(`^${TEST_NAME_PREFIX}( \\d+)?$`);
-  const beforeCount = await page
-    .getByTestId("template-card")
-    .count();
+  const beforeCount = await page.getByTestId("template-card").count();
 
   await page.getByTestId("plantilla-new").click();
 
@@ -95,15 +94,10 @@ test("Guardar persists template edits across a hard reload", async ({ page }) =>
   // Material labels vary across catalogs; pick the first non-empty option
   // from the row's <select>. The section heading "Materiales de …"
   // collides on the visible label, so we scope by the row testid.
-  const materialSelect = card
-    .locator("[data-testid='plantilla-material-row']")
-    .locator("select");
+  const materialSelect = card.locator("[data-testid='plantilla-material-row']").locator("select");
   const materialOptionCount = await materialSelect.locator("option").count();
   expect(materialOptionCount).toBeGreaterThan(1);
-  const chosenMaterial = await materialSelect
-    .locator("option")
-    .nth(1)
-    .getAttribute("value");
+  const chosenMaterial = await materialSelect.locator("option").nth(1).getAttribute("value");
   expect(chosenMaterial).toBeTruthy();
   await materialSelect.selectOption(chosenMaterial!);
   await card.getByLabel("Cantidad").fill("100");
@@ -125,9 +119,7 @@ test("Guardar persists template edits across a hard reload", async ({ page }) =>
   await expect(save).toHaveAttribute("data-saving", "false", { timeout: 15_000 });
   // Wait for the dirty flag to flip back to false once the snapshot
   // resyncs with the persisted row.
-  await expect
-    .poll(async () => save.getAttribute("data-dirty"))
-    .toBe("false");
+  await expect.poll(async () => save.getAttribute("data-dirty")).toBe("false");
   // The action error surface should NOT be visible for a successful save.
   await expect(page.getByTestId("plantilla-action-error")).toHaveCount(0);
 

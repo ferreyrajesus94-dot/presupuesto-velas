@@ -1,25 +1,14 @@
 /**
- * Owner allowlist env access. Vercel env wins; local .env.local may use
- * `TEST_OWNER_*` (from HC-A) as a stand-in until the secrets are promoted.
+ * PR2.auth-core (Task 2.11) — `ownerEnv.ts` is now a thin re-export shim.
+ *
+ * `src/server/auth/session.ts` is locked byte-identical (SESSION-PRESERVE
+ * invariant — see `tests/integration/session-preserve.test.ts`) and still
+ * imports `getNeonAuthBaseUrl` from this file path. The allowlist helpers
+ * The allowlist env readers were retired with the legacy single-owner
+ * guard (deleted in Task 2.11); the auth-era env readers live in
+ * `userEnv.ts`.
+ *
+ * This shim is deleted by PR5.archive once `session.ts` is no longer
+ * byte-identical and can import from `userEnv` directly.
  */
-function readPrimary(name: string, fallbackName: string): string {
-  const primary = process.env[name];
-  if (primary) return primary;
-  const fallback = process.env[fallbackName];
-  if (!fallback) throw new Error(`${name} is not set`);
-  return fallback;
-}
-
-export function getOwnerId(): string {
-  return readPrimary("OWNER_USER_ID", "TEST_OWNER_USER_ID");
-}
-
-export function getOwnerEmail(): string {
-  return readPrimary("OWNER_EMAIL", "TEST_OWNER_EMAIL");
-}
-
-export function getNeonAuthBaseUrl(): string {
-  const url = process.env.NEON_AUTH_BASE_URL;
-  if (!url) throw new Error("NEON_AUTH_BASE_URL is not set");
-  return url.replace(/\/+$/, "");
-}
+export { getNeonAuthBaseUrl } from "./userEnv";

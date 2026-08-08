@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { listMaterials } from "@/server/repositories/materials";
 import { listTemplates } from "@/server/repositories/templates";
 import { listQuotes } from "@/server/repositories/quotes";
@@ -26,11 +26,11 @@ function statusLabel(status: QuoteStatus): string {
 }
 
 export default async function Home() {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const [materials, templates, quotes] = await Promise.all([
-    listMaterials(owner.id),
-    listTemplates(owner.id),
-    listQuotes(owner.id),
+    listMaterials(user.id),
+    listTemplates(user.id),
+    listQuotes(user.id),
   ]);
 
   const totalsEmpty = materials.length === 0 && templates.length === 0 && quotes.length === 0;

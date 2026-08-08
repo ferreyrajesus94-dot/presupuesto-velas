@@ -14,7 +14,7 @@ function makeQuote(quoteOverrides: Partial<QuoteRecord["quote"]> = {}): QuoteRec
   return {
     quote: {
       id: "quote-1",
-      ownerId: "owner-1",
+      userId: "user-1",
       customerName: "Ana Pérez",
       expirationDate: "2026-12-31",
       status: "draft",

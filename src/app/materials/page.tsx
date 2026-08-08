@@ -1,4 +1,4 @@
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { countArchivedMaterials, listMaterials } from "@/server/repositories/materials";
 import type { MaterialInput } from "@/server/validation/materialSchema";
 import { MaterialsList, type MaterialListItem } from "./MaterialsList";
@@ -15,17 +15,17 @@ export default async function MaterialsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const { view: rawView } = await searchParams;
   const view = resolveMaterialView(rawView);
   const visibility = VIEW_VISIBILITY[view];
-  const materials = await listMaterials(owner.id, visibility);
+  const materials = await listMaterials(user.id, visibility);
 
   // R3-002: only fetch the archived count when the active list might be
   // empty — keeps the happy path to a single query and supports the
-  // view-aware empty state for archived-only owners.
+  // view-aware empty state for archived-only users.
   const archivedCount =
-    view === "active" && materials.length === 0 ? await countArchivedMaterials(owner.id) : 0;
+    view === "active" && materials.length === 0 ? await countArchivedMaterials(user.id) : 0;
 
   const items: MaterialListItem[] = materials.map((m) => ({
     id: m.id,

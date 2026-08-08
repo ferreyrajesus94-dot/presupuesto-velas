@@ -2,9 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Optimistic redirect only — no DB or upstream auth call.
- * `requireOwner()` (in `src/server/auth/requireOwner.ts`) is the secure check.
+ * `requireUser()` (in `src/server/auth/requireUser.ts`) is the secure check.
+ *
+ * SPEC §PUBLIC-PREFIXES: must include `/sign-up` so unsigned visitors reach
+ * the public sign-up page. Tests in `tests/integration/proxy-prefixes.test.ts`
+ * pin this contract as a strict superset of `['/sign-in', '/sign-up', '/403',
+ * '/api/auth', '/_next']`.
  */
-const PUBLIC_PREFIXES = ["/sign-in", "/403", "/api/auth", "/_next"];
+export const PUBLIC_PREFIXES = ["/sign-in", "/sign-up", "/403", "/api/auth", "/_next"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(

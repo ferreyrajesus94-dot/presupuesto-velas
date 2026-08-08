@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     QuoteRepositoryError,
-    requireOwner: vi.fn(),
+    requireUser: vi.fn(),
     createQuoteDraft: vi.fn(),
     appendQuoteVersion: vi.fn(),
     transitionQuoteStatus: vi.fn(),
@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
+vi.mock("../../src/server/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
 vi.mock("../../src/server/repositories/quotes", () => ({
   QuoteRepositoryError: mocks.QuoteRepositoryError,
   createQuoteDraft: mocks.createQuoteDraft,
@@ -44,7 +44,7 @@ import {
   transitionQuoteStatusAction,
 } from "../../src/server/actions/quotes";
 
-const OWNER = { id: "owner-1", email: "owner@example.com" };
+const OWNER = { id: "user-1", email: "user@example.com" };
 const RECIPE_ID = "11111111-2222-4333-8444-555555555555";
 const QUOTE_ID = "quote-uuid-1";
 const REPO_ERR = (code: string, msg: string) => new mocks.QuoteRepositoryError(code as never, msg);
@@ -72,7 +72,7 @@ const VALID_DRAFT: Draft = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue(OWNER);
+  mocks.requireUser.mockResolvedValue(OWNER);
   mocks.buildQuoteSnapshot.mockReturnValue(FAKE_SNAPSHOT);
 });
 
@@ -116,7 +116,7 @@ describe("createQuoteDraftAction", () => {
     ["non-owner", "__redirect:/403"],
   ])("preserves %s denial before validation or mutation", async (_label, redirect) => {
     const error = Object.assign(new Error(redirect), { __redirect: redirect.slice(11) });
-    mocks.requireOwner.mockRejectedValue(error);
+    mocks.requireUser.mockRejectedValue(error);
     await expect(createQuoteDraftAction(VALID_DRAFT)).rejects.toMatchObject({
       __redirect: error.__redirect,
     });
@@ -167,7 +167,7 @@ describe("appendQuoteVersionAction", () => {
     ["non-owner", "__redirect:/403"],
   ])("preserves %s denial before validation or mutation", async (_label, redirect) => {
     const error = Object.assign(new Error(redirect), { __redirect: redirect.slice(11) });
-    mocks.requireOwner.mockRejectedValue(error);
+    mocks.requireUser.mockRejectedValue(error);
     await expect(appendQuoteVersionAction(QUOTE_ID, VALID_DRAFT, 0)).rejects.toMatchObject({
       __redirect: error.__redirect,
     });
@@ -226,7 +226,7 @@ describe("transitionQuoteStatusAction", () => {
     ["non-owner", "__redirect:/403"],
   ])("preserves %s denial before validation or mutation", async (_label, redirect) => {
     const error = Object.assign(new Error(redirect), { __redirect: redirect.slice(11) });
-    mocks.requireOwner.mockRejectedValue(error);
+    mocks.requireUser.mockRejectedValue(error);
     await expect(transitionQuoteStatusAction(QUOTE_ID, "draft", "sent", 0)).rejects.toMatchObject({
       __redirect: error.__redirect,
     });

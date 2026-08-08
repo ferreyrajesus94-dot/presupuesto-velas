@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireOwner } from "../auth/requireOwner";
+import { requireUser } from "../auth/requireUser";
 import {
   archiveMaterial,
   createMaterial,
@@ -97,11 +97,11 @@ export async function createMaterialAction(
   _previous: MaterialActionState,
   formData: FormData,
 ): Promise<MaterialActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = parseMaterialForm(formData);
   if ("state" in parsed) return parsed.state;
   try {
-    const material = await createMaterial(owner.id, parsed.parsed);
+    const material = await createMaterial(user.id, parsed.parsed);
     return success(material.id);
   } catch (error) {
     return failure(error, "create");
@@ -112,13 +112,13 @@ export async function updateMaterialAction(
   _previous: MaterialActionState,
   formData: FormData,
 ): Promise<MaterialActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = parseMaterialForm(formData);
   if ("state" in parsed) return parsed.state;
   const id = readId(formData);
   if (typeof id !== "string") return id;
   try {
-    const material = await updateMaterial(owner.id, id, parsed.parsed);
+    const material = await updateMaterial(user.id, id, parsed.parsed);
     return success(material.id);
   } catch (error) {
     return failure(error, "update");
@@ -129,11 +129,11 @@ export async function archiveMaterialAction(
   _previous: MaterialActionState,
   formData: FormData,
 ): Promise<MaterialActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") return id;
   try {
-    const material = await archiveMaterial(owner.id, id);
+    const material = await archiveMaterial(user.id, id);
     return success(material.id);
   } catch (error) {
     return failure(error, "archive");
@@ -144,11 +144,11 @@ export async function unarchiveMaterialAction(
   _previous: MaterialActionState,
   formData: FormData,
 ): Promise<MaterialActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") return id;
   try {
-    const material = await unarchiveMaterial(owner.id, id);
+    const material = await unarchiveMaterial(user.id, id);
     return success(material.id);
   } catch (error) {
     return failure(error, "restore");

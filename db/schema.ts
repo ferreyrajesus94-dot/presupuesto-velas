@@ -29,34 +29,36 @@ const citext = customType<{ data: string }>({
 export const dimension = pgEnum("dimension", ["mass", "volume", "length", "count"]);
 export const quoteStatus = pgEnum("quote_status", ["draft", "sent", "accepted", "rejected"]);
 export const profitMethod = pgEnum("profit_method", ["percentage", "fixed"]);
+export const appRole = pgEnum("app_role", ["owner", "user"]);
 
-// Owner -----------------------------------------------------------------
-export const appOwner = pgTable(
-  "app_owner",
+// User ------------------------------------------------------------------
+// PR2.auth-core (Task 2.8) — `appUser` is the canonical schema for the
+// `app_user` table. The DB column is `user_id` (PR1.migration renamed
+// `owner_id` → `user_id`); the JS property is `userId` everywhere. The
+// legacy `appOwner`/`AppOwner` compat shim was deleted in PR2.2 once no
+// caller imported it (see Task 2.11).
+export const appUser = pgTable(
+  "app_user",
   {
     id: text("id").primaryKey(),
     email: citext("email").notNull(),
-    singleton: boolean("singleton").notNull().default(true),
+    role: appRole("role").notNull().default("user"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("app_owner_email_uidx").on(t.email),
-    // Table-wide singleton: at most one row with singleton = true.
-    uniqueIndex("app_owner_singleton_uidx")
-      .on(sql`(TRUE)`)
-      .where(sql`${t.singleton} = TRUE`),
-    check("app_owner_singleton_true", sql`${t.singleton} = true`),
-  ],
+  (t) => [uniqueIndex("app_user_email_uidx").on(t.email)],
 );
-export type AppOwner = typeof appOwner.$inferSelect;
+export type AppUser = typeof appUser.$inferSelect;
 
 // Materials -------------------------------------------------------------
 export const materials = pgTable(
   "materials",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     name: text("name").notNull(),
     dimension: dimension("dimension").notNull(),
     baseUnit: text("base_unit").notNull(),
@@ -74,8 +76,8 @@ export const materials = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("materials_owner_name_uidx").on(t.ownerId, t.name),
-    index("materials_owner_idx").on(t.ownerId),
+    uniqueIndex("materials_user_name_uidx").on(t.userId, t.name),
+    index("materials_user_idx").on(t.userId),
     check("materials_purchase_qty_pos", sql`${t.purchaseQuantity} > 0`),
     check("materials_purchase_price_pos", sql`${t.purchasePrice} > 0`),
     // Compatible base/purchase units: must share the same dimension.
@@ -104,9 +106,9 @@ export const templates = pgTable(
   "templates",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     name: text("name").notNull(),
     unitCost: numeric("unit_cost", { precision: 38, scale: 18 }).notNull(),
     time: numeric("time", { precision: 20, scale: 6 }).notNull().default("0"),
@@ -117,8 +119,8 @@ export const templates = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("templates_owner_name_uidx").on(t.ownerId, t.name),
-    index("templates_owner_idx").on(t.ownerId),
+    uniqueIndex("templates_user_name_uidx").on(t.userId, t.name),
+    index("templates_user_idx").on(t.userId),
   ],
 );
 
@@ -148,9 +150,9 @@ export const quotes = pgTable(
   "quotes",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     customerName: text("customer_name"),
     expirationDate: date("expiration_date").notNull(),
     status: quoteStatus("status").notNull().default("draft"),
@@ -162,11 +164,11 @@ export const quotes = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("quotes_owner_status_updated_idx").on(t.ownerId, t.status, t.updatedAt),
-    index("quotes_owner_expiration_open_idx")
-      .on(t.ownerId, t.expirationDate)
+    index("quotes_user_status_updated_idx").on(t.userId, t.status, t.updatedAt),
+    index("quotes_user_expiration_open_idx")
+      .on(t.userId, t.expirationDate)
       .where(sql`status NOT IN ('accepted', 'rejected')`),
-    index("quotes_owner_idx").on(t.ownerId),
+    index("quotes_user_idx").on(t.userId),
   ],
 );
 

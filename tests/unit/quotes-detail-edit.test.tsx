@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
-  requireOwner: vi.fn(),
+  requireUser: vi.fn(),
   getQuote: vi.fn(),
   deleteQuoteDraft: vi.fn(),
   appendQuoteVersionAction: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/server/actions/quotes", () => ({
   appendQuoteVersionAction: mocks.appendQuoteVersionAction,
 }));
-vi.mock("@/server/auth/requireOwner", () => ({ requireOwner: mocks.requireOwner }));
+vi.mock("@/server/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
 vi.mock("@/server/repositories/quotes", () => ({
   getQuote: mocks.getQuote,
   deleteQuoteDraft: mocks.deleteQuoteDraft,
@@ -47,7 +47,7 @@ import { deleteQuoteDraftAction } from "@/server/actions/quotes-delete";
 import type { QuoteRecord } from "@/server/repositories/quotes";
 import type { Template } from "@/server/repositories/templates";
 
-const OWNER = { id: "owner-1", email: "owner@example.com" };
+const OWNER = { id: "user-1", email: "user@example.com" };
 const QUOTE_ID = "quote-1";
 const RECIPE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -55,7 +55,7 @@ const NOW = new Date("2026-04-01T12:00:00.000Z");
 
 const VANILLA: Template = {
   id: RECIPE_ID,
-  ownerId: OWNER.id,
+  userId: OWNER.id,
   name: "Vanilla candle",
   unitCost: "100",
   archivedAt: null,
@@ -82,7 +82,7 @@ function buildQuoteRecord(
   return {
     quote: {
       id: QUOTE_ID,
-      ownerId: OWNER.id,
+      userId: OWNER.id,
       customerName,
       expirationDate,
       status,
@@ -144,12 +144,12 @@ function buildQuoteRecord(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue(OWNER);
+  mocks.requireUser.mockResolvedValue(OWNER);
   mocks.getQuote.mockResolvedValue(null);
   mocks.appendQuoteVersionAction.mockResolvedValue({
     ok: true,
     value: {
-      quote: { id: QUOTE_ID, ownerId: OWNER.id, status: "draft", lockVersion: 2 },
+      quote: { id: QUOTE_ID, userId: OWNER.id, status: "draft", lockVersion: 2 },
       version: { quoteId: QUOTE_ID, versionNo: 2 },
     },
   });
@@ -269,7 +269,7 @@ describe("/quotes/[id] page loader", () => {
     mocks.getQuote.mockResolvedValue(record);
     const element = await QuoteDetailPage({ params: Promise.resolve({ id: QUOTE_ID }) });
     render(element);
-    expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
+    expect(mocks.requireUser).toHaveBeenCalledTimes(1);
     expect(mocks.getQuote).toHaveBeenCalledWith(OWNER.id, QUOTE_ID);
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
   });
@@ -279,7 +279,7 @@ describe("/quotes/[id] page loader", () => {
     await expect(QuoteDetailPage({ params: Promise.resolve({ id: "missing" }) })).rejects.toThrow(
       "__notFound",
     );
-    expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
+    expect(mocks.requireUser).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -531,7 +531,7 @@ describe("deleteQuoteDraftAction", () => {
     mocks.deleteQuoteDraft.mockResolvedValue({ ok: true });
     const result = await deleteQuoteDraftAction(QUOTE_ID);
     expect(result).toEqual({ ok: true });
-    expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
+    expect(mocks.requireUser).toHaveBeenCalledTimes(1);
     expect(mocks.deleteQuoteDraft).toHaveBeenCalledWith(OWNER.id, QUOTE_ID);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/quotes");
   });

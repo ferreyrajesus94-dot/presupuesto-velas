@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { getQuote } from "@/server/repositories/quotes";
 import { QuoteDetailView } from "./QuoteDetailView";
 
 /**
- * PR4h — `/quotes/[id]` Server Component loader. `requireOwner()` +
- * `getQuote()` (which already scopes by owner + excludes terminal in
- * the active view). Any `null` from `getQuote` triggers Next's 404.
+ * PR2.auth-core (Task 2.8) — `/quotes/[id]` Server Component loader.
+ * `requireUser()` + `getQuote()` (which already scopes by user + excludes
+ * terminal in the active view). Any `null` from `getQuote` triggers
+ * Next's 404.
  */
 export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const { id } = await params;
-  const quote = await getQuote(owner.id, id);
+  const quote = await getQuote(user.id, id);
   if (!quote) notFound();
   return (
     // Root layout owns <main id="main">; this page must not nest another one.

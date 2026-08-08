@@ -2,14 +2,14 @@ import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireOwner: vi.fn(),
+  requireUser: vi.fn(),
   listTemplates: vi.fn(),
   countArchivedTemplates: vi.fn(),
   listMaterials: vi.fn(),
 }));
 
-vi.mock("../../src/server/auth/requireOwner", () => ({
-  requireOwner: mocks.requireOwner,
+vi.mock("../../src/server/auth/requireUser", () => ({
+  requireUser: mocks.requireUser,
 }));
 vi.mock("../../src/server/repositories/templates", () => ({
   listTemplates: mocks.listTemplates,
@@ -63,7 +63,7 @@ const ACTIVE_MATERIALS = [
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requireOwner.mockResolvedValue({ id: "owner-1", email: "owner@example.com" });
+  mocks.requireUser.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   // Mock the visibility-aware behavior of the server-side listTemplates():
   // respect the includeArchived flag so the page tests can verify the
   // server-side filter is actually applied.
@@ -89,15 +89,15 @@ describe("/templates page composition (Phase 4.7)", () => {
     expect(
       screen.getAllByRole("button", { name: /Nueva plantilla/i }).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(mocks.requireOwner).toHaveBeenCalledTimes(1);
-    expect(mocks.listMaterials).toHaveBeenCalledWith("owner-1", { includeArchived: false });
+    expect(mocks.requireUser).toHaveBeenCalledTimes(1);
+    expect(mocks.listMaterials).toHaveBeenCalledWith("user-1", { includeArchived: false });
   });
 
   it("defaults to active visibility and excludes archived templates", async () => {
     // The beforeEach visibility-aware mock returns ACTIVE_TEMPLATES when
     // includeArchived=false, simulating the SQL-level filter.
     render(await TemplatesPage(pageProps()));
-    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1", { includeArchived: false });
+    expect(mocks.listTemplates).toHaveBeenCalledWith("user-1", { includeArchived: false });
     const cards = screen.getAllByTestId("template-card");
     expect(cards).toHaveLength(1);
     expect(within(cards[0]).getByText("Vanilla candle")).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("/templates page composition (Phase 4.7)", () => {
 
   it("includes archived templates when the view is all", async () => {
     render(await TemplatesPage(pageProps("all")));
-    expect(mocks.listTemplates).toHaveBeenCalledWith("owner-1", { includeArchived: true });
+    expect(mocks.listTemplates).toHaveBeenCalledWith("user-1", { includeArchived: true });
     expect(screen.getAllByTestId("template-card")).toHaveLength(2);
   });
 
@@ -124,7 +124,7 @@ describe("/templates page composition (Phase 4.7)", () => {
     expect(screen.getByText(/2 plantillas están archivadas/)).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: "Mostrar archivadas" });
     expect(links.every((link) => link.getAttribute("href") === "/templates?view=all")).toBe(true);
-    expect(mocks.countArchivedTemplates).toHaveBeenCalledWith("owner-1");
+    expect(mocks.countArchivedTemplates).toHaveBeenCalledWith("user-1");
   });
 
   it("uses singular copy when only one archived template exists", async () => {

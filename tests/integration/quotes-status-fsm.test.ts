@@ -18,32 +18,46 @@ assertSafeNeonTestDatabase();
 
 const [
   { db },
-  { appOwner, quoteStatusEvents, quotes },
-  { getSingletonOwner },
+  { appUser, quoteStatusEvents, quotes },
   { createQuoteDraft, transitionQuoteStatus, QuoteRepositoryError },
 ] = await Promise.all([
   import("../../db/client"),
   import("../../db/schema"),
-  import("../../src/server/repositories/owner"),
   import("../../src/server/repositories/quotes"),
 ]);
 
+/**
+ * PR1.migration dropped the `app_owner.singleton` column. Replicate the
+ * singleton lookup against `app_user.role='owner'` so this test stays
+ * compatible with the post-PR1 schema. PR2 rewrites these fixtures under
+ * the new user repository (see `tasks.md` task 2.10).
+ */
+async function getOwnerSingleton(): Promise<{ id: string } | null> {
+  const rows = await db
+    .select({ id: appUser.id })
+    .from(appUser)
+    .where(eq(appUser.role, "owner"))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 describe("transitionQuoteStatus (integration vs dev branch)", () => {
-  let ownerId = "";
+  let userId = "";
   let createdOwner = false;
   const quoteIds = new Set<string>();
 
   beforeAll(async () => {
-    const owner = await getSingletonOwner();
-    if (owner) {
-      ownerId = owner.id;
+    const user = await getOwnerSingleton();
+    if (user) {
+      userId = user.id;
       return;
     }
-    ownerId = crypto.randomUUID();
-    await db.insert(appOwner).values({
-      id: ownerId,
-      email: `${ownerId}@calculadora-flor-test.invalid`,
-      singleton: true,
+    userId = crypto.randomUUID();
+    await db.insert(appUser).values({
+      id: userId,
+      email: `${userId}@calculadora-flor-test.invalid`,
+      role: "owner",
+      emailVerified: true,
     });
     createdOwner = true;
   });
@@ -64,11 +78,11 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
 
   afterAll(async () => {
     await sweep();
-    if (createdOwner) await db.delete(appOwner).where(eq(appOwner.id, ownerId));
+    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, userId));
   });
 
   async function createDraft(expirationDate: string): Promise<string> {
-    const { quote } = await createQuoteDraft(ownerId, { expirationDate });
+    const { quote } = await createQuoteDraft(userId, { expirationDate });
     quoteIds.add(quote.id);
     return quote.id;
   }
@@ -85,7 +99,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     await db
       .update(quotes)
       .set({ status })
-      .where(and(eq(quotes.id, id), eq(quotes.ownerId, ownerId)));
+      .where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
   }
 
   // 1. draft → sent --------------------------------------------------------
@@ -95,7 +109,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     expect(before.status).toBe("draft");
     expect(before.lockVersion).toBe(0);
 
-    const r = await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
+    const r = await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
 
     expect(r.quote.id).toBe(quoteId);
     expect(r.quote.status).toBe("sent");
@@ -121,8 +135,8 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
   // 2. sent → accepted (not expired) --------------------------------------
   it("sent → accepted succeeds when the quote is not expired", async () => {
     const quoteId = await createDraft("2099-12-31");
-    await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
-    const r = await transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", 1);
+    await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
+    const r = await transitionQuoteStatus(userId, quoteId, "sent", "accepted", 1);
     expect(r.quote.status).toBe("accepted");
     expect(r.quote.lockVersion).toBe(2);
     expect(r.event.fromStatus).toBe("sent");
@@ -132,8 +146,8 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
   // 3. sent → rejected -----------------------------------------------------
   it("sent → rejected succeeds: status flips, lockVersion bumps, one event row inserted", async () => {
     const quoteId = await createDraft("2099-12-31");
-    await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
-    const r = await transitionQuoteStatus(ownerId, quoteId, "sent", "rejected", 1);
+    await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
+    const r = await transitionQuoteStatus(userId, quoteId, "sent", "rejected", 1);
     expect(r.quote.status).toBe("rejected");
     expect(r.quote.lockVersion).toBe(2);
     expect(r.event.fromStatus).toBe("sent");
@@ -150,10 +164,10 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     expect(before.status).toBe("sent");
 
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", before.lockVersion),
+      transitionQuoteStatus(userId, quoteId, "sent", "accepted", before.lockVersion),
     ).rejects.toBeInstanceOf(QuoteRepositoryError);
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", before.lockVersion),
+      transitionQuoteStatus(userId, quoteId, "sent", "accepted", before.lockVersion),
     ).rejects.toMatchObject({ code: "EXPIRED_SENT_CANNOT_ACCEPT" });
 
     // Atomic rollback: status stays "sent", lockVersion unchanged, no event row.
@@ -171,7 +185,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
   it("draft → accepted rejects INVALID_STATUS (FSM allowlist)", async () => {
     const quoteId = await createDraft("2099-12-31");
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "draft", "accepted", 0),
+      transitionQuoteStatus(userId, quoteId, "draft", "accepted", 0),
     ).rejects.toMatchObject({ code: "INVALID_STATUS" });
     const events = await db
       .select()
@@ -186,10 +200,10 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     await forceStatus(quoteId, "accepted");
     const before = await readQuote(quoteId);
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "accepted", "rejected", before.lockVersion),
+      transitionQuoteStatus(userId, quoteId, "accepted", "rejected", before.lockVersion),
     ).rejects.toBeInstanceOf(QuoteRepositoryError);
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "accepted", "rejected", before.lockVersion),
+      transitionQuoteStatus(userId, quoteId, "accepted", "rejected", before.lockVersion),
     ).rejects.toMatchObject({ code: "TERMINAL_STATUS" });
   });
 
@@ -198,17 +212,17 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     const quoteId = await createDraft("2099-12-31");
     const before = await readQuote(quoteId);
     expect(before.lockVersion).toBe(0);
-    await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
+    await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
     const after1 = await readQuote(quoteId);
     expect(after1.lockVersion).toBe(1);
 
     // Stale expectedLockVersion=0; current=1 → LOCK_VERSION_MISMATCH fires
     // before the status-match / FSM checks.
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", 0),
+      transitionQuoteStatus(userId, quoteId, "sent", "accepted", 0),
     ).rejects.toBeInstanceOf(QuoteRepositoryError);
     await expect(
-      transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", 0),
+      transitionQuoteStatus(userId, quoteId, "sent", "accepted", 0),
     ).rejects.toMatchObject({ code: "LOCK_VERSION_MISMATCH" });
   });
 
@@ -216,7 +230,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
   it("rejects INVALID_STATUS when current.status does not match fromStatus", async () => {
     const quoteId = await createDraft("2099-12-31");
     // Move to "sent" so current.status="sent", lockVersion=1.
-    await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
+    await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
     const after1 = await readQuote(quoteId);
     expect(after1.lockVersion).toBe(1);
     expect(after1.status).toBe("sent");
@@ -224,21 +238,21 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
     // Caller claims fromStatus="draft" but the row is "sent". lockVersion
     // matches, status is non-terminal → status-mismatch check fires before
     // the FSM allowlist → INVALID_STATUS.
-    await expect(transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 1)).rejects.toMatchObject(
-      { code: "INVALID_STATUS" },
-    );
+    await expect(transitionQuoteStatus(userId, quoteId, "draft", "sent", 1)).rejects.toMatchObject({
+      code: "INVALID_STATUS",
+    });
   });
 
   // 9. NOT_FOUND: missing id ----------------------------------------------
   it("rejects NOT_FOUND for a missing quote id", async () => {
     const missingId = crypto.randomUUID();
     await expect(
-      transitionQuoteStatus(ownerId, missingId, "draft", "sent", 0),
+      transitionQuoteStatus(userId, missingId, "draft", "sent", 0),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   // 10. NOT_FOUND: cross-owner query ---------------------------------------
-  it("rejects NOT_FOUND for a cross-owner query (the WHERE filters by ownerId)", async () => {
+  it("rejects NOT_FOUND for a cross-owner query (the WHERE filters by userId)", async () => {
     const quoteId = await createDraft("2099-12-31");
     const otherOwnerId = crypto.randomUUID();
     await expect(
@@ -249,7 +263,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
   // 11. Concurrent accept/reject (Promise.all — one wins, one typed conflict)
   it("concurrent accept/reject: one wins, the other throws LOCK_VERSION_MISMATCH (only the winner inserts an event)", async () => {
     const quoteId = await createDraft("2099-12-31");
-    await transitionQuoteStatus(ownerId, quoteId, "draft", "sent", 0);
+    await transitionQuoteStatus(userId, quoteId, "draft", "sent", 0);
     const before = await readQuote(quoteId);
     expect(before.status).toBe("sent");
     expect(before.lockVersion).toBe(1);
@@ -263,7 +277,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
       result?: Awaited<ReturnType<typeof transitionQuoteStatus>>;
       error?: unknown;
     }[] = [{}, {}];
-    const p1 = transitionQuoteStatus(ownerId, quoteId, "sent", "accepted", 1).then(
+    const p1 = transitionQuoteStatus(userId, quoteId, "sent", "accepted", 1).then(
       (r) => {
         captures[0]!.result = r;
       },
@@ -271,7 +285,7 @@ describe("transitionQuoteStatus (integration vs dev branch)", () => {
         captures[0]!.error = e;
       },
     );
-    const p2 = transitionQuoteStatus(ownerId, quoteId, "sent", "rejected", 1).then(
+    const p2 = transitionQuoteStatus(userId, quoteId, "sent", "rejected", 1).then(
       (r) => {
         captures[1]!.result = r;
       },

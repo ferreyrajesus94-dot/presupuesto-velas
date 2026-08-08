@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import type { QuoteSnapshot } from "@/domain/quote";
 import { projectQuote } from "@/domain/projection";
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { getQuote, listQuotes, type QuoteRecord } from "@/server/repositories/quotes";
 import { QuotesList, type QuoteListItem, type QuoteView } from "./QuotesList";
 import { QuoteViewFilter } from "./QuoteViewFilter";
@@ -56,15 +56,15 @@ export default async function QuotesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const view = resolveView((await searchParams).view);
-  const records = await listQuotes(owner.id, { includeArchived: view === "archived" });
+  const records = await listQuotes(user.id, { includeArchived: view === "archived" });
   const visible =
     view === "archived"
       ? records.filter(({ quote }) => quote.status === "accepted" || quote.status === "rejected")
       : records;
   const details = await Promise.all(
-    visible.map(({ quote }) => getQuote(owner.id, quote.id, { includeArchived: true })),
+    visible.map(({ quote }) => getQuote(user.id, quote.id, { includeArchived: true })),
   );
   const quotes = details
     .filter((record): record is QuoteRecord => record !== null)

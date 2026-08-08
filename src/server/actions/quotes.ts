@@ -1,19 +1,20 @@
 "use server";
 
 /**
- * PR4e — Server Actions for quotes. `requireOwner()` (single-user allowlist)
- * + Zod validation (before DB) + repository transactions + cache
- * revalidation (on success only). Each action returns a discriminated-union
- * `ActionResult<T>` — repository errors map 1:1 to the `QuoteRepositoryError`
- * codes (NOT_FOUND, INVALID_INPUT, LOCK_VERSION_MISMATCH, TERMINAL_STATUS,
- * INVALID_STATUS, EXPIRED_SENT_CANNOT_ACCEPT).
+ * PR2.auth-core (Task 2.8) — Server Actions for quotes. `requireUser()`
+ * (multi-user) + Zod validation (before DB) + repository transactions +
+ * cache revalidation (on success only). Each action returns a
+ * discriminated-union `ActionResult<T>` — repository errors map 1:1 to
+ * the `QuoteRepositoryError` codes (NOT_FOUND, INVALID_INPUT,
+ * LOCK_VERSION_MISMATCH, TERMINAL_STATUS, INVALID_STATUS,
+ * EXPIRED_SENT_CANNOT_ACCEPT).
  */
 
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { type z } from "zod";
 
-import { requireOwner } from "../auth/requireOwner";
+import { requireUser } from "../auth/requireUser";
 import {
   appendQuoteVersion,
   createQuoteDraft,
@@ -72,7 +73,7 @@ function mapRepositoryError(error: unknown): ActionResult<never> {
 export async function createQuoteDraftAction(
   input: QuoteDraftInput,
 ): Promise<ActionResult<QuoteRecord>> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   let parsed: QuoteDraftInput;
   try {
     parsed = parseQuoteDraftInput(input);
@@ -80,7 +81,7 @@ export async function createQuoteDraftAction(
     return failure("INVALID_INPUT", error instanceof Error ? error.message : "Invalid input");
   }
   try {
-    const record = await createQuoteDraft(owner.id, {
+    const record = await createQuoteDraft(user.id, {
       expirationDate: parsed.expirationDate,
       // Pulled from raw `input` because the PR4d Zod schema doesn't declare
       // `customerName` and would strip it during parsing.
@@ -106,12 +107,12 @@ export async function appendQuoteVersionAction(
   snapshotInput: QuoteDraftInput,
   expectedLockVersion: number,
 ): Promise<ActionResult<{ quote: Quote; version: QuoteVersion }>> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = quoteVersionInputSchema.safeParse({ ...snapshotInput, expectedLockVersion });
   if (!parsed.success) return failure("INVALID_INPUT", parsed.error.message);
   const snapshot = buildQuoteSnapshot(snapshotInput as unknown as BuildQuoteSnapshotInput);
   try {
-    const result = await appendQuoteVersion(owner.id, quoteId, snapshot, expectedLockVersion);
+    const result = await appendQuoteVersion(user.id, quoteId, snapshot, expectedLockVersion);
     revalidatePath("/quotes");
     revalidatePath(`/quotes/${quoteId}`);
     return { ok: true, value: result };
@@ -132,7 +133,7 @@ export async function transitionQuoteStatusAction(
   toStatus: QuoteStatus,
   expectedLockVersion: number,
 ): Promise<ActionResult<{ quote: Quote; event: QuoteStatusEvent }>> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = quoteStatusTransitionSchema.safeParse({
     fromStatus,
     toStatus,
@@ -150,7 +151,7 @@ export async function transitionQuoteStatusAction(
   }
   try {
     const result = await transitionQuoteStatus(
-      owner.id,
+      user.id,
       quoteId,
       parsed.data.fromStatus,
       parsed.data.toStatus,

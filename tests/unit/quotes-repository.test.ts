@@ -64,12 +64,12 @@ import {
   QuoteRepositoryError,
 } from "../../src/server/repositories/quotes";
 
-const OWNER = "owner-1";
+const USER = "user-1";
 
 function existingQuote(overrides: Record<string, unknown> = {}) {
   return {
     id: "q-1",
-    ownerId: OWNER,
+    userId: USER,
     customerName: null,
     expirationDate: "2026-12-31",
     status: "draft",
@@ -93,7 +93,7 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
   describe("createQuoteDraft", () => {
     it("creates a draft with status='draft', currentVersion=0, lockVersion=0", async () => {
       txRef.current!.rowsQueue = [[existingQuote({ id: "new-q" })]];
-      const result = await createQuoteDraft(OWNER, { expirationDate: "2026-12-31" });
+      const result = await createQuoteDraft(USER, { expirationDate: "2026-12-31" });
       expect(result.quote).toMatchObject({
         status: "draft",
         currentVersion: 0,
@@ -101,7 +101,7 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
       });
       expect(txRef.current!.values).toHaveBeenCalledWith(
         expect.objectContaining({
-          ownerId: OWNER,
+          userId: USER,
           status: "draft",
           currentVersion: 0,
           lockVersion: 0,
@@ -110,13 +110,13 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
     });
 
     it("rejects invalid expirationDate format with INVALID_INPUT", async () => {
-      await expect(createQuoteDraft(OWNER, { expirationDate: "2026/12/31" })).rejects.toMatchObject(
-        { code: "INVALID_INPUT" },
-      );
+      await expect(createQuoteDraft(USER, { expirationDate: "2026/12/31" })).rejects.toMatchObject({
+        code: "INVALID_INPUT",
+      });
       expect(dbMock.transaction).not.toHaveBeenCalled();
     });
 
-    it("rejects missing ownerId with INVALID_INPUT", async () => {
+    it("rejects missing userId with INVALID_INPUT", async () => {
       await expect(createQuoteDraft("", { expirationDate: "2026-12-31" })).rejects.toMatchObject({
         code: "INVALID_INPUT",
       });
@@ -127,7 +127,7 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
   describe("listQuotes visibility", () => {
     it("excludes terminal quotes by default (active view: draft|sent)", async () => {
       txRef.current!.rowsQueue = [[{ id: "q-draft", status: "draft" }]];
-      await listQuotes(OWNER);
+      await listQuotes(USER);
       const whereCalls = (txRef.current!.where as ReturnType<typeof vi.fn>).mock.calls;
       expect(whereCalls.flat().some((arg) => whereHasFilter(arg, "status", "draft", "sent"))).toBe(
         true,
@@ -136,7 +136,7 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
 
     it("includes terminal quotes when includeTerminal: true (no status filter)", async () => {
       txRef.current!.rowsQueue = [[{ id: "q-accepted" }]];
-      await listQuotes(OWNER, { includeTerminal: true });
+      await listQuotes(USER, { includeTerminal: true });
       const whereCalls = (txRef.current!.where as ReturnType<typeof vi.fn>).mock.calls;
       expect(whereCalls).toHaveLength(1);
       expect(whereHasFilter(whereCalls[0][0], "status")).toBe(false);
@@ -145,7 +145,7 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
 
   describe("getQuote", () => {
     it.each([
-      ["missing id", OWNER, "missing-id"],
+      ["missing id", USER, "missing-id"],
       ["cross-owner query", "other-owner", "q-1"],
     ])("returns null for %s", async (_label, owner, id) => {
       txRef.current!.rowsQueue = [[]];
@@ -157,12 +157,12 @@ describe("quotes repository — CRUD (PR4b scope)", () => {
     txRef.current!.rowsQueue = [
       [{ id: "q-1" }, { id: "q-2" }], // countArchivedQuotes result
     ];
-    expect(await countArchivedQuotes(OWNER)).toBe(2);
+    expect(await countArchivedQuotes(USER)).toBe(2);
   });
 
   it("countArchivedQuotes returns 0 when no terminal quotes match", async () => {
     txRef.current!.rowsQueue = [[]];
-    expect(await countArchivedQuotes(OWNER)).toBe(0);
+    expect(await countArchivedQuotes(USER)).toBe(0);
   });
 });
 

@@ -18,10 +18,24 @@ export type QuoteVersionMaterial = typeof quoteVersionMaterials.$inferSelect;
 export type QuoteVersionIndirectCost = typeof quoteVersionIndirectCosts.$inferSelect;
 
 /**
- * Owner-scoped quote record returned by `listQuotes` / `getQuote`. Children
- * are loaded eagerly by `getQuote` and returned empty by `listQuotes` — PR4b
- * keeps the list read lightweight. PR4f (list UI) will add child data
- * loading for the list path as needed.
+ * PR2.auth-core (Task 2.8) — User-scoped quote record returned by
+ * `listQuotes` / `getQuote`. Children are loaded eagerly by `getQuote`
+ * and returned empty by `listQuotes` — PR4b keeps the list read
+ * lightweight. PR4f (list UI) will add child data loading for the list
+ * path as needed.
+ *
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` (handled by the page-level
+ * `notFound()`), and every cross-user write — `deleteQuoteDraft`,
+ * `appendQuoteVersion`, `transitionQuoteStatus` — throws
+ * `QuoteRepositoryError("NOT_FOUND")`. The action layer maps the
+ * discriminated result of `deleteQuoteDraft` 1:1 so callers can
+ * distinguish success from typed failure without leaking whether the id
+ * exists for another user. Contract proof:
+ * `tests/integration/data-isolation.test.ts`.
+ *
+ * Caller invariant: every read/write in this file is scoped by `userId`,
+ * which is sourced from `requireUser()` only.
  */
 export interface QuoteRecord {
   quote: Quote;
@@ -136,31 +150,31 @@ function whereOf(conditions: Array<SQL | undefined>) {
 // Reads ------------------------------------------------------------------
 
 /**
- * Count of owner-scoped terminal quotes. Mirrors `countArchivedRecipes`
+ * Count of user-scoped terminal quotes. Mirrors `countArchivedRecipes`
  * (same intent: "is the active list empty, or are there closed records
  * hiding?"). Terminal status maps to the templates `archivedAt != null`.
  */
-export async function countArchivedQuotes(ownerId: string): Promise<number> {
+export async function countArchivedQuotes(userId: string): Promise<number> {
   const rows = await db
     .select({ id: quotes.id })
     .from(quotes)
-    .where(and(eq(quotes.ownerId, ownerId), inArray(quotes.status, ["accepted", "rejected"])));
+    .where(and(eq(quotes.userId, userId), inArray(quotes.status, ["accepted", "rejected"])));
   return rows.length;
 }
 
 /**
- * Owner-scoped list. Default view excludes terminal quotes (the "active"
+ * User-scoped list. Default view excludes terminal quotes (the "active"
  * catalog: `draft` | `sent`). Children are returned empty; PR4f (list UI)
  * will add per-record child data loading.
  */
 export async function listQuotes(
-  ownerId: string,
+  userId: string,
   visibility: QuoteVisibility = {},
 ): Promise<QuoteRecord[]> {
   const rows = await db
     .select()
     .from(quotes)
-    .where(whereOf([eq(quotes.ownerId, ownerId), activeViewFilter(visibility)]))
+    .where(whereOf([eq(quotes.userId, userId), activeViewFilter(visibility)]))
     .orderBy(asc(quotes.updatedAt), asc(quotes.id));
   return rows.map((quote) => ({
     quote,
@@ -172,19 +186,19 @@ export async function listQuotes(
 }
 
 /**
- * Single owner-scoped quote with all child rows loaded. Returns `null` for
- * missing id, cross-owner queries, and terminal quotes under the default
+ * Single user-scoped quote with all child rows loaded. Returns `null` for
+ * missing id, cross-user queries, and terminal quotes under the default
  * (active) view. Children load in parallel.
  */
 export async function getQuote(
-  ownerId: string,
+  userId: string,
   id: string,
   visibility: QuoteVisibility = {},
 ): Promise<QuoteRecord | null> {
   const rows = await db
     .select()
     .from(quotes)
-    .where(whereOf([eq(quotes.ownerId, ownerId), eq(quotes.id, id), activeViewFilter(visibility)]))
+    .where(whereOf([eq(quotes.userId, userId), eq(quotes.id, id), activeViewFilter(visibility)]))
     .limit(1);
   const quote = rows[0];
   if (!quote) return null;
@@ -220,11 +234,11 @@ export interface QuoteDraftInput {
  * (Drizzle `numeric` type) — no JS arithmetic on money.
  */
 export async function createQuoteDraft(
-  ownerId: string,
+  userId: string,
   input: QuoteDraftInput,
 ): Promise<QuoteRecord> {
-  if (typeof ownerId !== "string" || ownerId.length === 0) {
-    throw invalidInput("ownerId must be a non-empty string");
+  if (typeof userId !== "string" || userId.length === 0) {
+    throw invalidInput("userId must be a non-empty string");
   }
   validateExpirationDate(input.expirationDate);
   const id = crypto.randomUUID();
@@ -233,7 +247,7 @@ export async function createQuoteDraft(
       .insert(quotes)
       .values({
         id,
-        ownerId,
+        userId,
         customerName: input.customerName ?? null,
         expirationDate: input.expirationDate,
         status: "draft",
@@ -263,20 +277,20 @@ export type DeleteQuoteDraftResult =
     };
 
 /**
- * Delete a draft quote and all of its child rows. Owner-scoped + status-checked
+ * Delete a draft quote and all of its child rows. User-scoped + status-checked
  * (only `draft` quotes can be deleted; `sent`, `accepted`, `rejected` must
  * either transition or be archived). CASCADE FKs on `quote_versions`,
  * `quote_version_models`, `quote_version_materials`, `quote_version_indirect_costs`,
  * and `quote_status_events` clean up children in the same transaction.
  */
 export async function deleteQuoteDraft(
-  ownerId: string,
+  userId: string,
   id: string,
 ): Promise<DeleteQuoteDraftResult> {
-  if (typeof ownerId !== "string" || ownerId.length === 0) {
+  if (typeof userId !== "string" || userId.length === 0) {
     return {
       ok: false,
-      error: { code: "INVALID_INPUT", message: "ownerId must be a non-empty string" },
+      error: { code: "INVALID_INPUT", message: "userId must be a non-empty string" },
     };
   }
   if (typeof id !== "string" || id.length === 0) {
@@ -289,7 +303,7 @@ export async function deleteQuoteDraft(
     const [quote] = await tx
       .select()
       .from(quotes)
-      .where(and(eq(quotes.ownerId, ownerId), eq(quotes.id, id)))
+      .where(and(eq(quotes.userId, userId), eq(quotes.id, id)))
       .for("update");
     if (!quote) {
       return { ok: false, error: { code: "NOT_FOUND", message: `Quote "${id}" was not found` } };

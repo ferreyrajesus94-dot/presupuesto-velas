@@ -43,13 +43,13 @@ vi.mock("../../src/domain/quoteExpired", async () => {
 
 import { transitionQuoteStatus } from "../../src/server/repositories/quotes.status";
 
-const OWNER = "owner-1";
+const USER = "user-1";
 const QUOTE_ID = "q-1";
 
 function makeQuote(overrides: Record<string, unknown> = {}) {
   return {
     id: QUOTE_ID,
-    ownerId: OWNER,
+    userId: USER,
     customerName: null,
     expirationDate: "2099-12-31",
     status: "draft",
@@ -80,7 +80,7 @@ describe("transitionQuoteStatus — success path", () => {
     const current = makeQuote({ status: "draft", lockVersion: 5 });
     const updated = makeQuote({ status: "sent", lockVersion: 6 });
     txRef.current!.rowsQueue = threeRows(current, updated);
-    const r = await transitionQuoteStatus(OWNER, QUOTE_ID, "draft", "sent", 5);
+    const r = await transitionQuoteStatus(USER, QUOTE_ID, "draft", "sent", 5);
     expect(r.quote.status).toBe("sent");
     expect(r.quote.lockVersion).toBe(6);
     expect(r.event.quoteId).toBe(QUOTE_ID);
@@ -93,7 +93,7 @@ describe("transitionQuoteStatus — success path", () => {
     const current = makeQuote({ status: "sent", lockVersion: 1 });
     const updated = makeQuote({ status: "accepted", lockVersion: 2 });
     txRef.current!.rowsQueue = threeRows(current, updated);
-    const r = await transitionQuoteStatus(OWNER, QUOTE_ID, "sent", "accepted", 1);
+    const r = await transitionQuoteStatus(USER, QUOTE_ID, "sent", "accepted", 1);
     expect(r.quote.status).toBe("accepted");
     expect(r.quote.lockVersion).toBe(2);
     expect(isExpiredSentMock).toHaveBeenCalledTimes(1);
@@ -103,7 +103,7 @@ describe("transitionQuoteStatus — success path", () => {
     const current = makeQuote({ status: "sent", lockVersion: 2 });
     const updated = makeQuote({ status: "rejected", lockVersion: 3 });
     txRef.current!.rowsQueue = threeRows(current, updated);
-    const r = await transitionQuoteStatus(OWNER, QUOTE_ID, "sent", "rejected", 2);
+    const r = await transitionQuoteStatus(USER, QUOTE_ID, "sent", "rejected", 2);
     expect(r.quote.status).toBe("rejected");
     expect(r.quote.lockVersion).toBe(3);
   });
@@ -113,7 +113,7 @@ describe("transitionQuoteStatus — success path", () => {
       makeQuote({ status: "draft", lockVersion: 0 }),
       makeQuote({ status: "sent", lockVersion: 1 }),
     );
-    await transitionQuoteStatus(OWNER, QUOTE_ID, "draft", "sent", 0);
+    await transitionQuoteStatus(USER, QUOTE_ID, "draft", "sent", 0);
     // Drizzle's `insert(table).values({...})` is two chained calls;
     // values live on `.values.mock.calls`, not `.insert.mock.calls`.
     const inserts = (txRef.current!.insert as ReturnType<typeof vi.fn>).mock.calls;
@@ -134,7 +134,7 @@ describe("transitionQuoteStatus — expired-sent guard", () => {
     isExpiredSentMock.mockReturnValue(true);
     txRef.current!.rowsQueue = [[makeQuote({ status: "sent", lockVersion: 1 })]];
     await expect(
-      transitionQuoteStatus(OWNER, QUOTE_ID, "sent", "accepted", 1),
+      transitionQuoteStatus(USER, QUOTE_ID, "sent", "accepted", 1),
     ).rejects.toMatchObject({ code: "EXPIRED_SENT_CANNOT_ACCEPT" });
     expect(isExpiredSentMock).toHaveBeenCalledTimes(1);
     expect((txRef.current!.update as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
@@ -146,7 +146,7 @@ describe("transitionQuoteStatus — expired-sent guard", () => {
       makeQuote({ status: "sent", lockVersion: 4 }),
       makeQuote({ status: "rejected", lockVersion: 5 }),
     );
-    const r = await transitionQuoteStatus(OWNER, QUOTE_ID, "sent", "rejected", 4);
+    const r = await transitionQuoteStatus(USER, QUOTE_ID, "sent", "rejected", 4);
     expect(r.quote.status).toBe("rejected");
     // Only the accept path consults isExpiredSent.
     expect(isExpiredSentMock).not.toHaveBeenCalled();
@@ -159,7 +159,7 @@ describe("transitionQuoteStatus — FSM allowlist", () => {
     ["draft", "rejected"],
   ] as const)("%s → %s rejected (INVALID_STATUS)", async (from, to) => {
     txRef.current!.rowsQueue = [[makeQuote({ status: "draft", lockVersion: 0 })]];
-    await expect(transitionQuoteStatus(OWNER, QUOTE_ID, from, to, 0)).rejects.toMatchObject({
+    await expect(transitionQuoteStatus(USER, QUOTE_ID, from, to, 0)).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
   });
@@ -171,7 +171,7 @@ describe("transitionQuoteStatus — terminal-current guard", () => {
     ["rejected", "draft"],
   ] as const)("%s → %s rejected (TERMINAL_STATUS)", async (from, to) => {
     txRef.current!.rowsQueue = [[makeQuote({ status: from, lockVersion: 0 })]];
-    await expect(transitionQuoteStatus(OWNER, QUOTE_ID, from, to, 0)).rejects.toMatchObject({
+    await expect(transitionQuoteStatus(USER, QUOTE_ID, from, to, 0)).rejects.toMatchObject({
       code: "TERMINAL_STATUS",
     });
   });
@@ -181,7 +181,7 @@ describe("transitionQuoteStatus — current-status mismatch", () => {
   it("INVALID_STATUS when current.status does not match fromStatus", async () => {
     // Row says `sent`, caller claims `fromStatus: "draft"`.
     txRef.current!.rowsQueue = [[makeQuote({ status: "sent", lockVersion: 0 })]];
-    await expect(transitionQuoteStatus(OWNER, QUOTE_ID, "draft", "sent", 0)).rejects.toMatchObject({
+    await expect(transitionQuoteStatus(USER, QUOTE_ID, "draft", "sent", 0)).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
   });
@@ -190,7 +190,7 @@ describe("transitionQuoteStatus — current-status mismatch", () => {
 describe("transitionQuoteStatus — lockVersion mismatch", () => {
   it("LOCK_VERSION_MISMATCH on a stale expectedLockVersion", async () => {
     txRef.current!.rowsQueue = [[makeQuote({ status: "draft", lockVersion: 5 })]];
-    await expect(transitionQuoteStatus(OWNER, QUOTE_ID, "draft", "sent", 3)).rejects.toMatchObject({
+    await expect(transitionQuoteStatus(USER, QUOTE_ID, "draft", "sent", 3)).rejects.toMatchObject({
       code: "LOCK_VERSION_MISMATCH",
     });
   });
@@ -198,7 +198,7 @@ describe("transitionQuoteStatus — lockVersion mismatch", () => {
 
 describe("transitionQuoteStatus — NOT_FOUND", () => {
   it.each([
-    ["missing id", OWNER, "missing-id"],
+    ["missing id", USER, "missing-id"],
     ["cross-owner query", "other-owner", QUOTE_ID],
   ] as const)("throws NOT_FOUND for %s", async (_label, owner, id) => {
     txRef.current!.rowsQueue = [[]];

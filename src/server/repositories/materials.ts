@@ -8,6 +8,25 @@ import {
   type ParsedMaterialInput,
 } from "../validation/materialSchema";
 
+/**
+ * PR2.auth-core (Task 2.8) — Materials repository rewritten for the user
+ * era. Every public function takes a `userId: string` parameter and
+ * scopes every read/write by it. The DB column is `user_id` (renamed in
+ * PR1.migration); the JS-side `ownerId` compat shim is gone.
+ *
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` and every cross-user write throws
+ * `MaterialRepositoryError("NOT_FOUND")`. The action layer maps both
+ * surfaces to a generic "Material could not be found" message so an
+ * attacker cannot distinguish "id does not exist" from "id belongs to
+ * another user" — see `tests/integration/data-isolation.test.ts` for
+ * the contract proof.
+ *
+ * Caller invariant: `userId` is sourced from `requireUser()` only. No
+ * caller may supply a different id; cross-user attempts surface as
+ * `NOT_FOUND`.
+ */
+
 export type Material = typeof materials.$inferSelect;
 
 export class MaterialRepositoryError extends Error {
@@ -57,8 +76,8 @@ function isUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-async function hasNameConflict(ownerId: string, name: string): Promise<boolean> {
-  const conditions = [eq(materials.ownerId, ownerId), eq(materials.name, name)];
+async function hasNameConflict(userId: string, name: string): Promise<boolean> {
+  const conditions = [eq(materials.userId, userId), eq(materials.name, name)];
   return (
     (
       await db
@@ -75,10 +94,10 @@ function parseInput(input: MaterialInput): ParsedMaterialInput {
 }
 
 export async function listMaterials(
-  ownerId: string,
+  userId: string,
   visibility: MaterialVisibility = {},
 ): Promise<Material[]> {
-  const conditions = [eq(materials.ownerId, ownerId)];
+  const conditions = [eq(materials.userId, userId)];
   if (!visibility.includeArchived) conditions.push(isNull(materials.archivedAt));
   return db
     .select()
@@ -88,11 +107,11 @@ export async function listMaterials(
 }
 
 export async function getMaterial(
-  ownerId: string,
+  userId: string,
   id: string,
   visibility: MaterialVisibility = {},
 ): Promise<Material | null> {
-  const conditions = [eq(materials.ownerId, ownerId), eq(materials.id, id)];
+  const conditions = [eq(materials.userId, userId), eq(materials.id, id)];
   if (!visibility.includeArchived) conditions.push(isNull(materials.archivedAt));
   const rows = await db
     .select()
@@ -105,21 +124,21 @@ export async function getMaterial(
 // R3-002: lets the page decide between the truly-empty empty state and the
 // "no active materials, archived exist" empty state without a second full
 // material fetch.
-export async function countArchivedMaterials(ownerId: string): Promise<number> {
+export async function countArchivedMaterials(userId: string): Promise<number> {
   const rows = await db
     .select({ id: materials.id })
     .from(materials)
-    .where(and(eq(materials.ownerId, ownerId), isNotNull(materials.archivedAt)));
+    .where(and(eq(materials.userId, userId), isNotNull(materials.archivedAt)));
   return rows.length;
 }
 
-export async function createMaterial(ownerId: string, input: MaterialInput): Promise<Material> {
+export async function createMaterial(userId: string, input: MaterialInput): Promise<Material> {
   const parsed = parseInput(input);
-  if (await hasNameConflict(ownerId, parsed.name)) throw duplicateName(parsed.name);
+  if (await hasNameConflict(userId, parsed.name)) throw duplicateName(parsed.name);
   try {
     const [material] = await db
       .insert(materials)
-      .values({ id: crypto.randomUUID(), ownerId, ...parsed })
+      .values({ id: crypto.randomUUID(), userId, ...parsed })
       .returning();
     return material;
   } catch (error) {
@@ -129,14 +148,14 @@ export async function createMaterial(ownerId: string, input: MaterialInput): Pro
 }
 
 export async function updateMaterial(
-  ownerId: string,
+  userId: string,
   id: string,
   input: MaterialInput,
 ): Promise<Material> {
   const parsed = parseInput(input);
   try {
     return await db.transaction(async (tx) => {
-      // R3-001 prerequisite guard. Lock the owner-scoped active row FOR
+      // R3-001 prerequisite guard. Lock the user-scoped active row FOR
       // UPDATE so we can compare baseUnit and check template_items
       // references safely without a TOCTOU window. Lock-order invariant:
       // updateMaterial takes the material lock first; updateTemplate takes
@@ -147,7 +166,7 @@ export async function updateMaterial(
         .select({ baseUnit: materials.baseUnit })
         .from(materials)
         .where(
-          and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
+          and(eq(materials.userId, userId), eq(materials.id, id), isNull(materials.archivedAt)),
         )
         .for("update");
       if (!current) throw notFound(id);
@@ -167,7 +186,7 @@ export async function updateMaterial(
         .update(materials)
         .set(parsed)
         .where(
-          and(eq(materials.ownerId, ownerId), eq(materials.id, id), isNull(materials.archivedAt)),
+          and(eq(materials.userId, userId), eq(materials.id, id), isNull(materials.archivedAt)),
         )
         .returning();
       if (!material) throw notFound(id);
@@ -180,21 +199,21 @@ export async function updateMaterial(
   }
 }
 
-export async function archiveMaterial(ownerId: string, id: string): Promise<Material> {
+export async function archiveMaterial(userId: string, id: string): Promise<Material> {
   const [material] = await db
     .update(materials)
     .set({ archivedAt: new Date() })
-    .where(and(eq(materials.ownerId, ownerId), eq(materials.id, id)))
+    .where(and(eq(materials.userId, userId), eq(materials.id, id)))
     .returning();
   if (!material) throw notFound(id);
   return material;
 }
 
-export async function unarchiveMaterial(ownerId: string, id: string): Promise<Material> {
+export async function unarchiveMaterial(userId: string, id: string): Promise<Material> {
   const [material] = await db
     .update(materials)
     .set({ archivedAt: null })
-    .where(and(eq(materials.ownerId, ownerId), eq(materials.id, id)))
+    .where(and(eq(materials.userId, userId), eq(materials.id, id)))
     .returning();
   if (!material) throw notFound(id);
   return material;

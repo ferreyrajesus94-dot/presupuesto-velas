@@ -4,17 +4,12 @@ import { assertSafeNeonTestDatabase } from "./assert-safe-neon-test-database";
 
 assertSafeNeonTestDatabase();
 
-const [
-  { db },
-  { appOwner, materials, templateItems, templates },
-  { getSingletonOwner },
-  materialsRepository,
-] = await Promise.all([
-  import("../../db/client"),
-  import("../../db/schema"),
-  import("../../src/server/repositories/owner"),
-  import("../../src/server/repositories/materials"),
-]);
+const [{ db }, { appUser, materials, templateItems, templates }, materialsRepository] =
+  await Promise.all([
+    import("../../db/client"),
+    import("../../db/schema"),
+    import("../../src/server/repositories/materials"),
+  ]);
 const {
   MaterialRepositoryError,
   archiveMaterial,
@@ -24,6 +19,21 @@ const {
   unarchiveMaterial,
   updateMaterial,
 } = materialsRepository;
+
+/**
+ * PR1.migration dropped the `app_owner.singleton` column. Replicate the
+ * singleton lookup against `app_user.role='owner'` so this test stays
+ * compatible with the post-PR1 schema. PR2 rewrites these fixtures under
+ * the new user repository (see `tasks.md` task 2.10).
+ */
+async function getOwnerSingleton(): Promise<{ id: string } | null> {
+  const rows = await db
+    .select({ id: appUser.id })
+    .from(appUser)
+    .where(eq(appUser.role, "owner"))
+    .limit(1);
+  return rows[0] ?? null;
+}
 
 const input = (name: string, price = "10000") => ({
   name,
@@ -35,22 +45,23 @@ const input = (name: string, price = "10000") => ({
 });
 
 describe("materials repository (integration vs dev branch)", () => {
-  let ownerId: string;
+  let userId: string;
   let createdOwner = false;
   const createdMaterialIds = new Set<string>();
   const createdTemplateIds = new Set<string>();
 
   beforeAll(async () => {
-    const owner = await getSingletonOwner();
-    if (owner) {
-      ownerId = owner.id;
+    const user = await getOwnerSingleton();
+    if (user) {
+      userId = user.id;
       return;
     }
-    ownerId = crypto.randomUUID();
-    await db.insert(appOwner).values({
-      id: ownerId,
-      email: `${ownerId}@calculadora-flor-test.invalid`,
-      singleton: true,
+    userId = crypto.randomUUID();
+    await db.insert(appUser).values({
+      id: userId,
+      email: `${userId}@calculadora-flor-test.invalid`,
+      role: "owner",
+      emailVerified: true,
     });
     createdOwner = true;
   });
@@ -62,7 +73,7 @@ describe("materials repository (integration vs dev branch)", () => {
       await db.delete(templates).where(inArray(templates.id, templateIds));
     }
     for (const id of createdMaterialIds) {
-      await db.delete(materials).where(and(eq(materials.id, id), eq(materials.ownerId, ownerId)));
+      await db.delete(materials).where(and(eq(materials.id, id), eq(materials.userId, userId)));
     }
     createdTemplateIds.clear();
     createdMaterialIds.clear();
@@ -75,52 +86,52 @@ describe("materials repository (integration vs dev branch)", () => {
       await db.delete(templates).where(inArray(templates.id, templateIds));
     }
     for (const id of createdMaterialIds) {
-      await db.delete(materials).where(and(eq(materials.id, id), eq(materials.ownerId, ownerId)));
+      await db.delete(materials).where(and(eq(materials.id, id), eq(materials.userId, userId)));
     }
-    if (createdOwner) await db.delete(appOwner).where(eq(appOwner.id, ownerId));
+    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, userId));
   });
 
   it("creates, lists active/all, updates, and returns a deterministic derived cost", async () => {
-    const material = await createMaterial(ownerId, input(`wax-${crypto.randomUUID()}`));
+    const material = await createMaterial(userId, input(`wax-${crypto.randomUUID()}`));
     createdMaterialIds.add(material.id);
 
     expect(material.unitCost).toBe("10.000000000000000000");
-    expect((await listMaterials(ownerId)).map(({ id }) => id)).toContain(material.id);
-    const updated = await updateMaterial(ownerId, material.id, input(material.name, "12000"));
+    expect((await listMaterials(userId)).map(({ id }) => id)).toContain(material.id);
+    const updated = await updateMaterial(userId, material.id, input(material.name, "12000"));
     expect(updated.unitCost).toBe("12.000000000000000000");
   });
   it("rejects duplicate names only within the owner scope", async () => {
     const name = `duplicate-${crypto.randomUUID()}`;
-    const material = await createMaterial(ownerId, input(name));
+    const material = await createMaterial(userId, input(name));
     createdMaterialIds.add(material.id);
 
-    await expect(createMaterial(ownerId, input(name))).rejects.toMatchObject({
+    await expect(createMaterial(userId, input(name))).rejects.toMatchObject({
       code: "DUPLICATE_NAME",
     });
   });
   it("hides archived materials by default and supports unarchive", async () => {
-    const material = await createMaterial(ownerId, input(`archived-${crypto.randomUUID()}`));
+    const material = await createMaterial(userId, input(`archived-${crypto.randomUUID()}`));
     createdMaterialIds.add(material.id);
-    await archiveMaterial(ownerId, material.id);
+    await archiveMaterial(userId, material.id);
 
-    expect(await getMaterial(ownerId, material.id)).toBeNull();
-    expect((await listMaterials(ownerId, { includeArchived: true })).map(({ id }) => id)).toContain(
+    expect(await getMaterial(userId, material.id)).toBeNull();
+    expect((await listMaterials(userId, { includeArchived: true })).map(({ id }) => id)).toContain(
       material.id,
     );
-    await unarchiveMaterial(ownerId, material.id);
-    expect((await listMaterials(ownerId)).map(({ id }) => id)).toContain(material.id);
+    await unarchiveMaterial(userId, material.id);
+    expect((await listMaterials(userId)).map(({ id }) => id)).toContain(material.id);
   });
   it("rejects updates to archived materials without changing them", async () => {
-    const material = await createMaterial(ownerId, input(`read-only-${crypto.randomUUID()}`));
+    const material = await createMaterial(userId, input(`read-only-${crypto.randomUUID()}`));
     createdMaterialIds.add(material.id);
-    const conflicting = await createMaterial(ownerId, input(`active-${crypto.randomUUID()}`));
+    const conflicting = await createMaterial(userId, input(`active-${crypto.randomUUID()}`));
     createdMaterialIds.add(conflicting.id);
-    await archiveMaterial(ownerId, material.id);
+    await archiveMaterial(userId, material.id);
 
     await expect(
-      updateMaterial(ownerId, material.id, input(conflicting.name, "12000")),
+      updateMaterial(userId, material.id, input(conflicting.name, "12000")),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
-    const archived = await getMaterial(ownerId, material.id, { includeArchived: true });
+    const archived = await getMaterial(userId, material.id, { includeArchived: true });
     expect(archived).toMatchObject({ name: material.name, unitCost: material.unitCost });
   });
   it("rejects renaming one active material to another active material's name with DUPLICATE_NAME", async () => {
@@ -129,24 +140,24 @@ describe("materials repository (integration vs dev branch)", () => {
     // the other's name. The DB unique index must surface as DUPLICATE_NAME.
     const firstName = `first-${crypto.randomUUID()}`;
     const secondName = `second-${crypto.randomUUID()}`;
-    const first = await createMaterial(ownerId, input(firstName));
+    const first = await createMaterial(userId, input(firstName));
     createdMaterialIds.add(first.id);
-    const second = await createMaterial(ownerId, input(secondName));
+    const second = await createMaterial(userId, input(secondName));
     createdMaterialIds.add(second.id);
 
     await expect(
-      updateMaterial(ownerId, second.id, input(firstName, "12000")),
+      updateMaterial(userId, second.id, input(firstName, "12000")),
     ).rejects.toMatchObject({ code: "DUPLICATE_NAME" });
     // Both records remain intact after the rejected rename.
-    const stillFirst = await getMaterial(ownerId, first.id);
-    const stillSecond = await getMaterial(ownerId, second.id);
+    const stillFirst = await getMaterial(userId, first.id);
+    const stillSecond = await getMaterial(userId, second.id);
     expect(stillFirst?.name).toBe(firstName);
     expect(stillSecond?.name).toBe(secondName);
     expect(stillFirst?.unitCost).toBe("10.000000000000000000");
     expect(stillSecond?.unitCost).toBe("10.000000000000000000");
   });
   it("denies cross-owner and missing mutations without deleting data", async () => {
-    const material = await createMaterial(ownerId, input(`owned-${crypto.randomUUID()}`));
+    const material = await createMaterial(userId, input(`owned-${crypto.randomUUID()}`));
     createdMaterialIds.add(material.id);
     const otherOwnerId = crypto.randomUUID();
 
@@ -156,10 +167,10 @@ describe("materials repository (integration vs dev branch)", () => {
     ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
-    await expect(archiveMaterial(ownerId, crypto.randomUUID())).rejects.toBeInstanceOf(
+    await expect(archiveMaterial(userId, crypto.randomUUID())).rejects.toBeInstanceOf(
       MaterialRepositoryError,
     );
-    expect((await getMaterial(ownerId, material.id))?.name).toBe(material.name);
+    expect((await getMaterial(userId, material.id))?.name).toBe(material.name);
   });
 
   // R3-001 prerequisite guard. Recipe items persist quantities normalized
@@ -169,7 +180,7 @@ describe("materials repository (integration vs dev branch)", () => {
   // referenced material — active or archived templates both count.
   it("R3-001: rejects baseUnit change on a referenced material without mutating the row", async () => {
     const material = await createMaterial(
-      ownerId,
+      userId,
       input(`referenced-${crypto.randomUUID()}`, "10000"),
     );
     createdMaterialIds.add(material.id);
@@ -180,7 +191,7 @@ describe("materials repository (integration vs dev branch)", () => {
     const templateId = crypto.randomUUID();
     await db.insert(templates).values({
       id: templateId,
-      ownerId,
+      userId,
       name: `template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
@@ -196,13 +207,13 @@ describe("materials repository (integration vs dev branch)", () => {
     // The kg→g flip must surface as BASE_UNIT_REFERENCED, never silently
     // succeed. The original row (baseUnit, unitCost) must be untouched.
     await expect(
-      updateMaterial(ownerId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
+      updateMaterial(userId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
     ).rejects.toBeInstanceOf(MaterialRepositoryError);
     await expect(
-      updateMaterial(ownerId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
+      updateMaterial(userId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
     ).rejects.toMatchObject({ code: "BASE_UNIT_REFERENCED" });
 
-    const stillMaterial = await getMaterial(ownerId, material.id);
+    const stillMaterial = await getMaterial(userId, material.id);
     expect(stillMaterial?.baseUnit).toBe("g");
     expect(stillMaterial?.unitCost).toBe("10.000000000000000000");
   });
@@ -213,7 +224,7 @@ describe("materials repository (integration vs dev branch)", () => {
     // guard must still reject baseUnit flips on a material whose only
     // references are archived templates.
     const material = await createMaterial(
-      ownerId,
+      userId,
       input(`archived-ref-${crypto.randomUUID()}`, "10000"),
     );
     createdMaterialIds.add(material.id);
@@ -221,7 +232,7 @@ describe("materials repository (integration vs dev branch)", () => {
     const templateId = crypto.randomUUID();
     await db.insert(templates).values({
       id: templateId,
-      ownerId,
+      userId,
       name: `archived-template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
@@ -236,10 +247,10 @@ describe("materials repository (integration vs dev branch)", () => {
     await db
       .update(templates)
       .set({ archivedAt: new Date("2026-01-01T00:00:00Z") })
-      .where(and(eq(templates.id, templateId), eq(templates.ownerId, ownerId)));
+      .where(and(eq(templates.id, templateId), eq(templates.userId, userId)));
 
     await expect(
-      updateMaterial(ownerId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
+      updateMaterial(userId, material.id, { ...input(material.name, "10000"), baseUnit: "kg" }),
     ).rejects.toMatchObject({ code: "BASE_UNIT_REFERENCED" });
   });
 
@@ -249,7 +260,7 @@ describe("materials repository (integration vs dev branch)", () => {
     // quantities keep their meaning. The update must succeed and the
     // baseUnit must remain unchanged.
     const material = await createMaterial(
-      ownerId,
+      userId,
       input(`price-only-${crypto.randomUUID()}`, "10000"),
     );
     createdMaterialIds.add(material.id);
@@ -257,7 +268,7 @@ describe("materials repository (integration vs dev branch)", () => {
     const templateId = crypto.randomUUID();
     await db.insert(templates).values({
       id: templateId,
-      ownerId,
+      userId,
       name: `price-template-${templateId}`,
       unitCost: "100.000000000000000000",
     });
@@ -270,7 +281,7 @@ describe("materials repository (integration vs dev branch)", () => {
     });
     createdTemplateIds.add(templateId);
 
-    const updated = await updateMaterial(ownerId, material.id, input(material.name, "20000"));
+    const updated = await updateMaterial(userId, material.id, input(material.name, "20000"));
     expect(updated.baseUnit).toBe("g");
     expect(updated.unitCost).toBe("20.000000000000000000");
   });
@@ -279,7 +290,7 @@ describe("materials repository (integration vs dev branch)", () => {
     // No recipe_items reference this material, so the dimension validation
     // rules alone govern the change. A kg→g flip must succeed and the
     // unitCost must re-derive from the new baseUnit (10000 / 1000 = 10).
-    const material = await createMaterial(ownerId, {
+    const material = await createMaterial(userId, {
       ...input(`free-${crypto.randomUUID()}`, "10000"),
       baseUnit: "kg",
     });
@@ -287,7 +298,7 @@ describe("materials repository (integration vs dev branch)", () => {
     expect(material.baseUnit).toBe("kg");
     expect(material.unitCost).toBe("10000.000000000000000000");
 
-    const updated = await updateMaterial(ownerId, material.id, {
+    const updated = await updateMaterial(userId, material.id, {
       ...input(material.name, "10000"),
       baseUnit: "g",
     });

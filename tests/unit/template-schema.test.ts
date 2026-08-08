@@ -1,39 +1,39 @@
 import { describe, expect, it } from "vitest";
 import { createTemplateInputSchema } from "../../src/server/validation/templateSchema";
 
-const OWNER_ID = "owner-1";
+const USER_ID = "user-1";
 const materials = [
   {
     id: "wax",
-    ownerId: OWNER_ID,
+    userId: USER_ID,
     baseUnit: "g",
     unitCost: "10.000000000000000000",
     archivedAt: null,
   },
   {
     id: "wick",
-    ownerId: OWNER_ID,
+    userId: USER_ID,
     baseUnit: "unit",
     unitCost: "50.000000000000000000",
     archivedAt: null,
   },
   {
     id: "archived-dye",
-    ownerId: OWNER_ID,
+    userId: USER_ID,
     baseUnit: "g",
     unitCost: "2.000000000000000000",
     archivedAt: new Date("2026-01-01T00:00:00Z"),
   },
   {
     id: "foreign-wax",
-    ownerId: "owner-2",
+    userId: "user-2",
     baseUnit: "g",
     unitCost: "99.000000000000000000",
     archivedAt: null,
   },
 ] as const;
 
-const schema = createTemplateInputSchema(OWNER_ID, materials);
+const schema = createTemplateInputSchema(USER_ID, materials);
 const validTemplate = {
   name: "Floral candle",
   items: [{ materialId: "wax", quantity: "110", unit: "g" }],
@@ -87,7 +87,7 @@ describe("template input schema", () => {
   });
 
   it.each(["missing", "foreign-wax"])(
-    "rejects unavailable owner-scoped material reference %s without distinguishing it",
+    "rejects unavailable user-scoped material reference %s without distinguishing it",
     (materialId) => {
       const result = schema.safeParse({
         ...validTemplate,
@@ -152,7 +152,7 @@ describe("template input schema", () => {
   });
 
   it("rejects a normalized quantity that exceeds template-item database scale", () => {
-    const kgSchema = createTemplateInputSchema(OWNER_ID, [
+    const kgSchema = createTemplateInputSchema(USER_ID, [
       { ...materials[0], id: "bulk-wax", baseUnit: "kg" },
     ]);
     const result = kgSchema.safeParse({
@@ -169,7 +169,7 @@ describe("template input schema", () => {
     ["overflow", "99999999999999999999.999999999999999999", "2"],
     ["round to zero", "0.000000000000000001", "0.000001"],
   ])("rejects a projected template cost that would %s", (_case, unitCost, quantity) => {
-    const boundedSchema = createTemplateInputSchema(OWNER_ID, [
+    const boundedSchema = createTemplateInputSchema(USER_ID, [
       { ...materials[0], id: "bounded-wax", unitCost },
     ]);
     const result = boundedSchema.safeParse({

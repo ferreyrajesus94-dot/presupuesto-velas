@@ -41,6 +41,13 @@ const SKIP_LOCALHOST = process.env.SKIP_LOCALHOST === "1";
 
 const NEON_API_BASE = "https://console.neon.tech/api/v2";
 
+// SPEC §NEON-AUTH-CONFIG drift: `email_verification_method` defaults to
+// "link" per the SPEC. Neon Auth rejects "link" against the production
+// `shared` email provider ("Verification link is not supported for
+// shared email provider"). Override with `EXPECTED_VERIFICATION_METHOD=otp`
+// when running against production until custom SMTP is provisioned.
+const EXPECTED_VERIFICATION_METHOD = process.env.EXPECTED_VERIFICATION_METHOD ?? "link";
+
 async function fetchNeonAuthConfig() {
   const url = `${NEON_API_BASE}/projects/${encodeURIComponent(NEON_PROJECT_ID)}/branches/${encodeURIComponent(NEON_BRANCH_ID)}/auth`;
   const res = await fetch(url, {
@@ -62,10 +69,13 @@ async function main() {
     console.error(`[check-neon-auth-config] upstream error: ${err.message}`);
     process.exit(2);
   }
-  const failures = runChecks(config, { skipLocalhost: SKIP_LOCALHOST });
+  const failures = runChecks(config, {
+    skipLocalhost: SKIP_LOCALHOST,
+    expectedVerificationMethod: EXPECTED_VERIFICATION_METHOD,
+  });
   if (failures.length === 0) {
     console.log(
-      `[check-neon-auth-config] OK — allow_sign_up=true, email_verification_method=link, trusted_origins covers ${REQUIRED_TRUSTED_ORIGINS.join(", ")}, allow_localhost=${SKIP_LOCALHOST ? "(skipped)" : "true"}`,
+      `[check-neon-auth-config] OK — allow_sign_up=true, email_verification_method=${EXPECTED_VERIFICATION_METHOD}, trusted_origins covers ${REQUIRED_TRUSTED_ORIGINS.join(", ")}, allow_localhost=${SKIP_LOCALHOST ? "(skipped)" : "true"}`,
     );
     process.exit(0);
   }

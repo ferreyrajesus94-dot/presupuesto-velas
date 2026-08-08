@@ -6,18 +6,27 @@
  *
  * SPEC §NEON-AUTH-CONFIG: the branch MUST have
  *   1. `auth_methods.email_password.allow_sign_up` === true
- *   2. `auth_methods.email_password.email_verification_method` === "link"
+ *   2. `auth_methods.email_password.email_verification_method` ∈ {link, otp}
+ *      — SPEC §2 ("SIGN-UP") requests `link`, but Neon Auth rejects
+ *      `link` against the `shared` email provider ("Verification link
+ *      is not supported for shared email provider"). `otp` is the
+ *      achievable fallback when the Neon email provider type is
+ *      `shared`. Custom SMTP (`standard`) is required for `link`.
  *   3. `auth_methods.email_password.enabled` === true
  *   4. `allow_localhost` === true (dev-mode flow)
  *   5. `trusted_origins` ⊇ {Vercel production apex, Vercel preview wildcard}
  *
  * The `SKIP_LOCALHOST` env flag exists for production-only checks.
+ * The `EXPECTED_VERIFICATION_METHOD` env flag defaults to `link`; set
+ * it to `otp` if the production Neon email provider is `shared`.
  */
 
 export const REQUIRED_TRUSTED_ORIGINS = [
   "https://presupuesto-velas.vercel.app",
   "https://*.vercel.app",
 ];
+
+export const ALLOWED_VERIFICATION_METHODS = ["link", "otp"];
 
 export function diffRequiredOrigins(trustedOrigins) {
   return REQUIRED_TRUSTED_ORIGINS.filter((origin) => {
@@ -32,7 +41,7 @@ export function diffRequiredOrigins(trustedOrigins) {
 }
 
 export function runChecks(config, opts = {}) {
-  const { skipLocalhost = false } = opts;
+  const { skipLocalhost = false, expectedVerificationMethod = "link" } = opts;
   const failures = [];
   const emailPassword = config?.auth_methods?.email_password ?? {};
 
@@ -44,12 +53,19 @@ export function runChecks(config, opts = {}) {
       fix: "PATCH /auth_methods with allow_sign_up=true (Neon_configure_neon_auth)",
     });
   }
-  if (emailPassword.email_verification_method !== "link") {
+  if (!ALLOWED_VERIFICATION_METHODS.includes(emailPassword.email_verification_method)) {
     failures.push({
       check: "email_verification_method",
-      expected: "link",
+      expected: ALLOWED_VERIFICATION_METHODS.join("|"),
       actual: emailPassword.email_verification_method,
-      fix: "PATCH /auth_methods with email_verification_method='link'",
+      fix: "PATCH /auth_methods with email_verification_method='link' (custom SMTP) or 'otp' (shared SMTP)",
+    });
+  } else if (expectedVerificationMethod !== emailPassword.email_verification_method) {
+    failures.push({
+      check: "email_verification_method",
+      expected: expectedVerificationMethod,
+      actual: emailPassword.email_verification_method,
+      fix: `PATCH /auth_methods with email_verification_method='${expectedVerificationMethod}' (only achievable with custom SMTP for 'link')`,
     });
   }
   if (emailPassword.enabled !== true) {

@@ -54,7 +54,7 @@ describe("check-neon-auth-config.lib (PR3 task 3.1)", () => {
   });
 
   describe("runChecks — happy path", () => {
-    it("returns zero failures when the branch is fully configured for sign-up", () => {
+    it("returns zero failures when the branch is fully configured for sign-up (link method)", () => {
       const config = {
         allow_localhost: true,
         trusted_origins: [
@@ -70,6 +70,21 @@ describe("check-neon-auth-config.lib (PR3 task 3.1)", () => {
         },
       };
       expect(runChecks(config)).toEqual([]);
+    });
+
+    it("returns zero failures in OTP mode when EXPECTED_VERIFICATION_METHOD=otp (shared SMTP)", () => {
+      const config = {
+        allow_localhost: true,
+        trusted_origins: ["https://presupuesto-velas.vercel.app"],
+        auth_methods: {
+          email_password: {
+            enabled: true,
+            allow_sign_up: true,
+            email_verification_method: "otp",
+          },
+        },
+      };
+      expect(runChecks(config, { expectedVerificationMethod: "otp" })).toEqual([]);
     });
 
     it("returns zero failures in production-only mode with SKIP_LOCALHOST", () => {
@@ -109,7 +124,7 @@ describe("check-neon-auth-config.lib (PR3 task 3.1)", () => {
       expect(signUpFailure?.fix).toMatch(/allow_sign_up=true/);
     });
 
-    it("flags email_verification_method=otp (still the production default)", () => {
+    it("flags email_verification_method=otp when EXPECTED_VERIFICATION_METHOD=link (link requires custom SMTP)", () => {
       const config = {
         allow_localhost: true,
         trusted_origins: ["https://presupuesto-velas.vercel.app"],
@@ -126,7 +141,25 @@ describe("check-neon-auth-config.lib (PR3 task 3.1)", () => {
       expect(methodFailure).toBeDefined();
       expect(methodFailure?.expected).toBe("link");
       expect(methodFailure?.actual).toBe("otp");
-      expect(methodFailure?.fix).toMatch(/email_verification_method='link'/);
+      expect(methodFailure?.fix).toMatch(/custom SMTP/);
+    });
+
+    it("flags an unsupported email_verification_method value (anything outside link|otp)", () => {
+      const config = {
+        allow_localhost: true,
+        trusted_origins: ["https://presupuesto-velas.vercel.app"],
+        auth_methods: {
+          email_password: {
+            enabled: true,
+            allow_sign_up: true,
+            email_verification_method: "magic",
+          },
+        },
+      };
+      const failures = runChecks(config);
+      const methodFailure = failures.find((f) => f.check === "email_verification_method");
+      expect(methodFailure).toBeDefined();
+      expect(methodFailure?.fix).toMatch(/link.*otp/);
     });
 
     it("flags a missing Vercel preview wildcard with the missing entry", () => {

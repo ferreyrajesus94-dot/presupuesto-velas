@@ -4,17 +4,12 @@ import { assertSafeNeonTestDatabase } from "./assert-safe-neon-test-database";
 
 assertSafeNeonTestDatabase();
 
-const [
-  { db },
-  { appOwner, materials, templateItems, templates },
-  { getSingletonOwner },
-  materialsRepository,
-] = await Promise.all([
-  import("../../db/client"),
-  import("../../db/schema"),
-  import("../../src/server/repositories/owner"),
-  import("../../src/server/repositories/materials"),
-]);
+const [{ db }, { appUser, materials, templateItems, templates }, materialsRepository] =
+  await Promise.all([
+    import("../../db/client"),
+    import("../../db/schema"),
+    import("../../src/server/repositories/materials"),
+  ]);
 const {
   MaterialRepositoryError,
   archiveMaterial,
@@ -24,6 +19,21 @@ const {
   unarchiveMaterial,
   updateMaterial,
 } = materialsRepository;
+
+/**
+ * PR1.migration dropped the `app_owner.singleton` column. Replicate the
+ * singleton lookup against `app_user.role='owner'` so this test stays
+ * compatible with the post-PR1 schema. PR2 rewrites these fixtures under
+ * the new user repository (see `tasks.md` task 2.10).
+ */
+async function getOwnerSingleton(): Promise<{ id: string } | null> {
+  const rows = await db
+    .select({ id: appUser.id })
+    .from(appUser)
+    .where(eq(appUser.role, "owner"))
+    .limit(1);
+  return rows[0] ?? null;
+}
 
 const input = (name: string, price = "10000") => ({
   name,
@@ -41,16 +51,17 @@ describe("materials repository (integration vs dev branch)", () => {
   const createdTemplateIds = new Set<string>();
 
   beforeAll(async () => {
-    const owner = await getSingletonOwner();
+    const owner = await getOwnerSingleton();
     if (owner) {
       ownerId = owner.id;
       return;
     }
     ownerId = crypto.randomUUID();
-    await db.insert(appOwner).values({
+    await db.insert(appUser).values({
       id: ownerId,
       email: `${ownerId}@calculadora-flor-test.invalid`,
-      singleton: true,
+      role: "owner",
+      emailVerified: true,
     });
     createdOwner = true;
   });
@@ -77,7 +88,7 @@ describe("materials repository (integration vs dev branch)", () => {
     for (const id of createdMaterialIds) {
       await db.delete(materials).where(and(eq(materials.id, id), eq(materials.ownerId, ownerId)));
     }
-    if (createdOwner) await db.delete(appOwner).where(eq(appOwner.id, ownerId));
+    if (createdOwner) await db.delete(appUser).where(eq(appUser.id, ownerId));
   });
 
   it("creates, lists active/all, updates, and returns a deterministic derived cost", async () => {

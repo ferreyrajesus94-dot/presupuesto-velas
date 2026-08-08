@@ -54,7 +54,9 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
     expect(id?.data_type).toBe("text");
 
     const email = byName.get("email");
-    expect(email?.data_type).toBe("citext");
+    // citext is reported as USER-DEFINED in data_type; udt_name exposes
+    // the underlying citext type name. Accept either form for portability.
+    expect(["citext", "USER-DEFINED"]).toContain(email?.udt_name);
 
     const emailVerified = byName.get("email_verified");
     expect(emailVerified?.data_type).toBe("boolean");
@@ -75,7 +77,7 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
       WHERE t.typname = 'app_role'
       ORDER BY e.enumsortorder
     `);
-    const labels = ((result as unknown as { rows: { enumlabel: string }[] }).rows).map(
+    const labels = (result as unknown as { rows: { enumlabel: string }[] }).rows.map(
       (r) => r.enumlabel,
     );
     expect(labels).toEqual(["owner", "user"]);
@@ -178,7 +180,7 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
       ORDER BY tablename, indexname
     `);
     type NamedRow = { indexname: string; tablename: string };
-    const names = ((renamed as unknown as { rows: NamedRow[] }).rows).map((r) => r.indexname);
+    const names = (renamed as unknown as { rows: NamedRow[] }).rows.map((r) => r.indexname);
     expect(names).toEqual([
       "materials_user_idx",
       "materials_user_name_uidx",
@@ -215,9 +217,7 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
     const { resolve } = await import("node:path");
     const dbUrl = process.env.DATABASE_URL_UNPOOLED ?? process.env.DIRECT_URL ?? "";
     if (!dbUrl) {
-      throw new Error(
-        "DATABASE_URL_UNPOOLED or DIRECT_URL must be set for the idempotency check",
-      );
+      throw new Error("DATABASE_URL_UNPOOLED or DIRECT_URL must be set for the idempotency check");
     }
     const sqlPath = resolve(__dirname, "../../db/migrations/0004_auth_public_signup.sql");
     const body = readFileSync(sqlPath, "utf8");
@@ -248,9 +248,7 @@ describe("0004 auth_public_signup migration (integration vs dev branch)", () => 
     const owners = await db.execute(sql`
       SELECT COUNT(*)::int AS n FROM app_user WHERE role = 'owner'
     `);
-    const ownerCount = (
-      owners as unknown as { rows: { n: number }[] }
-    ).rows[0].n;
+    const ownerCount = (owners as unknown as { rows: { n: number }[] }).rows[0].n;
     expect(ownerCount).toBe(1);
   });
 });

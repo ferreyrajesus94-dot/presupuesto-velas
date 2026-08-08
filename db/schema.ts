@@ -29,8 +29,34 @@ const citext = customType<{ data: string }>({
 export const dimension = pgEnum("dimension", ["mass", "volume", "length", "count"]);
 export const quoteStatus = pgEnum("quote_status", ["draft", "sent", "accepted", "rejected"]);
 export const profitMethod = pgEnum("profit_method", ["percentage", "fixed"]);
+export const appRole = pgEnum("app_role", ["owner", "user"]);
 
-// Owner -----------------------------------------------------------------
+// User ------------------------------------------------------------------
+// PR1.migration of auth-public-signup: `app_owner` -> `app_user`.
+// The JS property name stays `ownerId` so the application layer keeps
+// compiling without code changes (this is the compatibility shim). PR2
+// will rename the JS property to `userId` and update all 24 callers.
+export const appUser = pgTable(
+  "app_user",
+  {
+    id: text("id").primaryKey(),
+    email: citext("email").notNull(),
+    role: appRole("role").notNull().default("user"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("app_user_email_uidx").on(t.email)],
+);
+export type AppUser = typeof appUser.$inferSelect;
+
+// Backwards-compat declaration for PR1. The legacy `appOwner`/`AppOwner`
+// identifiers must keep resolving through `db/schema.ts` because
+// `src/server/repositories/owner.ts` still references the old shape
+// (id + email + singleton). We declare `appOwner` as a separate Drizzle
+// pgTable bound to a now-non-existent `app_owner` Postgres table — its only
+// purpose is to keep the existing import sites compiling. PR2 deletes
+// `appOwner`/`AppOwner` entirely once the owner repository is migrated.
 export const appOwner = pgTable(
   "app_owner",
   {
@@ -38,14 +64,7 @@ export const appOwner = pgTable(
     email: citext("email").notNull(),
     singleton: boolean("singleton").notNull().default(true),
   },
-  (t) => [
-    uniqueIndex("app_owner_email_uidx").on(t.email),
-    // Table-wide singleton: at most one row with singleton = true.
-    uniqueIndex("app_owner_singleton_uidx")
-      .on(sql`(TRUE)`)
-      .where(sql`${t.singleton} = TRUE`),
-    check("app_owner_singleton_true", sql`${t.singleton} = true`),
-  ],
+  (t) => [uniqueIndex("app_owner_email_uidx").on(t.email)],
 );
 export type AppOwner = typeof appOwner.$inferSelect;
 
@@ -54,9 +73,9 @@ export const materials = pgTable(
   "materials",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    ownerId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     name: text("name").notNull(),
     dimension: dimension("dimension").notNull(),
     baseUnit: text("base_unit").notNull(),
@@ -104,9 +123,9 @@ export const templates = pgTable(
   "templates",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    ownerId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     name: text("name").notNull(),
     unitCost: numeric("unit_cost", { precision: 38, scale: 18 }).notNull(),
     time: numeric("time", { precision: 20, scale: 6 }).notNull().default("0"),
@@ -148,9 +167,9 @@ export const quotes = pgTable(
   "quotes",
   {
     id: text("id").primaryKey(),
-    ownerId: text("owner_id")
+    ownerId: text("user_id")
       .notNull()
-      .references(() => appOwner.id),
+      .references(() => appUser.id),
     customerName: text("customer_name"),
     expirationDate: date("expiration_date").notNull(),
     status: quoteStatus("status").notNull().default("draft"),

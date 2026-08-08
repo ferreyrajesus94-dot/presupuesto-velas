@@ -13,18 +13,23 @@ const TEST_OWNER_ID = "00000000-0000-0000-0000-0000000000b1";
  * compatible-units and count-integrality CHECKs must reject bad inputs.
  * The unit/count test is intentionally DB-level (no application code path
  * exists yet) so that the schema invariant is independently enforceable.
+ *
+ * PR1.migration update: the column was renamed from `owner_id` to `user_id`
+ * and the singleton constraint is gone. Seed an `app_user` row directly
+ * with role='owner' so this test stays compatible with the post-PR1 schema.
  */
 describe("materials schema CHECKs (integration vs dev branch)", () => {
   beforeAll(async () => {
-    await db.execute(sql`DELETE FROM materials WHERE owner_id = ${TEST_OWNER_ID}`);
-    // Seed a singleton owner only if none exists (singleton constraint).
+    await db.execute(sql`DELETE FROM materials WHERE user_id = ${TEST_OWNER_ID}`);
     await db.execute(
-      sql`INSERT INTO app_owner (id, email, singleton) VALUES (${TEST_OWNER_ID}, 'pr2d-mat@calculadora-flor-test.invalid', true) ON CONFLICT ((TRUE)) WHERE singleton = TRUE DO NOTHING`,
+      sql`INSERT INTO app_user (id, email, role, email_verified)
+          VALUES (${TEST_OWNER_ID}, 'pr2d-mat@calculadora-flor-test.invalid', 'owner', true)
+          ON CONFLICT (id) DO NOTHING`,
     );
   });
   afterAll(async () => {
-    await db.execute(sql`DELETE FROM materials WHERE owner_id = ${TEST_OWNER_ID}`);
-    await db.execute(sql`DELETE FROM app_owner WHERE id = ${TEST_OWNER_ID}`);
+    await db.execute(sql`DELETE FROM materials WHERE user_id = ${TEST_OWNER_ID}`);
+    await db.execute(sql`DELETE FROM app_user WHERE id = ${TEST_OWNER_ID}`);
   });
 
   it("rejects a material with incompatible base/purchase unit dimensions", async () => {
@@ -32,7 +37,7 @@ describe("materials schema CHECKs (integration vs dev branch)", () => {
     try {
       await db.execute(
         sql`INSERT INTO materials
-            (id, owner_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
+            (id, user_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
             VALUES ('mat-bad-1', ${TEST_OWNER_ID}, 'bad-units',
                     'mass', 'g', 'L', 1, 10, 10)`,
       );
@@ -57,7 +62,7 @@ describe("materials schema CHECKs (integration vs dev branch)", () => {
     try {
       await db.execute(
         sql`INSERT INTO materials
-            (id, owner_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
+            (id, user_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
             VALUES ('mat-bad-2', ${TEST_OWNER_ID}, 'bad-count',
                     'count', 'unit', 'unit', 1.5, 10, 6.666666666666666667)`,
       );
@@ -79,7 +84,7 @@ describe("materials schema CHECKs (integration vs dev branch)", () => {
   it("accepts a material with a compatible count dimension (sanity)", async () => {
     await db.execute(
       sql`INSERT INTO materials
-          (id, owner_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
+          (id, user_id, name, dimension, base_unit, purchase_unit, purchase_quantity, purchase_price, unit_cost)
           VALUES ('mat-ok-1', ${TEST_OWNER_ID}, 'ok-count',
                   'count', 'unit', 'unit', 2, 10, 5)`,
     );

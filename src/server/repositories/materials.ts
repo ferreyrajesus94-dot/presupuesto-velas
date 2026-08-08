@@ -14,9 +14,17 @@ import {
  * scopes every read/write by it. The DB column is `user_id` (renamed in
  * PR1.migration); the JS-side `ownerId` compat shim is gone.
  *
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` and every cross-user write throws
+ * `MaterialRepositoryError("NOT_FOUND")`. The action layer maps both
+ * surfaces to a generic "Material could not be found" message so an
+ * attacker cannot distinguish "id does not exist" from "id belongs to
+ * another user" — see `tests/integration/data-isolation.test.ts` for
+ * the contract proof.
+ *
  * Caller invariant: `userId` is sourced from `requireUser()` only. No
  * caller may supply a different id; cross-user attempts surface as
- * `NOT_FOUND` (PR4 repository error mapping).
+ * `NOT_FOUND`.
  */
 
 export type Material = typeof materials.$inferSelect;

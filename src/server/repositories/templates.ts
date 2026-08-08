@@ -17,7 +17,17 @@ import {
  * scopes every read/write by it. The DB column is `user_id`; the JS-side
  * `ownerId` compat shim is gone.
  *
- * Caller invariant: `userId` is sourced from `requireUser()` only.
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` and every cross-user write throws
+ * `TemplateRepositoryError("NOT_FOUND")`. The action layer maps both
+ * surfaces to a generic "Template could not be found" message so an
+ * attacker cannot distinguish "id does not exist" from "id belongs to
+ * another user" — see `tests/integration/data-isolation.test.ts` for
+ * the contract proof.
+ *
+ * Caller invariant: `userId` is sourced from `requireUser()` only. No
+ * caller may supply a different id; cross-user attempts surface as
+ * `NOT_FOUND`.
  */
 
 // Calculator meta persisted alongside the derived unitCost. The repository
@@ -333,9 +343,7 @@ export async function updateTemplate(
     const [template] = await tx
       .select()
       .from(templates)
-      .where(
-        and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)),
-      )
+      .where(and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)))
       .for("update");
     if (!template) throw notFound(id);
 
@@ -393,9 +401,7 @@ export async function archiveTemplate(userId: string, id: string): Promise<Templ
     const [template] = await tx
       .select()
       .from(templates)
-      .where(
-        and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)),
-      )
+      .where(and(eq(templates.userId, userId), eq(templates.id, id), isNull(templates.archivedAt)))
       .for("update");
     if (!template) throw notFound(id);
     const [archived] = await tx

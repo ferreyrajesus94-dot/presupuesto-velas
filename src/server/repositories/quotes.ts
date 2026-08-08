@@ -24,6 +24,16 @@ export type QuoteVersionIndirectCost = typeof quoteVersionIndirectCosts.$inferSe
  * lightweight. PR4f (list UI) will add child data loading for the list
  * path as needed.
  *
+ * PR4.per-user-isolation (Task 4.3) — Id-enumeration defense: every
+ * cross-user detail returns `null` (handled by the page-level
+ * `notFound()`), and every cross-user write — `deleteQuoteDraft`,
+ * `appendQuoteVersion`, `transitionQuoteStatus` — throws
+ * `QuoteRepositoryError("NOT_FOUND")`. The action layer maps the
+ * discriminated result of `deleteQuoteDraft` 1:1 so callers can
+ * distinguish success from typed failure without leaking whether the id
+ * exists for another user. Contract proof:
+ * `tests/integration/data-isolation.test.ts`.
+ *
  * Caller invariant: every read/write in this file is scoped by `userId`,
  * which is sourced from `requireUser()` only.
  */

@@ -33,6 +33,7 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirectMock }));
 
 vi.mock("../../src/server/auth/userEnv", () => ({
   getBootstrapOwnerEmail: () => "owner@bootstrap.invalid",
+  getNeonAuthBaseUrl: () => "https://auth.example.test",
 }));
 
 vi.mock("../../src/server/repositories/user", () => ({
@@ -89,15 +90,18 @@ describe("requireRole (reserved owner guard)", () => {
       updatedAt: new Date(),
     });
 
-    await expect(requireRole("owner")).rejects.toBeInstanceOf(UnauthorizedError);
+    let captured: unknown;
     try {
       await requireRole("owner");
+      throw new Error("requireRole should have thrown");
     } catch (error) {
-      expect(error).toBeInstanceOf(UnauthorizedError);
-      expect((error as UnauthorizedError).required).toBe("owner");
-      expect((error as UnauthorizedError).role).toBe("user");
-      expect((error as UnauthorizedError).message).toMatch(/owner/i);
+      captured = error;
     }
+    expect(captured).toBeInstanceOf(UnauthorizedError);
+    const err = captured as UnauthorizedError;
+    expect(err.required).toBe("owner");
+    expect(err.role).toBe("user");
+    expect(err.message).toMatch(/owner/i);
   });
 
   it("returns the authenticated user when the role matches", async () => {

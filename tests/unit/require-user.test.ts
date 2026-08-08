@@ -31,6 +31,7 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirectMock }));
 
 vi.mock("../../src/server/auth/userEnv", () => ({
   getBootstrapOwnerEmail: () => mocks.bootstrapEmail,
+  getNeonAuthBaseUrl: () => "https://auth.example.test",
 }));
 
 vi.mock("../../src/server/repositories/user", () => ({

@@ -62,7 +62,7 @@ function isAllowedTransition(from: StoredQuoteStatus, to: StoredQuoteStatus): bo
 }
 
 export async function transitionQuoteStatus(
-  ownerId: string,
+  userId: string,
   id: string,
   fromStatus: QuoteStatus,
   toStatus: QuoteStatus,
@@ -84,7 +84,7 @@ export async function transitionQuoteStatus(
     const [quote] = await tx
       .select()
       .from(quotes)
-      .where(and(eq(quotes.ownerId, ownerId), eq(quotes.id, id)))
+      .where(and(eq(quotes.userId, userId), eq(quotes.id, id)))
       .for("update");
     if (!quote) throw notFound(id);
 

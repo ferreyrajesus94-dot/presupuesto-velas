@@ -1,4 +1,4 @@
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { listMaterials } from "@/server/repositories/materials";
 import { countArchivedTemplates, listTemplates } from "@/server/repositories/templates";
 import { TemplateViewFilter } from "./TemplateViewFilter";
@@ -20,19 +20,19 @@ export default async function TemplatesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const { view: rawView } = await searchParams;
   const view = resolveTemplateView(rawView);
   const visibility = VIEW_VISIBILITY[view];
-  const records = await listTemplates(owner.id, visibility);
+  const records = await listTemplates(user.id, visibility);
 
   const archivedCount =
-    view === "active" && records.length === 0 ? await countArchivedTemplates(owner.id) : 0;
+    view === "active" && records.length === 0 ? await countArchivedTemplates(user.id) : 0;
 
   // The create and edit forms both accept active materials. We fetch the
-  // catalog here so the Client Components receive a stable, owner-scoped
+  // catalog here so the Client Components receive a stable, user-scoped
   // list and stay decoupled from the server repository layer.
-  const activeMaterials = await listMaterials(owner.id, { includeArchived: false });
+  const activeMaterials = await listMaterials(user.id, { includeArchived: false });
   const materialOptions: PlantillaClientMaterial[] = activeMaterials.map((m) => ({
     id: m.id,
     name: m.name,

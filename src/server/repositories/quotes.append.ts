@@ -1,12 +1,12 @@
 /**
- * PR4b.append — `appendQuoteVersion` transaction. Owner-scoped,
- * optimistic-concurrency append of `quote_versions` + children in one
- * `db.transaction`. Initial quote lookup is `SELECT ... FOR UPDATE`.
- * `lock_version` mismatch is a typed error. `version_no =
- * current_version + 1` allocated INSIDE the tx; composite PK is the
- * final safety net. Decimal.js (precision 50, ROUND_HALF_UP) for ALL
- * money arithmetic — `Number(...).toFixed()` is FORBIDDEN. `quantity`
- * → 6 dp; `lineTotal` → 2.
+ * PR2.auth-core (Task 2.8) — `appendQuoteVersion` transaction rewritten
+ * for the user era. User-scoped, optimistic-concurrency append of
+ * `quote_versions` + children in one `db.transaction`. Initial quote
+ * lookup is `SELECT ... FOR UPDATE`. `lock_version` mismatch is a typed
+ * error. `version_no = current_version + 1` allocated INSIDE the tx;
+ * composite PK is the final safety net. Decimal.js (precision 50,
+ * ROUND_HALF_UP) for ALL money arithmetic — `Number(...).toFixed()` is
+ * FORBIDDEN. `quantity` → 6 dp; `lineTotal` → 2.
  */
 
 import "server-only";
@@ -52,7 +52,7 @@ function computeLineTotal(perCandleQuantity: string, unitCost: string): string {
 }
 
 export async function appendQuoteVersion(
-  ownerId: string,
+  userId: string,
   id: string,
   snapshot: QuoteSnapshot,
   expectedLockVersion: number,
@@ -61,7 +61,7 @@ export async function appendQuoteVersion(
     const [quote] = await tx
       .select()
       .from(quotes)
-      .where(and(eq(quotes.ownerId, ownerId), eq(quotes.id, id)))
+      .where(and(eq(quotes.userId, userId), eq(quotes.id, id)))
       .for("update");
     if (!quote) throw notFound(id);
     if (quote.lockVersion !== expectedLockVersion) {

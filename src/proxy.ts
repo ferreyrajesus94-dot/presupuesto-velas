@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Optimistic redirect only — no DB or upstream auth call.
- * `requireOwner()` (in `src/server/auth/requireOwner.ts`) is the secure check.
+ * `requireUser()` (in `src/server/auth/requireUser.ts`) is the secure check.
  */
 const PUBLIC_PREFIXES = ["/sign-in", "/403", "/api/auth", "/_next"];
 

@@ -1,9 +1,11 @@
 /**
- * PR5a — GET `/api/quotes/[id]/pdf` Route Handler.
+ * PR2.auth-core (Task 2.8) — GET `/api/quotes/[id]/pdf` Route Handler.
  *
- * Owner-scoped PDF export of a single quote snapshot. The route:
- *   1. Validates ownership via `requireOwner()` (redirects on failure).
- *   2. Loads the owner-scoped `QuoteRecord` via `getQuote()`.
+ * User-scoped PDF export of a single quote snapshot. The route:
+ *   1. Validates authentication via `requireUser()` (redirects on
+ *      missing session, on unverified session redirects to
+ *      `/sign-in?hint=verify-email`).
+ *   2. Loads the user-scoped `QuoteRecord` via `getQuote()`.
  *   3. Reads visibility toggles from the `?visibility=` query param.
  *   4. Calls `renderQuotePdf()` which uses `projectQuote()` to apply the
  *      toggles — the snapshot is never mutated, never recalculated
@@ -18,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { getQuote } from "@/server/repositories/quotes";
 import { renderQuotePdf } from "@/lib/pdf/quotePdf";
 
@@ -26,9 +28,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const { id } = await context.params;
-  const record = await getQuote(owner.id, id);
+  const record = await getQuote(user.id, id);
   if (!record) {
     return new NextResponse("Not found", { status: 404 });
   }

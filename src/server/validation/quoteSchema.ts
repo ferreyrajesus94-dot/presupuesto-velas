@@ -100,7 +100,7 @@ export function parseQuoteDraftInput(raw: unknown) {
 
 /**
  * `appendQuoteVersion` Server Action input — `expectedLockVersion` plus the
- * full draft snapshot. The action layer derives `ownerId` from the session,
+ * full draft snapshot. The action layer derives `userId` from the session,
  * so it is NOT part of this schema (clients cannot fake ownership).
  */
 export const quoteVersionInputSchema = quoteDraftInputSchema.extend({

@@ -1,18 +1,18 @@
 import Link from "next/link";
-import { requireOwner } from "@/server/auth/requireOwner";
+import { requireUser } from "@/server/auth/requireUser";
 import { listTemplates } from "@/server/repositories/templates";
 import { QuoteCreateForm } from "./QuoteCreateForm";
 
 /**
- * PR4g.2 — `/quotes/new` Server Component loader.
+ * PR2.auth-core (Task 2.8) — `/quotes/new` Server Component loader.
  *
- * Authenticate via `requireOwner()`, fetch active templates (no archived), and
- * mount the Client Component form shell. Indirects, deposit auto-suggest, and
- * submission wiring are PR4g.3.
+ * Authenticate via `requireUser()`, fetch active templates (no archived),
+ * and mount the Client Component form shell. Indirects, deposit
+ * auto-suggest, and submission wiring are PR4g.3.
  */
 export default async function NewQuotePage() {
-  const owner = await requireOwner();
-  const records = await listTemplates(owner.id);
+  const user = await requireUser();
+  const records = await listTemplates(user.id);
   // active only; archived templates excluded — the form must not let the user
   // pick an archived template because its items/cost are frozen for history.
   const activeTemplates = records

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireOwner } from "../auth/requireOwner";
+import { requireUser } from "../auth/requireUser";
 import {
   archiveTemplate,
   createBlankTemplate,
@@ -125,11 +125,11 @@ export async function createTemplateAction(
   _previous: TemplateActionState,
   formData: FormData,
 ): Promise<TemplateActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = readTemplateInput(formData);
   if ("state" in parsed) return parsed.state;
   try {
-    const record = await createTemplate(owner.id, parsed.input);
+    const record = await createTemplate(user.id, parsed.input);
     return success(record.template.id);
   } catch (error) {
     return failure(error, "create");
@@ -140,13 +140,13 @@ export async function updateTemplateAction(
   _previous: TemplateActionState,
   formData: FormData,
 ): Promise<TemplateActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") return id;
   const parsed = readTemplateInput(formData);
   if ("state" in parsed) return parsed.state;
   try {
-    const record = await updateTemplate(owner.id, id, parsed.input);
+    const record = await updateTemplate(user.id, id, parsed.input);
     return success(record.template.id);
   } catch (error) {
     return failure(error, "update");
@@ -157,11 +157,11 @@ export async function archiveTemplateAction(
   _previous: TemplateActionState,
   formData: FormData,
 ): Promise<TemplateActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") return id;
   try {
-    const template = await archiveTemplate(owner.id, id);
+    const template = await archiveTemplate(user.id, id);
     return success(template.id);
   } catch (error) {
     return failure(error, "archive");
@@ -172,11 +172,11 @@ export async function restoreTemplateAction(
   _previous: TemplateActionState,
   formData: FormData,
 ): Promise<TemplateActionState> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") return id;
   try {
-    const template = await restoreTemplate(owner.id, id);
+    const template = await restoreTemplate(user.id, id);
     return success(template.id);
   } catch (error) {
     return failure(error, "restore");
@@ -224,11 +224,11 @@ function blankFailure(
 export async function createBlankTemplateAction(
   formData: FormData,
 ): Promise<CreateBlankTemplateResult> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = readBlankName(formData);
   try {
-    const name = parsed ?? (await findNextDefaultTemplateName(owner.id));
-    const template = await createBlankTemplate(owner.id, name);
+    const name = parsed ?? (await findNextDefaultTemplateName(user.id));
+    const template = await createBlankTemplate(user.id, name);
     revalidatePath(TEMPLATES_PATH);
     return { status: "success", id: template.id, name: template.name };
   } catch (error) {
@@ -242,13 +242,13 @@ export async function createBlankTemplateAction(
 // the items delete inside a transaction. NOT_FOUND surfaces as a friendly
 // Spanish message so a stale local id never leaks the raw repository text.
 export async function deleteTemplateAction(formData: FormData): Promise<DeleteTemplateResult> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const id = readId(formData);
   if (typeof id !== "string") {
     return { status: "error", message: "Falta el identificador de la plantilla." };
   }
   try {
-    await deleteTemplateRow(owner.id, id);
+    await deleteTemplateRow(user.id, id);
     revalidatePath(TEMPLATES_PATH);
     return { status: "success", id };
   } catch (error) {
@@ -373,7 +373,7 @@ function templateToClientShape(t: {
 // exists for the owner or `createTemplate` otherwise. Revalidates
 // `/templates` on success so the next page render reflects the new meta.
 export async function saveTemplateAction(formData: FormData): Promise<SaveTemplateResult> {
-  const owner = await requireOwner();
+  const user = await requireUser();
   const parsed = readSaveTemplateInput(formData);
   if (parsed.kind === "error") {
     return { status: "error", ...parsed.state } satisfies SaveTemplateResult & {
@@ -383,8 +383,8 @@ export async function saveTemplateAction(formData: FormData): Promise<SaveTempla
 
   try {
     const record = parsed.id
-      ? await updateTemplate(owner.id, parsed.id, parsed.input)
-      : await createTemplate(owner.id, parsed.input);
+      ? await updateTemplate(user.id, parsed.id, parsed.input)
+      : await createTemplate(user.id, parsed.input);
     revalidatePath(TEMPLATES_PATH);
     const t = record.template;
     return {

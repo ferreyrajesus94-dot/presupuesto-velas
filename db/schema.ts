@@ -32,10 +32,11 @@ export const profitMethod = pgEnum("profit_method", ["percentage", "fixed"]);
 export const appRole = pgEnum("app_role", ["owner", "user"]);
 
 // User ------------------------------------------------------------------
-// PR1.migration of auth-public-signup: `app_owner` -> `app_user`.
-// The JS property name stays `ownerId` so the application layer keeps
-// compiling without code changes (this is the compatibility shim). PR2
-// will rename the JS property to `userId` and update all 24 callers.
+// PR2.auth-core (Task 2.8) — `appUser` is the canonical schema for the
+// `app_user` table. The DB column is `user_id` (PR1.migration renamed
+// `owner_id` → `user_id`); the JS property is `userId` everywhere. The
+// legacy `appOwner`/`AppOwner` compat shim was deleted in PR2.2 once no
+// caller imported it (see Task 2.11).
 export const appUser = pgTable(
   "app_user",
   {
@@ -50,30 +51,12 @@ export const appUser = pgTable(
 );
 export type AppUser = typeof appUser.$inferSelect;
 
-// Backwards-compat declaration for PR1. The legacy `appOwner`/`AppOwner`
-// identifiers must keep resolving through `db/schema.ts` because
-// `src/server/repositories/owner.ts` still references the old shape
-// (id + email + singleton). We declare `appOwner` as a separate Drizzle
-// pgTable bound to a now-non-existent `app_owner` Postgres table — its only
-// purpose is to keep the existing import sites compiling. PR2 deletes
-// `appOwner`/`AppOwner` entirely once the owner repository is migrated.
-export const appOwner = pgTable(
-  "app_owner",
-  {
-    id: text("id").primaryKey(),
-    email: citext("email").notNull(),
-    singleton: boolean("singleton").notNull().default(true),
-  },
-  (t) => [uniqueIndex("app_owner_email_uidx").on(t.email)],
-);
-export type AppOwner = typeof appOwner.$inferSelect;
-
 // Materials -------------------------------------------------------------
 export const materials = pgTable(
   "materials",
   {
     id: text("id").primaryKey(),
-    ownerId: text("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => appUser.id),
     name: text("name").notNull(),
@@ -93,8 +76,8 @@ export const materials = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("materials_owner_name_uidx").on(t.ownerId, t.name),
-    index("materials_owner_idx").on(t.ownerId),
+    uniqueIndex("materials_user_name_uidx").on(t.userId, t.name),
+    index("materials_user_idx").on(t.userId),
     check("materials_purchase_qty_pos", sql`${t.purchaseQuantity} > 0`),
     check("materials_purchase_price_pos", sql`${t.purchasePrice} > 0`),
     // Compatible base/purchase units: must share the same dimension.
@@ -123,7 +106,7 @@ export const templates = pgTable(
   "templates",
   {
     id: text("id").primaryKey(),
-    ownerId: text("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => appUser.id),
     name: text("name").notNull(),
@@ -136,8 +119,8 @@ export const templates = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("templates_owner_name_uidx").on(t.ownerId, t.name),
-    index("templates_owner_idx").on(t.ownerId),
+    uniqueIndex("templates_user_name_uidx").on(t.userId, t.name),
+    index("templates_user_idx").on(t.userId),
   ],
 );
 
@@ -167,7 +150,7 @@ export const quotes = pgTable(
   "quotes",
   {
     id: text("id").primaryKey(),
-    ownerId: text("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => appUser.id),
     customerName: text("customer_name"),
@@ -181,11 +164,11 @@ export const quotes = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("quotes_owner_status_updated_idx").on(t.ownerId, t.status, t.updatedAt),
-    index("quotes_owner_expiration_open_idx")
-      .on(t.ownerId, t.expirationDate)
+    index("quotes_user_status_updated_idx").on(t.userId, t.status, t.updatedAt),
+    index("quotes_user_expiration_open_idx")
+      .on(t.userId, t.expirationDate)
       .where(sql`status NOT IN ('accepted', 'rejected')`),
-    index("quotes_owner_idx").on(t.ownerId),
+    index("quotes_user_idx").on(t.userId),
   ],
 );
 

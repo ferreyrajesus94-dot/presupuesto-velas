@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../src/server/auth/ownerEnv", () => ({
+vi.mock("../../src/server/auth/userEnv", () => ({
   getNeonAuthBaseUrl: () => "https://auth.example.test",
+  getBootstrapOwnerEmail: () => null,
 }));
 vi.mock("../../src/server/auth/session", () => ({ setSessionCookie: vi.fn() }));
-vi.mock("../../src/server/repositories/owner", () => ({ upsertOwner: vi.fn() }));
+vi.mock("../../src/server/repositories/user", () => ({ upsertUser: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 import { signInAction } from "../../src/server/actions/signIn";

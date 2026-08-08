@@ -1,16 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/auth/ownerEnv", () => ({
+vi.mock("@/server/auth/userEnv", () => ({
   getNeonAuthBaseUrl: () => "https://auth.example.test",
-  getOwnerId: () => "owner-1",
-  getOwnerEmail: () => "owner@example.com",
+  getBootstrapOwnerEmail: () => null,
 }));
 vi.mock("@/server/auth/session", () => ({
   NEON_SESSION_COOKIE_NAMES: ["better-auth.session_token"],
   setSessionCookie: vi.fn(),
 }));
-vi.mock("@/server/repositories/owner", () => ({ upsertOwner: vi.fn() }));
+vi.mock("@/server/repositories/user", () => ({ upsertUser: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 import ForbiddenPage from "@/app/403/page";

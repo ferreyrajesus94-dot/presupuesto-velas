@@ -24,10 +24,7 @@ vi.mock("../../src/server/auth/userEnv", async () => {
   return await import("../../src/server/auth/userEnv");
 });
 
-import {
-  getBootstrapOwnerEmail,
-  getNeonAuthBaseUrl,
-} from "../../src/server/auth/userEnv";
+import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "../../src/server/auth/userEnv";
 
 function resetEnv() {
   mocks.env = {};

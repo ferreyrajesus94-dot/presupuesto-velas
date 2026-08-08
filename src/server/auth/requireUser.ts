@@ -1,7 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AppUser } from "../../db/schema";
 import { upsertUser } from "../repositories/user";
 import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "./userEnv";
 
@@ -27,9 +26,7 @@ import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "./userEnv";
  */
 
 type NeonSessionCookieName =
-  | "__Secure-neon-auth.session_token"
-  | "neon-auth.session_token"
-  | "better-auth.session_token";
+  "__Secure-neon-auth.session_token" | "neon-auth.session_token" | "better-auth.session_token";
 
 const NEON_SESSION_COOKIE_NAMES: readonly NeonSessionCookieName[] = [
   "__Secure-neon-auth.session_token",
@@ -117,7 +114,7 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
     redirect("/sign-in?hint=verify-email");
   }
   const requestedRole = resolveRequestedRole(user.email);
-  const row: AppUser = await upsertUser({
+  const row = await upsertUser({
     id: user.id,
     email: user.email,
     emailVerified: user.emailVerified,

@@ -31,11 +31,7 @@ export async function getUser(id: string): Promise<AppUser | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<AppUser | null> {
-  const rows = await db
-    .select()
-    .from(appUser)
-    .where(eq(appUser.email, email))
-    .limit(1);
+  const rows = await db.select().from(appUser).where(eq(appUser.email, email)).limit(1);
   return rows[0] ?? null;
 }
 

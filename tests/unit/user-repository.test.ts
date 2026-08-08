@@ -29,7 +29,12 @@ function makeDbMock(currentRow: { id: string; email: string; role: "owner" | "us
       values: (values: Record<string, unknown>) => ({
         onConflictDoUpdate: (_config: unknown) => ({
           returning: async () => {
-            const row = values as { id: string; email: string; role: "owner" | "user"; emailVerified?: boolean };
+            const row = values as {
+              id: string;
+              email: string;
+              role: "owner" | "user";
+              emailVerified?: boolean;
+            };
             dbCalls.push({ op: "insert", payload: row });
             upsertCallLog.push({
               id: row.id,

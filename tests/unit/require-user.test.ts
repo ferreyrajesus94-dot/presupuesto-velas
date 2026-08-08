@@ -40,10 +40,7 @@ vi.mock("../../src/server/repositories/user", () => ({
 
 import { requireUser } from "../../src/server/auth/requireUser";
 
-function setSession(
-  value: string | undefined,
-  upstreamVariant: string | undefined = "b",
-): void {
+function setSession(value: string | undefined, upstreamVariant: string | undefined = "b"): void {
   mocks.cookiesMock.mockResolvedValue({
     get: (name: string) => {
       if (name === "session" && value) return { value };
@@ -124,7 +121,9 @@ describe("requireUser (redirect matrix)", () => {
 
   it("upserts via upsertUser and returns the row when the session is verified", async () => {
     setSession("tok-1");
-    mockGetSessionResponse({ user: { id: "u-1", email: "user-1@example.com", emailVerified: true } });
+    mockGetSessionResponse({
+      user: { id: "u-1", email: "user-1@example.com", emailVerified: true },
+    });
     mocks.upsertUserMock.mockResolvedValue({
       id: "u-1",
       email: "user-1@example.com",
@@ -228,7 +227,9 @@ describe("requireUser (redirect matrix)", () => {
 
   it("forwards the supported upstream cookie identity to Neon", async () => {
     setSession("tok-1", "p");
-    mockGetSessionResponse({ user: { id: "u-1", email: "user-1@example.com", emailVerified: true } });
+    mockGetSessionResponse({
+      user: { id: "u-1", email: "user-1@example.com", emailVerified: true },
+    });
     mocks.upsertUserMock.mockResolvedValue({
       id: "u-1",
       email: "user-1@example.com",

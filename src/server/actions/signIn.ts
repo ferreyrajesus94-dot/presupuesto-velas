@@ -7,7 +7,7 @@ import {
   setSessionCookie,
   type NeonSessionCookieName,
 } from "../auth/session";
-import { SignInSchema } from "../auth/signInSchema";
+import { AuthSchema } from "../auth/authSchema";
 import { upsertOwner } from "../repositories/owner";
 
 export type SignInState = {
@@ -18,7 +18,7 @@ export type SignInState = {
 export async function signInAction(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const parsed = SignInSchema.safeParse({ email, password });
+  const parsed = AuthSchema.safeParse({ email, password });
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors, values: { email } };
   }

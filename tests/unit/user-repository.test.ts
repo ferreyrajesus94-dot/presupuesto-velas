@@ -88,11 +88,12 @@ describe("upsertUser bootstrap promotion + idempotency", () => {
     vi.clearAllMocks();
   });
 
-  it("inserts a fresh row with role='owner' when the email matches BOOTSTRAP_OWNER_EMAIL", async () => {
+  it("inserts a fresh row with role='owner' when email matches BOOTSTRAP_OWNER_EMAIL AND requestedRole='owner'", async () => {
     const row = await upsertUser({
       id: "neon-id-1",
       email: "owner@bootstrap.invalid",
       emailVerified: true,
+      requestedRole: "owner",
     });
 
     expect(row.id).toBe("neon-id-1");
@@ -161,6 +162,32 @@ describe("upsertUser bootstrap promotion + idempotency", () => {
     // supplied `requestedRole: "owner"`.
     expect(row.role).toBe("user");
     expect(upsertCallLog[0]?.role).toBe("user");
+  });
+
+  it("returns role='user' when BOOTSTRAP_OWNER_EMAIL is unset, even with requestedRole='owner'", async () => {
+    mocks.bootstrap.email = "" as unknown as string;
+    const row = await upsertUser({
+      id: "neon-id-6",
+      email: "any@example.com",
+      emailVerified: true,
+      requestedRole: "owner",
+    });
+
+    // ROLE-MODEL scenario "Unset env + reserved guard test": no email can
+    // be promoted when the bootstrap env is unset.
+    expect(row.role).toBe("user");
+  });
+
+  it("matches BOOTSTRAP_OWNER_EMAIL case-insensitively", async () => {
+    mocks.bootstrap.email = "Owner@Bootstrap.invalid";
+    const row = await upsertUser({
+      id: "neon-id-7",
+      email: "owner@bootstrap.invalid",
+      emailVerified: true,
+      requestedRole: "owner",
+    });
+
+    expect(row.role).toBe("owner");
   });
 });
 

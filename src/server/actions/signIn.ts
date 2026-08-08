@@ -20,14 +20,14 @@ import { upsertUser } from "../repositories/user";
  *   - Honors a hidden `<input name="next">` from the form. Same-origin
  *     absolute paths (`/materials`, `/quotes/abc`, …) redirect there;
  *     cross-origin or empty values fall back to `/`.
- *   - Drops the `/403` redirect for non-owners — that's a PR3 concern
- *     (cross-user isolation in the route layer). Sign-in is no longer a
- *     write gate; verification is.
+ *   - Sign-in is no longer a write gate; verification is. The `/403`
+ *     allowlist path was retired in PR2 and never resurrected in PR3.
+ *     `/403` itself remains available for any future role-gated route.
  *
  * The local `extractNeonSessionCookie` helper stays inline because
  * `session.ts` is byte-identical (SESSION-PRESERVE); extracting it to
- * `src/server/auth/neonCookie.ts` is a PR3 task that will be done when
- * `signUpAction` also needs it.
+ * `src/server/auth/neonCookie.ts` is deferred until a non-PR2 caller
+ * needs it.
  */
 
 export type SignInState = {

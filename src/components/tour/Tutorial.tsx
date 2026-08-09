@@ -98,18 +98,18 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     targetSelector: "[data-tour-target='templates']",
   },
   {
-    id: "calculadora",
-    emoji: "🧮",
-    title: "Calculadora",
+    id: "presupuestos",
+    emoji: "💬",
+    title: "Presupuestos",
     description:
-      "Elegí una plantilla, indicá cantidad y armá la presupuesto con seña, ganancia y descuento por mayoreo inline.",
+      "Elegí una plantilla, indicá cantidad y armá el presupuesto con seña, ganancia y descuento por mayoreo inline.",
     bullets: [
       "📐 Plantilla, cantidad, costo unitario",
       "🎯 Descuento por mayoreo",
       "💰 Ganancia + seña sugerida",
     ],
     tip: "Tip: el descuento por mayoreo se activa desde cierta cantidad — jugá con los valores para ver el total.",
-    targetSelector: "[data-tour-target='calculator']",
+    targetSelector: "[data-tour-target='quotes']",
   },
 ];
 

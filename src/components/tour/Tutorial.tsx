@@ -471,13 +471,17 @@ function TutorialDialog({
         // tap "Saltar tour" from the dialog without first reaching over
         // a phantom tab. The 5.5rem is the nav height + a small buffer
         // so the modal's bottom edge sits just above the nav border.
-        // `overflow-y-auto` covers the long-content case (e.g. step 1
-        // "Bienvenida" runs taller than the available space when the
-        // device has a small inner viewport).
+        //
+        // `flex flex-col` lays the modal out as header / scroll body /
+        // sticky footer so the action buttons (Saltar / Atrás / Siguiente)
+        // are always reachable, even on the long-content steps. `p-4` on
+        // <md and `p-6` on ≥md give the body a touch more room for the
+        // smaller viewport; the footer is `shrink-0` so it never scrolls
+        // out of view.
         className={
           reducedMotion
-            ? "absolute inset-x-4 top-4 overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
-            : "absolute inset-x-4 top-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl transition-all md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
+            ? "absolute inset-x-4 top-4 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-xl bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2 md:p-6"
+            : "absolute inset-x-4 top-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-xl transition-all md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2 md:p-6"
         }
         style={{
           pointerEvents: "auto",
@@ -488,7 +492,7 @@ function TutorialDialog({
             : "20%",
         }}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
             Paso {stepIndex + 1} de {totalSteps}
           </span>
@@ -501,42 +505,44 @@ function TutorialDialog({
             <span aria-hidden="true">✕</span>
           </button>
         </div>
-        <h2
-          id="tour-title"
-          className="mt-2 flex items-center gap-2 text-2xl font-semibold text-ink"
-        >
-          <span aria-hidden="true">{step.emoji}</span>
-          {step.title}
-        </h2>
-        <p id="tour-description" className="mt-2 text-sm text-ink-muted">
-          {step.description}
-        </p>
-        <ul className="mt-3 flex flex-col gap-1 text-sm text-ink">
-          {step.bullets.map((bullet) => (
-            <li key={bullet} className="flex items-start gap-2">
-              <span className="text-brand">•</span>
-              <span>{bullet}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 rounded-lg bg-surface-soft p-3 text-xs text-ink-muted">💡 {step.tip}</p>
-        <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            checked={autoShowEnabled}
-            onChange={(e) => onAutoShowChange(e.target.checked)}
-            data-testid="tour-auto-show"
-            aria-label="Mostrar este tour al iniciar sesión"
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border-subtle text-brand focus:ring-2 focus:ring-brand"
-          />
-          <span>
-            <span className="font-semibold">Mostrar este tour al iniciar sesión</span>
-            <span className="mt-0.5 block text-xs text-ink-muted">
-              Si lo desactivás, podés abrirlo cuando quieras con el botón ❓.
+        <div className="mt-2 flex-1 overflow-y-auto">
+          <h2
+            id="tour-title"
+            className="flex items-center gap-2 text-2xl font-semibold text-ink"
+          >
+            <span aria-hidden="true">{step.emoji}</span>
+            {step.title}
+          </h2>
+          <p id="tour-description" className="mt-2 text-sm text-ink-muted">
+            {step.description}
+          </p>
+          <ul className="mt-3 flex flex-col gap-1 text-sm text-ink">
+            {step.bullets.map((bullet) => (
+              <li key={bullet} className="flex items-start gap-2">
+                <span className="text-brand">•</span>
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 rounded-lg bg-surface-soft p-3 text-xs text-ink-muted">💡 {step.tip}</p>
+          <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={autoShowEnabled}
+              onChange={(e) => onAutoShowChange(e.target.checked)}
+              data-testid="tour-auto-show"
+              aria-label="Mostrar este tour al iniciar sesión"
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border-subtle text-brand focus:ring-2 focus:ring-brand"
+            />
+            <span>
+              <span className="font-semibold">Mostrar este tour al iniciar sesión</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                Si lo desactivás, podés abrirlo cuando quieras con el botón ❓.
+              </span>
             </span>
-          </span>
-        </label>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          </label>
+        </div>
+        <div className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3">
           <button
             type="button"
             onClick={onSkip}

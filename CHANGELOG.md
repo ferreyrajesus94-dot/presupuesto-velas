@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6 - 2026-08-09
+
+- **FIX: tour modal no longer covers the mobile bottom nav.** After the v0.5.5 bottom-nav refactor, the tour dialog's `inset-4` bounding box still ran all the way to the viewport edge on `<md`, overlapping the fixed bottom nav by ~50px. The user had to tap a tab through a phantom ghost-button before reaching "Saltar tour". Moved the bottom margin of the dialog to `calc(5.5rem + env(safe-area-inset-bottom))` on `<md` so the card stops just above the nav border, and added `overflow-y-auto` so the welcome step scrolls inside the card when it runs taller than the available viewport height. Desktop `≥md` is unchanged (centered `max-w-md` popover anchored to the spotlight target). Verified in foreground at 390×844 with a fresh session: the nav is fully tappable through the overlay.
+
 ## 0.5.5 - 2026-08-09
 
 - **FIX: `sortQuotes` comparator on `/quotes` is now correct in both directions.** `compareTotal(a, b, dir)` was `dir * Number(a.total) - Number(b.total)`, which operator-precedence parses as `(dir * a) - b`. With `dir = -1` (total-desc) that collapses to `-(a + b) < 0` for any positive totals, so `Array.sort`'s stable contract preserved the DB input order instead of descending by total. Wrapped in parens. Verified with `scripts/qa-sort-test.ts` against 10 fixtures with intentionally varied quantities — `Total · mayor` now reads `02 → 09 → 07 → 04 → 10 → 05 → 08 → 03 → 06 → 01` (descending by `qty × unit_cost`).

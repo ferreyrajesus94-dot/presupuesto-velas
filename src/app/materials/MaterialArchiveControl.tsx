@@ -18,20 +18,9 @@ function intentFor(archived: boolean): MaterialLifecycleOperation {
   return archived ? "restore" : "archive";
 }
 
-/**
- * Renders just a <button type="button"> (no <form> wrapper) so the
- * control can be embedded inside another form — the list view
- * wraps every row in a <form action={updateMaterialAction}>, and
- * nesting this control's own <form> inside that parent would
- * trigger the browser's "form cannot contain a nested form"
- * hydration error. The click handler builds a synthetic FormData
- * and dispatches the archive action through `useActionState` so
- * the existing R3-001 / R3-003 reporting path (intent capture +
- * feedback provider) is unchanged.
- */
 export function MaterialArchiveControl({ material }: Props) {
   const action = material.archived ? unarchiveMaterialAction : archiveMaterialAction;
-  const [state, dispatch, pending] = useActionState(action, IDLE);
+  const [state, formAction, pending] = useActionState(action, IDLE);
 
   // R3-001 + R3-003: capture the user intent at dispatch time. The prop's
   // `archived` flag may flip after revalidation, but the verb in the success
@@ -48,14 +37,11 @@ export function MaterialArchiveControl({ material }: Props) {
     }
   }, [state, reportLifecycle, material.name]);
 
-  function handleClick() {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     intentRef.current = intentFor(material.archived);
     if (!material.archived && !window.confirm(CONFIRM(material.name))) return;
-    const formData = new FormData();
-    formData.set("id", material.id);
-    startTransition(() => {
-      dispatch(formData);
-    });
+    startTransition(() => formAction(new FormData(event.currentTarget)));
   }
 
   const v = material.archived ? "Restaurar" : "Archivar";
@@ -63,10 +49,10 @@ export function MaterialArchiveControl({ material }: Props) {
   const accessible = pending ? `${pv} ${material.name}…` : `${v} ${material.name}`;
 
   return (
-    <div className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} aria-busy={pending} className="flex flex-col gap-2">
+      <input type="hidden" name="id" value={material.id} />
       <button
-        type="button"
-        onClick={handleClick}
+        type="submit"
         disabled={pending}
         data-archive-focus={material.archived ? undefined : "next-row"}
         aria-label={accessible}
@@ -79,6 +65,6 @@ export function MaterialArchiveControl({ material }: Props) {
           {state.message}
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }

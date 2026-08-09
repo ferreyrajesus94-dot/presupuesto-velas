@@ -2,15 +2,8 @@ import { requireUser } from "@/server/auth/requireUser";
 import { countArchivedMaterials, listMaterials } from "@/server/repositories/materials";
 import type { MaterialInput } from "@/server/validation/materialSchema";
 import { MaterialsList, type MaterialListItem } from "./MaterialsList";
-import { MaterialsListView } from "./MaterialsListView";
 import { MaterialCreateForm } from "./MaterialCreateForm";
-import {
-  MaterialViewFilter,
-  resolveMaterialView,
-  resolveMaterialViewMode,
-  type MaterialView,
-  type MaterialViewMode,
-} from "./MaterialViewFilter";
+import { resolveMaterialView, type MaterialView } from "./MaterialViewFilter";
 
 const VIEW_VISIBILITY: Record<MaterialView, { includeArchived: boolean }> = {
   active: { includeArchived: false },
@@ -23,14 +16,8 @@ export default async function MaterialsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await requireUser();
-  const { view: rawView, mode: rawMode } = await searchParams;
-  // Two orthogonal view params: `view` controls visibility
-  // (Activos / Mostrar archivados) and `mode` controls display layout
-  // (Tarjetas / Lista). Each toggle link preserves the other so the
-  // user can browse, say, archived materials in list mode without
-  // losing the visibility filter.
+  const { view: rawView } = await searchParams;
   const view = resolveMaterialView(rawView);
-  const mode = resolveMaterialViewMode(rawMode);
   const visibility = VIEW_VISIBILITY[view];
   const materials = await listMaterials(user.id, visibility);
 
@@ -85,32 +72,9 @@ export default async function MaterialsPage({
         </div>
       </header>
 
-      {/*
-       * The filter row (Activos / Mostrar archivados + Tarjetas / Lista)
-       * lives at the page level so it works in both display modes.
-       */}
-      <MaterialViewFilter current={view} mode={mode} />
-
       <div className="flex flex-col gap-8">
-        {/*
-         * Cards mode: the create form (to add new materials) sits above
-         * the editable list. Each list item is its own card with the
-         * inline edit form. List mode: hide the create form (the user
-         * can switch back to cards to add new materials) and show the
-         * compact table.
-         */}
-        {mode === "cards" ? (
-          <>
-            <MaterialCreateForm />
-            <MaterialsList
-              materials={items}
-              view={view}
-              archivedCount={archivedCount}
-            />
-          </>
-        ) : (
-          <MaterialsListView materials={items} />
-        )}
+        <MaterialCreateForm />
+        <MaterialsList materials={items} view={view} archivedCount={archivedCount} />
       </div>
     </div>
   );

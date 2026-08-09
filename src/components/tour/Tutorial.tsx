@@ -440,14 +440,19 @@ function TutorialDialog({
         aria-describedby="tour-description"
         ref={dialogRef}
         tabIndex={-1}
-        // On mobile, the card eats the full viewport with a small safe
-        // margin so the spotlight + text don't get squished into 300px
-        // on a 390px screen. On ≥md it reverts to a centered max-w-md
-        // popover anchored to the spotlight target.
+        // On <md the bottom nav (5 items ≈ 4.5rem + safe-area) is fixed
+        // to the viewport edge, so the bottom margin of the modal has to
+        // clear it — otherwise the modal eats the nav and the user can't
+        // tap "Saltar tour" from the dialog without first reaching over
+        // a phantom tab. The 5.5rem is the nav height + a small buffer
+        // so the modal's bottom edge sits just above the nav border.
+        // `overflow-y-auto` covers the long-content case (e.g. step 1
+        // "Bienvenida" runs taller than the available space when the
+        // device has a small inner viewport).
         className={
           reducedMotion
-            ? "absolute inset-4 rounded-2xl border border-border bg-surface p-6 shadow-xl md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
-            : "absolute inset-4 rounded-2xl border border-border bg-surface p-6 shadow-xl transition-all md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
+            ? "absolute inset-x-4 top-4 overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
+            : "absolute inset-x-4 top-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl transition-all md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
         }
         style={{
           pointerEvents: "auto",

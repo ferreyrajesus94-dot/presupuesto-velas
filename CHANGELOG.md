@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.5 - 2026-08-09
+
+- **CRITICAL FIX: bootstrap promotion wasn't applied on existing rows.** `upsertUser` (in `src/server/repositories/user.ts`) used `onConflictDoUpdate` with a SET clause of `{ email, emailVerified }` — `role` was missing. The effect: when a user first signed in while unverified (`emailVerified: false`), `resolveRole` correctly returned `"user"` and the INSERT landed with `role='user'`. But every subsequent `requireUser` call after verification passed `requestedRole: "owner"`, `resolveRole` returned `"owner"`, and the SET clause silently kept `role='user'` because `role` wasn't in the update fields. The original `adminvelas@gmail.com` user ended up with `role='user'` even though the bootstrap rule should have promoted them on first verified sign-in.
+- **Fix**: the SET clause now conditionally includes `role: 'owner'` when `resolveRole` returns `"owner"`. We never include `role` when it returns `"user"`, so existing `role='owner'` rows are NEVER downgraded (idempotent re-promotion is preserved). The docstring is updated with the failure history so future maintainers don't re-introduce the bug.
+- **Manual fix applied**: `app_user` row for `adminvelas@gmail.com` (`id: 3ace9998-35c6-42ef-81c9-8083b7d2b4b4`) was inserted via `Neon_run_sql` with `role='owner'` so the user sees "Admin" in `/settings` immediately. After this release, every verified sign-in to the owner email auto-promotes the row on first encounter.
+- 7 new unit tests in `tests/unit/user-repository-upsert.test.ts` assert the SET clause includes `role: 'owner'` only under the right conditions (verified + email matches + requestedRole='owner'), and excludes it otherwise. Defense against the bug regressing.
+
 ## 0.4.4 - 2026-08-09
 
 - **NEW: `/settings` page** — shows the signed-in user's email and role (Admin badge for `role='owner'`), with a change-password form and a sign-out button. Server component calls `requireUser()` so unauthenticated or unverified visitors are redirected before they see the page.

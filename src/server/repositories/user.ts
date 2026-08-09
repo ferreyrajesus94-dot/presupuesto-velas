@@ -74,6 +74,17 @@ export async function upsertUser(input: UpsertUserInput): Promise<AppUser> {
       set: {
         email: input.email,
         emailVerified: input.emailVerified,
+        // Bootstrap promotion: when resolveRole returns "owner" we promote
+        // the existing row. The conditional spread means we NEVER set role
+        // when resolveRole returns "user", which preserves any prior
+        // "owner" assignment (idempotent re-promotion) and never downgrades.
+        //
+        // History: v0.4.0–v0.4.4 shipped without `role` in the set, so a
+        // user who first signed in BEFORE verifying their email was
+        // inserted with role='user' and stayed role='user' forever — even
+        // after `requireUser` started passing `requestedRole='owner'`.
+        // This is the fix.
+        ...(role === "owner" ? { role: "owner" as const } : {}),
       },
     })
     .returning();

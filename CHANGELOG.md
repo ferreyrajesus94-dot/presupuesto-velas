@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3 - 2026-08-09
+
+- **FIX: `deleteQuoteDraft` now tears down child rows explicitly.** The "This page couldn't load" error on Eliminar was a Postgres FK violation. The docstring claimed the child FKs were CASCADE, but `information_schema.referential_constraints` shows they are `NO ACTION` for both `quote_versions.quote_id` and `quote_status_events.quote_id`. Postgres refused the parent delete with `update or delete on table "quotes" violates foreign key constraint`. Fixed by walking the child tree in dependency order inside the existing transaction (`quote_version_materials` → `quote_version_models` → `quote_version_indirect_costs` → `quote_versions` → `quote_status_events` → `quotes`).
+- **CHORE: shared `contextWithTourDismissed` helper for the qa-* scripts.** Every Playwright `browser.newContext()` creates a fresh `localStorage` partition, so the `pv-tour-disabled = "1"` opt-out the user persisted in their real browser was missing. Every time a `qa-*` script ran, the `<Tutorial />` component saw the absence of the flag and re-showed the overlay in the headed browser window. The new `scripts/_helpers.ts` exports `contextWithTourDismissed(browser, options)` that wraps `newContext` and registers an `addInitScript` that pre-seeds the opt-out key before any page script runs. Applied to 8 of 9 `qa-*` scripts (`qa-tour.ts` is intentionally skipped because that test verifies the auto-show flow).
+
 ## 0.5.2 - 2026-08-09
 
 - **UX: detail view shows more metadata.** A new meta strip renders between the header and the model list with: short UUID (`<8 chars>`), current version number, item count (`<n> modelo(s), <m> costo(s) indirecto(s)`), creation date+time, and last-edit date+time. No new query — the `quote.createdAt` and `version.createdAt` were already loaded by `getQuote`. `formatDateTime` accepts both string and Date to absorb the Drizzle `Date` vs `string` mismatch between the two columns.

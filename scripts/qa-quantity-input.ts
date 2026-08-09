@@ -4,6 +4,7 @@
  * hidden via the globals.css rule.
  */
 import { chromium, type Page } from "playwright";
+import { contextWithTourDismissed } from "./_helpers";
 import { readFileSync } from "node:fs";
 
 const BASE_URL = "http://localhost:3000";
@@ -28,7 +29,7 @@ async function login(page: Page): Promise<void> {
 
 async function main(): Promise<void> {
   const browser = await chromium.launch({ headless: false, slowMo: 200 });
-  const ctx = await browser.newContext({
+  const ctx = await contextWithTourDismissed(browser, {
     viewport: { width: 1440, height: 900 },
     locale: "es-AR",
   });

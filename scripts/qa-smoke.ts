@@ -10,6 +10,7 @@
  */
 
 import { chromium, type ConsoleMessage, type Page, type Request, type Response } from "playwright";
+import { contextWithTourDismissed } from "./_helpers";
 import { writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -488,7 +489,7 @@ async function expect_save_settled(loc: ReturnType<Page["locator"]>, attr: strin
 
 async function main() {
   const browser = await chromium.launch({ headless: false, slowMo: 200 });
-  const context = await browser.newContext({
+  const context = await contextWithTourDismissed(browser, {
     viewport: { width: 1440, height: 900 },
     locale: "es-AR",
   });

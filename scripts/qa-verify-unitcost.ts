@@ -4,6 +4,7 @@
  * 'Materiales: ARS 5.000,00' (or 'ARS 5K' in compact form).
  */
 import { chromium } from "playwright";
+import { contextWithTourDismissed } from "./_helpers";
 import { writeFileSync, readFileSync } from "node:fs";
 
 const BASE_URL = "http://localhost:3000";
@@ -16,7 +17,7 @@ const PASSWORD = readFileSync(PASS_FILE, "utf8");
 
 async function main(): Promise<void> {
   const browser = await chromium.launch({ headless: false, slowMo: 200 });
-  const ctx = await browser.newContext({
+  const ctx = await contextWithTourDismissed(browser, {
     viewport: { width: 1440, height: 900 },
     locale: "es-AR",
   });

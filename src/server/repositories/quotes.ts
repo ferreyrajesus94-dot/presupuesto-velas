@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "../../../db/client";
 import {
+  quoteStatusEvents,
   quoteVersionIndirectCosts,
   quoteVersionMaterials,
   quoteVersionModels,
@@ -279,9 +280,21 @@ export type DeleteQuoteDraftResult =
 /**
  * Delete a draft quote and all of its child rows. User-scoped + status-checked
  * (only `draft` quotes can be deleted; `sent`, `accepted`, `rejected` must
- * either transition or be archived). CASCADE FKs on `quote_versions`,
- * `quote_version_models`, `quote_version_materials`, `quote_version_indirect_costs`,
- * and `quote_status_events` clean up children in the same transaction.
+ * either transition or be archived).
+ *
+ * The DB's FKs from `quote_status_events` and `quote_versions` are
+ * `NO ACTION` (verified against information_schema) — Postgres refuses
+ * the parent delete when child rows exist, surfacing as
+ * `error: update or delete on table "quotes" violates foreign key
+ * constraint`. So we explicitly tear down children in the right order
+ * inside the same transaction:
+ *
+ *   1. `quote_version_materials` (FK → quote_versions)
+ *   2. `quote_version_models`      (FK → quote_versions)
+ *   3. `quote_version_indirect_costs` (FK → quote_versions)
+ *   4. `quote_versions`             (FK → quotes)
+ *   5. `quote_status_events`        (FK → quotes)
+ *   6. `quotes`                     (the row we are deleting)
  */
 export async function deleteQuoteDraft(
   userId: string,
@@ -317,6 +330,17 @@ export async function deleteQuoteDraft(
         },
       };
     }
+    // The FKs from `quote_status_events` and `quote_versions` are NO ACTION
+    // (not CASCADE), so Postgres refuses the parent delete when children
+    // exist. Walk the child tree in dependency order before removing the
+    // parent.
+    await tx.delete(quoteVersionMaterials).where(eq(quoteVersionMaterials.quoteId, id));
+    await tx.delete(quoteVersionModels).where(eq(quoteVersionModels.quoteId, id));
+    await tx.delete(quoteVersionIndirectCosts).where(
+      eq(quoteVersionIndirectCosts.quoteId, id),
+    );
+    await tx.delete(quoteVersions).where(eq(quoteVersions.quoteId, id));
+    await tx.delete(quoteStatusEvents).where(eq(quoteStatusEvents.quoteId, id));
     await tx.delete(quotes).where(eq(quotes.id, id));
     return { ok: true };
   });

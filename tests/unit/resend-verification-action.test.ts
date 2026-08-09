@@ -29,6 +29,9 @@ const mocks = vi.hoisted(() => {
 vi.mock("../../src/server/auth/userEnv", () => ({
   getNeonAuthBaseUrl: () => "https://auth.example.test",
 }));
+vi.mock("../../src/server/auth/appBaseUrl", () => ({
+  getAppBaseUrl: () => "https://app.test.local",
+}));
 vi.mock("../../src/server/auth/session", () => ({
   fetchSessionUser: mocks.fetchSessionUserMock,
 }));
@@ -66,6 +69,35 @@ describe("resendVerificationAction public verify-email (PR3 task 3.7)", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+  });
+
+  it("passes callbackURL pointing to /verify-email so Better Auth can include it in the email body when supported", async () => {
+    mocks.fetchSessionUserMock.mockResolvedValue({
+      id: "u-pending-5",
+      email: "callback@example.com",
+    });
+    const fetchMock = vi.fn().mockResolvedValue(NEON_RESEND_OK());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await resendVerificationAction({}, makeFormData());
+
+    const [, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(calledInit.body));
+    expect(body.callbackURL).toBe("https://app.test.local/verify-email");
+  });
+
+  it("sends Origin header matching the configured APP_BASE_URL", async () => {
+    mocks.fetchSessionUserMock.mockResolvedValue({
+      id: "u-pending-6",
+      email: "origin@example.com",
+    });
+    const fetchMock = vi.fn().mockResolvedValue(NEON_RESEND_OK());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await resendVerificationAction({}, makeFormData());
+
+    const [, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((calledInit.headers as Record<string, string>).Origin).toBe("https://app.test.local");
   });
 
   it("returns a form error and performs no Neon POST when there is no session", async () => {

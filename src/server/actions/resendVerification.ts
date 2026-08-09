@@ -1,4 +1,5 @@
 "use server";
+import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getNeonAuthBaseUrl } from "../auth/userEnv";
 import { fetchSessionUser } from "../auth/session";
 
@@ -54,10 +55,17 @@ export async function resendVerificationAction(
   }
 
   const base = getNeonAuthBaseUrl();
+  const appBaseUrl = getAppBaseUrl();
   const res = await fetch(`${base}/send-verification-email`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: session.email }),
+    headers: {
+      "Content-Type": "application/json",
+      Origin: appBaseUrl,
+    },
+    body: JSON.stringify({
+      email: session.email,
+      callbackURL: `${appBaseUrl}/verify-email`,
+    }),
     cache: "no-store",
   });
 

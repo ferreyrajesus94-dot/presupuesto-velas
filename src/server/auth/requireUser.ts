@@ -5,15 +5,24 @@ import { upsertUser } from "../repositories/user";
 import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "./userEnv";
 
 /**
- * PR2.auth-core — `requireUser(opts?)`.
+ * PR2.auth-core + v0.4.2 hotfix — `requireUser(opts?)`.
  *
  * Returns `{ id, email, role, emailVerified }` from any valid Neon Auth
  * session, atomically upserting the `app_user` row on first verified call.
  * Replaces the legacy single-owner allowlist guard. Redirect semantics:
  *
  *   - no session          → `redirect("/sign-in?next=<pathname || '/'>")`
- *   - session, !verified  → `redirect("/sign-in?hint=verify-email")`
+ *   - session, !verified  → `redirect("/verify-email")`        (v0.4.2: was `/sign-in?hint=verify-email`)
  *   - session, verified   → `upsertUser(...)` → return the persisted row
+ *
+ * v0.4.2 redirect change: unverified sessions now go DIRECTLY to
+ * `/verify-email` (where the OTP input form lives) instead of bouncing
+ * through `/sign-in?hint=verify-email` (which only shows a banner). The
+ * user-reported pain point: "if you lose the verify tab and sign in
+ * again, you should land back on the verify page". `requireUser` is
+ * the only chokepoint for every protected route, so redirecting here
+ * means ANY protected-route access while unverified returns the user
+ * to the verify page — they cannot get lost.
  *
  * Design constraints (locked in `sdd/auth-public-signup/design`):
  *   - `src/server/auth/session.ts` stays byte-identical (SESSION-PRESERVE),
@@ -111,7 +120,7 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
     redirect(`/sign-in?${buildNextQuery(opts.pathname)}`);
   }
   if (!user.emailVerified) {
-    redirect("/sign-in?hint=verify-email");
+    redirect("/verify-email");
   }
   const requestedRole = resolveRequestedRole(user.email);
   const row = await upsertUser({

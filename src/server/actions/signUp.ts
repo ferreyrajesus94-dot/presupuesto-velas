@@ -71,7 +71,7 @@ export async function signUpAction(_prev: SignUpState, formData: FormData): Prom
       password: parsed.data.password,
       name,
       email_verification: "link",
-      callbackURL: `${appBaseUrl}/sign-in`,
+      callbackURL: `${appBaseUrl}/verify-email`,
     }),
     cache: "no-store",
   });

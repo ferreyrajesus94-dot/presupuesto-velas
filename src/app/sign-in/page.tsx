@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { SignInForm } from "./SignInForm";
 
 export const metadata = { title: "Iniciar sesión" };
 
 /**
- * PR3.auth-ui (Task 3.6) — `/sign-in` page.
+ * PR3.auth-ui (Task 3.6) + v0.4.2 hotfix — `/sign-in` page.
  *
  *   - Reads optional `searchParams`:
  *     - `hint=verify-email` → renders a "Check your inbox" banner above
@@ -15,7 +16,14 @@ export const metadata = { title: "Iniciar sesión" };
  *       `<input name="next">` so the signed-in user lands back where
  *       they started (matches the `proxy.ts` redirect contract).
  *   - The "Create account" CTA lives in `SignInForm` so the form owns
- *     its full sign-in/sign-up affordance surface.
+ *       its full sign-in/sign-up affordance surface.
+ *
+ * v0.4.2 banner change: the banner now carries an explicit "Ir a
+ * verificar mi cuenta" link to `/verify-email`. Previously the user
+ * had to sign in first to reach the OTP-input page; now they can
+ * jump straight there from the banner (signing in still works and
+ * also lands them on `/verify-email` via `requireUser`'s v0.4.2
+ * redirect change).
  */
 export default async function SignInPage({
   searchParams,
@@ -48,6 +56,11 @@ export default async function SignInPage({
           <p className="font-semibold">Revisá tu casilla</p>
           <p className="text-ink-muted">
             Te enviamos un mensaje para verificar tu cuenta. Si no lo ves, revisá spam.
+          </p>
+          <p className="mt-2">
+            <Link href="/verify-email" className="font-semibold text-brand hover:underline">
+              Ir a verificar mi cuenta →
+            </Link>
           </p>
         </div>
       ) : null}

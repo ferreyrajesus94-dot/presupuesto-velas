@@ -100,12 +100,12 @@ describe("requireUser (redirect matrix)", () => {
     });
   });
 
-  it("redirects to /sign-in?hint=verify-email when the session is not verified", async () => {
+  it("redirects to /verify-email when the session is not verified", async () => {
     setSession("tok-1");
     mockGetSessionResponse({ user: { id: "u-1", email: "u-1@example.com", emailVerified: false } });
 
     await expect(requireUser()).rejects.toMatchObject({
-      __redirect: "/sign-in?hint=verify-email",
+      __redirect: "/verify-email",
     });
     expect(mocks.upsertUserMock).not.toHaveBeenCalled();
   });
@@ -115,7 +115,7 @@ describe("requireUser (redirect matrix)", () => {
     mockGetSessionResponse({ user: { id: "u-1", email: "u-1@example.com" } });
 
     await expect(requireUser()).rejects.toMatchObject({
-      __redirect: "/sign-in?hint=verify-email",
+      __redirect: "/verify-email",
     });
   });
 

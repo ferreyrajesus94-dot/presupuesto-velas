@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 - 2026-08-09
+
+- **UX: never lose the verify-email page.** `requireUser` now redirects unverified sessions directly to `/verify-email` (where the OTP input form lives) instead of bouncing through `/sign-in?hint=verify-email` (banner only). The user-reported pain point: closing the verify tab and signing in again should land back on the verify page — `requireUser` is the chokepoint for every protected route, so this change makes that path impossible to lose.
+- **UX: explicit "Ir a verificar mi cuenta" link** in the `/sign-in` verify-email banner. Users who navigate directly to `/sign-in?hint=verify-email` can now jump straight to `/verify-email` without first signing in (signing in still works and also lands them on `/verify-email` via the `requireUser` redirect).
+- **Better Auth `callbackURL` hardening**: `signUpAction` and `resendVerificationAction` now pass `callbackURL: <APP_BASE_URL>/verify-email` to Neon Auth, so any future verification flow that embeds a magic link in the email body lands the user on the verify page. Note: Neon Auth shared SMTP currently renders OTP-only emails (no embedded link); `callbackURL` is a forward-compatible hint for when the project moves to custom SMTP / link mode.
+- 2 new unit tests for `resendVerificationAction` cover the `callbackURL` and `Origin` header fields; 2 existing tests for `requireUser` updated to assert the new `/verify-email` redirect target.
+
 ## 0.4.1 - 2026-08-09
 
 - **Hotfix: OTP verification UI**: PR3.2 (task 3.7) shipped the resend form but omitted the OTP input form, leaving users with no way to submit the 6-digit code from the verification email. This release adds `verifyEmailOtpAction` (POSTs to Neon Auth `/sign-in/email-otp`) and `VerifyOtpForm` (RHF-free client component with pre-filled email from session + 6-digit OTP input) on the `/verify-email` page.

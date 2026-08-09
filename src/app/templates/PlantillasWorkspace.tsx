@@ -117,9 +117,10 @@ export function PlantillasWorkspace({
     [...initialTemplates].sort((a, b) => a.name.localeCompare(b.name)),
   );
   // Sync the in-memory list with the server-preloaded prop after a
-  // `router.refresh()`. Without this, mutations driven by Server Actions
-  // (e.g. cleanupOrphanTemplatesAction) leave the client holding the stale
-  // array even though the server has revalidated the path. The optimistic
+  // `router.refresh()`. (Kept as a belt-and-suspenders in case the cleanup
+  // path is later switched to a soft refresh.) Without this, mutations
+  // driven by Server Actions leave the client holding the stale array
+  // even though the server has revalidated the path. The optimistic
   // local edits that haven't been saved yet (a freshly-prepended
   // placeholder, a partial name change) get wiped by the sync — that's
   // intentional: the server is now the source of truth, and the next
@@ -438,10 +439,16 @@ export function PlantillasWorkspace({
         setOrphanCount(0);
         // Force a server re-render so the in-memory list, the "N en tu lista"
         // counter, and the server-side `orphanCount` prop all re-sync from
-        // the persisted state. Without this, the deleted rows linger in the
-        // client's local state even though the action removed them from the
-        // DB and revalidated the path.
-        router.refresh();
+        // the persisted state. We do a hard reload rather than
+        // `router.refresh()` because the soft refresh leaves the client
+        // `templates` state stale — React's useState ignores the new
+        // `initialTemplates` prop unless we layer another useEffect, and
+        // even then the timing between the server re-render and the
+        // client reconciliation races the revalidatePath on this layout.
+        // A full reload is the cheapest path to a consistent post-cleanup
+        // view; the workspace is not an edit surface at this point so the
+        // UX cost is just a brief flash.
+        window.location.reload();
       } else {
         setActionError(result.message);
       }

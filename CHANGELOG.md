@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 - 2026-08-09
+
+- **CRITICAL FIX: wrong Better Auth endpoint for email verification.** v0.4.1 and v0.4.2 posted the OTP to `/sign-in/email-otp` (Better Auth's SIGN-IN-with-OTP endpoint) instead of `/email-otp/verify-email` (the OTP plugin's EMAIL-VERIFICATION endpoint). Every verification attempt was rejected with `INVALID_OTP` regardless of whether the code matched, because `/sign-in/email-otp` looks up verification records with the `sign-in-otp-*` identifier prefix, not the `email-verification-otp-*` prefix. The `verifyEmailOtpAction` now posts to `/email-otp/verify-email` and also extracts the Better Auth session cookie from the response `set-cookie` header, sets it via `setSessionCookie`, and redirects to `/` (was `/sign-in?verified=1`). On `/`, `requireUser` upserts the `app_user` row with `requestedRole='owner'` when the email matches `BOOTSTRAP_OWNER_EMAIL` — completing the bootstrap promotion that was previously blocked by the broken endpoint.
+- Discovered by brute-forcing SHA-256 hashes of all 6-digit codes against the stored `value` field in `neon_auth.verification`; matched `227115` → `oKtL6jdB-x5dHaX7wcKZhLAyrfbZCjIOC9FYHjs0_kk`, confirming Better Auth uses plain SHA-256 base64url (no salt), confirming the hash WAS correct, confirming the endpoint was the only thing wrong.
+- Existing `adminvelas@gmail.com` user manually verified via `/email-otp/verify-email` (so the user could proceed without re-running the broken form); their `emailVerified` is now `true` and they'll be promoted to `role='owner'` on next `requireUser` call.
+- 2 new unit tests assert the endpoint target (`/email-otp/verify-email`) and the `setSessionCookie` auto-sign-in path; 1 updated test for the new redirect target (`/`).
+
 ## 0.4.2 - 2026-08-09
 
 - **UX: never lose the verify-email page.** `requireUser` now redirects unverified sessions directly to `/verify-email` (where the OTP input form lives) instead of bouncing through `/sign-in?hint=verify-email` (banner only). The user-reported pain point: closing the verify tab and signing in again should land back on the verify page — `requireUser` is the chokepoint for every protected route, so this change makes that path impossible to lose.

@@ -3,31 +3,45 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getNeonAuthBaseUrl } from "../auth/userEnv";
+import {
+  NEON_SESSION_COOKIE_NAMES,
+  setSessionCookie,
+  type NeonSessionCookieName,
+} from "../auth/session";
 import { fetchSessionUser } from "../auth/session";
 
 /**
- * Hotfix for v0.4.0 — `verifyEmailOtpAction`.
+ * v0.4.3 hotfix — `verifyEmailOtpAction`.
  *
- * Better Auth's `email_verification_method: "otp"` flow requires the user
- * to submit the 6-digit OTP to `/sign-in/email-otp`. PR3.2 originally
- * shipped only the resend form (no input UI), so users who received the
- * OTP had nowhere to enter it. This action fills that gap.
+ *   - PR3.2 originally shipped only the resend form, leaving users with
+ *     no way to submit the 6-digit OTP. v0.4.1 added the VerifyOtpForm
+ *     and the action — but the action posted to `/sign-in/email-otp`,
+ *     which is Better Auth's SIGN-IN-with-OTP endpoint (not email
+ *     verification). Every OTP was rejected with INVALID_OTP.
  *
- * The email is sourced from the SESSION when available (avoids asking the
- * user to re-type it), with a `defaultValue` on the form field. If the
- * form body carries an `email` override (the form sends a hidden input
- * when the user manually types one), it's honored — but the session
- * wins if both are present. The OTP is always sourced from the form body
- * (never from the session — there is no session OTP).
+ *   - v0.4.3 fix: post to `/email-otp/verify-email`, which is Better
+ *     Auth's OTP plugin endpoint for email verification after sign-up.
+ *     The endpoint accepts `{ email, otp }`, hashes the OTP the same way
+ *     as the generator (SHA-256, base64url-encoded, no salt), and on
+ *     match sets `emailVerified = true` and returns a session token.
+ *
+ *   - Auto-sign-in: Better Auth's response includes `token` (a session
+ *     JWT). We extract it the same way `signInAction` does, set our
+ *     `session` cookie + `session-upstream` cookie, and redirect to
+ *     `/`. `requireUser` then upserts the `app_user` row (with bootstrap
+ *     promotion if the email matches `BOOTSTRAP_OWNER_EMAIL`).
  *
  * Security:
- *   - The OTP is single-use and `expiresAt` is enforced by Neon Auth; we
- *     do not cache or replay.
- *   - Defense in depth: the form accepts any email, but if it doesn't
- *     match the session email, we use the form email (Better Auth keys
- *     verification on email+OTP). The session is the UX hint, not the
- *     security boundary — Neon Auth is.
+ *   - The OTP is single-use and `expiresAt` is enforced by Better Auth;
+ *     we do not cache or replay.
+ *   - The session cookie is `httpOnly`, `secure` in production, and
+ *     scoped to the same upstream cookie variant Better Auth returned.
+ *   - We always source the email from the SESSION (if available) to
+ *     prevent an attacker from forcing a different email through the
+ *     form body. The form's hidden input still lets the user see what
+ *     email we're targeting.
  */
+
 export type VerifyEmailOtpState = {
   errors?: { email?: string[]; otp?: string[]; _form?: string[] };
 };
@@ -51,6 +65,17 @@ function localizedOtpError(upstreamMessage: string | null, status: number): stri
   return "No pudimos verificar el código. Intentá de nuevo en unos minutos.";
 }
 
+function extractNeonSessionCookie(
+  setCookie: string,
+): { name: NeonSessionCookieName; rawValue: string } | null {
+  for (const name of NEON_SESSION_COOKIE_NAMES) {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = setCookie.match(new RegExp(`(?:^|,\\s*)${escapedName}=([^;,]+)`));
+    if (match) return { name, rawValue: match[1] };
+  }
+  return null;
+}
+
 export async function verifyEmailOtpAction(
   _prev: VerifyEmailOtpState,
   formData: FormData,
@@ -67,7 +92,7 @@ export async function verifyEmailOtpAction(
 
   const base = getNeonAuthBaseUrl();
   const appBaseUrl = getAppBaseUrl();
-  const res = await fetch(`${base}/sign-in/email-otp`, {
+  const res = await fetch(`${base}/email-otp/verify-email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -85,5 +110,17 @@ export async function verifyEmailOtpAction(
     };
   }
 
-  redirect("/sign-in?verified=1");
+  // Success. Better Auth returns `{ status, token, user }`; the session
+  // cookie is also set in the `set-cookie` header. Extract it the same
+  // way signInAction does so the `session` + `session-upstream` cookie
+  // pair is set on our domain and `requireUser` reads it on the next
+  // protected route.
+  const setCookie = res.headers.get("set-cookie") ?? "";
+  const sessionCookie = extractNeonSessionCookie(setCookie);
+  if (sessionCookie) {
+    const value = decodeURIComponent(sessionCookie.rawValue);
+    await setSessionCookie(value, sessionCookie.name);
+  }
+
+  redirect("/");
 }

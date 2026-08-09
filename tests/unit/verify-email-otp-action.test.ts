@@ -2,18 +2,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyEmailOtpAction } from "@/server/actions/verifyEmailOtp";
 
 // Mock next/navigation redirect
-const redirectMock = vi.fn((url: string) => {
-  throw new Error(`NEXT_REDIRECT:${url}`);
-});
+const mocks = vi.hoisted(() => ({
+  redirectMock: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
+  setSessionCookieMock: vi.fn(),
+  fetchMock: vi.fn(),
+}));
+let mockSessionEmail: string | null = null;
+
 vi.mock("next/navigation", () => ({
-  redirect: (url: string) => redirectMock(url),
+  redirect: (url: string) => mocks.redirectMock(url),
 }));
 
-// Mock userEnv + session
-let mockSessionEmail: string | null = null;
 vi.mock("@/server/auth/session", () => ({
   fetchSessionUser: async () =>
     mockSessionEmail ? { id: "u-1", email: mockSessionEmail, role: "user", emailVerified: false } : null,
+  setSessionCookie: mocks.setSessionCookieMock,
+  NEON_SESSION_COOKIE_NAMES: [
+    "__Secure-neon-auth.session_token",
+    "neon-auth.session_token",
+    "better-auth.session_token",
+  ] as const,
 }));
 vi.mock("@/server/auth/userEnv", () => ({
   getNeonAuthBaseUrl: () => "https://auth.test.local",
@@ -22,8 +32,7 @@ vi.mock("@/server/auth/appBaseUrl", () => ({
   getAppBaseUrl: () => "https://app.test.local",
 }));
 
-const fetchMock = vi.fn();
-vi.stubGlobal("fetch", fetchMock);
+vi.stubGlobal("fetch", mocks.fetchMock);
 
 function makeForm(values: Record<string, string>): FormData {
   const fd = new FormData();
@@ -32,11 +41,12 @@ function makeForm(values: Record<string, string>): FormData {
 }
 
 describe("verifyEmailOtpAction", () => {
-  beforeEach(() => {
-    redirectMock.mockClear();
-    fetchMock.mockReset();
-    mockSessionEmail = null;
-  });
+beforeEach(() => {
+  mocks.redirectMock.mockClear();
+  mocks.setSessionCookieMock.mockReset();
+  mocks.fetchMock.mockReset();
+  mockSessionEmail = null;
+});
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -44,66 +54,66 @@ describe("verifyEmailOtpAction", () => {
   it("rejects invalid email format", async () => {
     const state = await verifyEmailOtpAction({}, makeForm({ email: "not-an-email", otp: "123456" }));
     expect(state.errors?.email?.[0]).toMatch(/inválido/i);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects otp that is not 6 digits", async () => {
     const state = await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "12345" }));
     expect(state.errors?.otp?.[0]).toMatch(/6 dígitos/i);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects otp with non-numeric characters", async () => {
     const state = await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "12345a" }));
     expect(state.errors?.otp?.[0]).toMatch(/6 dígitos/i);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   it("uses session email when form email is empty", async () => {
     mockSessionEmail = "session@example.com";
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    mocks.fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     try {
       await verifyEmailOtpAction({}, makeForm({ email: "", otp: "123456" }));
     } catch (e) {
       // redirect throws — expected
     }
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ email: "session@example.com", otp: "123456" });
   });
 
   it("uses form email when no session", async () => {
     mockSessionEmail = null;
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    mocks.fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     try {
       await verifyEmailOtpAction({}, makeForm({ email: "form@example.com", otp: "123456" }));
     } catch {
       // redirect throws
     }
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ email: "form@example.com", otp: "123456" });
   });
 
   it("lowercases the email before posting", async () => {
     mockSessionEmail = null;
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    mocks.fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     try {
       await verifyEmailOtpAction({}, makeForm({ email: "Foo@Bar.COM", otp: "123456" }));
     } catch {}
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string).email).toBe("foo@bar.com");
   });
 
-  it("redirects to /sign-in?verified=1 on 200", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+it("redirects to / on 200 (which triggers requireUser → app_user upsert + role='owner' promotion)", async () => {
+    mocks.fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     await expect(
       verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" })),
-    ).rejects.toThrow(/NEXT_REDIRECT:\/sign-in\?verified=1/);
+    ).rejects.toThrow(/NEXT_REDIRECT:\/$/);
   });
 
   it("returns localized error on 400 INVALID_OTP", async () => {
-    fetchMock.mockResolvedValueOnce(
+    mocks.fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ code: "INVALID_OTP", message: "Invalid OTP" }), { status: 400 }),
     );
     const state = await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
@@ -111,7 +121,7 @@ describe("verifyEmailOtpAction", () => {
   });
 
   it("returns localized error on 429 rate-limit", async () => {
-    fetchMock.mockResolvedValueOnce(
+    mocks.fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ code: "RATE_LIMITED", message: "Too many requests" }), { status: 429 }),
     );
     const state = await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
@@ -119,28 +129,58 @@ describe("verifyEmailOtpAction", () => {
   });
 
   it("returns generic error on 500 with no upstream message", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
+    mocks.fetchMock.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
     const state = await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
     expect(state.errors?._form?.[0]).toMatch(/no pudimos verificar/i);
   });
 
   it("sends the Origin header from getAppBaseUrl", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    mocks.fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     try {
       await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
     } catch {}
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(headers.Origin).toBe("https://app.test.local");
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  it("posts to /sign-in/email-otp", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+  it("posts to /email-otp/verify-email (Better Auth OTP plugin endpoint for email verification)", async () => {
+    mocks.fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     try {
       await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
     } catch {}
-    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://auth.test.local/sign-in/email-otp");
+    const [url] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://auth.test.local/email-otp/verify-email");
+  });
+
+  it("extracts the Better Auth session cookie from set-cookie and forwards it to setSessionCookie (auto-sign-in)", async () => {
+    mockSessionEmail = null;
+    mocks.fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: true }), {
+        status: 200,
+        headers: {
+          "set-cookie":
+            "__Secure-neon-auth.session_token=jwt-abc.DefGhi; HttpOnly; Path=/; SameSite=Lax",
+        },
+      }),
+    );
+    try {
+      await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
+    } catch {}
+    // setSessionCookie called once with the JWT and the upstream name
+    expect(mocks.setSessionCookieMock).toHaveBeenCalledTimes(1);
+    expect(mocks.setSessionCookieMock).toHaveBeenCalledWith("jwt-abc.DefGhi", "__Secure-neon-auth.session_token");
+  });
+
+  it("does not call setSessionCookie when Better Auth does not return a set-cookie header (defensive)", async () => {
+    mockSessionEmail = null;
+    mocks.fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: true }), { status: 200 }),
+    );
+    try {
+      await verifyEmailOtpAction({}, makeForm({ email: "a@b.com", otp: "123456" }));
+    } catch {}
+    expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
   });
 });

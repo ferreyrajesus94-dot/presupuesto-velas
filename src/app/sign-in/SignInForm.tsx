@@ -68,7 +68,10 @@ export function SignInForm({ next = "" }: { next?: string } = {}) {
       </button>
       <p className="text-sm text-ink-muted">
         ¿No tenés cuenta?{" "}
-        <Link href="/sign-up" className="font-semibold text-brand hover:underline">
+        <Link
+          href="/sign-up"
+          className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-4 hover:underline"
+        >
           Crear cuenta
         </Link>
       </p>

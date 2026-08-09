@@ -440,10 +440,14 @@ function TutorialDialog({
         aria-describedby="tour-description"
         ref={dialogRef}
         tabIndex={-1}
+        // On mobile, the card eats the full viewport with a small safe
+        // margin so the spotlight + text don't get squished into 300px
+        // on a 390px screen. On ≥md it reverts to a centered max-w-md
+        // popover anchored to the spotlight target.
         className={
           reducedMotion
-            ? "absolute left-1/2 right-4 max-w-md -translate-x-1/2 rounded-2xl border border-border bg-surface p-6 shadow-xl"
-            : "absolute left-1/2 right-4 max-w-md -translate-x-1/2 rounded-2xl border border-border bg-surface p-6 shadow-xl transition-all"
+            ? "absolute inset-4 rounded-2xl border border-border bg-surface p-6 shadow-xl md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
+            : "absolute inset-4 rounded-2xl border border-border bg-surface p-6 shadow-xl transition-all md:inset-auto md:left-1/2 md:right-4 md:max-w-md md:-translate-x-1/2"
         }
         style={{
           pointerEvents: "auto",

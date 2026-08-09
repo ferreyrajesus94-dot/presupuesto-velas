@@ -1,7 +1,8 @@
-import Decimal from "decimal.js";
 import Link from "next/link";
 import { isExpiredSent } from "@/domain/quoteExpired";
 import type { QuoteStatus } from "@/domain/snapshot";
+import { formatArsCompact } from "@/lib/moneyFormat";
+import { DeleteQuoteButton } from "./DeleteQuoteButton";
 
 export type QuoteView = "active" | "archived";
 export type QuoteListItem = {
@@ -13,11 +14,9 @@ export type QuoteListItem = {
 };
 
 function formatMoney(value: string): string {
-  const [integer, decimals] = new Decimal(value)
-    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-    .toFixed(2)
-    .split(".");
-  return `ARS ${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${decimals}`;
+  // Compact form (`ARS 6,5M` / `ARS 25K`) keeps the card preview scannable;
+  // the full exact total is rendered on the detail view.
+  return formatArsCompact(value);
 }
 
 function formatDate(iso: string): string {
@@ -52,36 +51,36 @@ export function QuotesList({
         className="flex flex-col gap-3 rounded-2xl border border-dashed border-border-subtle bg-surface-soft p-6"
       >
         <h2 id="empty-quotes" className="text-xl font-semibold text-ink text-wrap-balance">
-          📋 Aún no tenés cotizaciones
+          📋 Aún no tenés presupuestos
         </h2>
         <p className="text-sm text-ink-muted">
-          Armá tu primera cotización a partir de una plantilla y un cliente.
+          Armá tu primer presupuesto a partir de una plantilla y un cliente.
         </p>
         <Link
           className="mt-2 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
           href="/quotes/new"
         >
-          + Crear cotización
+          + Crear presupuesto
         </Link>
       </section>
     );
   }
 
-  const noun = quotes.length === 1 ? "cotización" : "cotizaciones";
+  const noun = quotes.length === 1 ? "presupuesto" : "presupuestos";
   const adjective =
     view === "active"
       ? quotes.length === 1
-        ? "activa"
-        : "activas"
+        ? "activo"
+        : "activos"
       : quotes.length === 1
-        ? "archivada"
-        : "archivadas";
+        ? "archivado"
+        : "archivados";
   return (
-    <section className="flex flex-col gap-3" aria-label="Cotizaciones">
+    <section className="flex flex-col gap-3" aria-label="Presupuestos">
       <p className="text-sm font-medium text-ink-muted">
         {quotes.length} {noun} {adjective}
       </p>
-      <ul className="grid gap-3 sm:grid-cols-2" aria-label="Cotizaciones">
+      <ul className="grid gap-3 sm:grid-cols-2" aria-label="Presupuestos">
         {quotes.map((quote) => {
           const customer = quote.customerName?.trim() || "Sin cliente";
           const status = displayStatus(quote, now);
@@ -118,7 +117,7 @@ export function QuotesList({
                   </dd>
                 </div>
               </dl>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <span
                   data-testid="quote-status"
                   aria-label={`Estado ${label}`}
@@ -134,13 +133,16 @@ export function QuotesList({
                 >
                   {label}
                 </span>
-                <Link
-                  href={`/quotes/${quote.id}`}
-                  aria-label={`Ver cotización de ${customer}`}
-                  className="inline-flex min-h-11 min-w-0 items-center justify-center break-words rounded-full border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand hover:bg-surface-soft"
-                >
-                  Ver cotización
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/quotes/${quote.id}`}
+                    aria-label={`Ver presupuesto de ${customer}`}
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center break-words rounded-full border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand hover:bg-surface-soft"
+                  >
+                    Ver presupuesto
+                  </Link>
+                  <DeleteQuoteButton quoteId={quote.id} customerName={customer} />
+                </div>
               </div>
             </li>
           );

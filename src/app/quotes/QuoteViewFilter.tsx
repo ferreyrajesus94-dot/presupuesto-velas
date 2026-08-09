@@ -18,7 +18,7 @@ export function QuoteViewFilter({ current }: { current: QuoteView }) {
   }
 
   return (
-    <nav aria-label="Vista de cotizaciones" className="flex flex-wrap gap-2">
+    <nav aria-label="Vista de presupuestos" className="flex flex-wrap gap-2">
       {(["active", "archived"] as const).map((view) => (
         <button
           key={view}

@@ -101,7 +101,7 @@ export default function QuoteEditForm({
         quote.quote.lockVersion,
       );
       if (!result.ok) {
-        setSubmitError("No se pudo actualizar la cotización.");
+        setSubmitError("No se pudo actualizar la presupuesto.");
         return;
       }
       router.push(`/quotes/${quote.quote.id}`);
@@ -141,7 +141,7 @@ export default function QuoteEditForm({
 
   return (
     <section
-      aria-label="Editar cotización"
+      aria-label="Editar presupuesto"
        className="rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
       <form

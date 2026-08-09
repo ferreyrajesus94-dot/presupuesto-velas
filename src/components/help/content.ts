@@ -26,11 +26,11 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
     emoji: "📦",
     title: "Ayuda: Insumos",
     intro:
-      "Cargá cada material con su unidad de compra y precio. Calculamos el costo por unidad base para usarlo en plantillas y cotizaciones.",
+      "Cargá cada material con su unidad de compra y precio. Calculamos el costo por unidad base para usarlo en plantillas y presupuestos.",
     bullets: [
       "✨ + Agregar insumo: crea un nuevo material activo.",
       "🗂️ Filtro Activas / Archivadas: cambia la vista sin perder filtros.",
-      "✏️ Editar: actualiza precio y unidades — el historial de cotizaciones conserva sus montos.",
+      "✏️ Editar: actualiza precio y unidades — el historial de presupuestos conserva sus montos.",
       "🗑️ Archivar: oculta el insumo de futuros formularios sin eliminarlo.",
     ],
     tip: "Tip: revisá el `Costo por unidad base` antes de archivar — es el valor que usan tus plantillas.",
@@ -39,19 +39,19 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
     emoji: "⚙️",
     title: "Ayuda: Inicio",
     intro:
-      "Tu página principal con un resumen rápido de la actividad: materiales cargados, plantillas activas y cotizaciones recientes.",
+      "Tu página principal con un resumen rápido de la actividad: materiales cargados, plantillas activas y presupuestos recientes.",
     bullets: [
       "📊 Resumen: contadores por sección.",
-      "📝 Cotizaciones recientes: atajo a las últimas 5.",
+      "📝 Presupuestos recientes: atajo a las últimas 5.",
       "⬆️ Atajos: navegando a la sección que querés trabajar.",
     ],
-    tip: "Tip: la calculadora con plantillas vive en Cotizaciones → Nueva cotización.",
+    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nueva presupuesto.",
   },
   templates: {
     emoji: "📋",
     title: "Ayuda: Plantillas",
     intro:
-      "Armá recetas reutilizables que después vas a usar en la calculadora de cotizaciones.",
+      "Armá recetas reutilizables que después vas a usar en la calculadora de presupuestos.",
     bullets: [
       "✨ + Nueva plantilla: crea un molde vacío para arrancar.",
       "📄 + Crear una copia: duplica la plantilla actual con un sufijo (copia).",
@@ -65,7 +65,7 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
     emoji: "🧮",
     title: "Ayuda: Calculadora",
     intro:
-      "Elegí una plantilla, indicá la cantidad y armá la cotización con ganancia, seña y descuento por mayoreo.",
+      "Elegí una plantilla, indicá la cantidad y armá la presupuesto con ganancia, seña y descuento por mayoreo.",
     bullets: [
       "📐 Plantilla: elegí una de tus plantillas activas.",
       "🧮 Cantidad: unidades a producir.",
@@ -77,15 +77,15 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
   },
   quotes: {
     emoji: "💬",
-    title: "Ayuda: Cotizaciones",
+    title: "Ayuda: Presupuestos",
     intro:
-      "Lista de cotizaciones existentes y ciclo de vida (borrador → enviada → aceptada/rechazada).",
+      "Lista de presupuestos existentes y ciclo de vida (borrador → enviada → aceptada/rechazada).",
     bullets: [
-      "📝 Nueva cotización: arranca un borrador con la calculadora.",
-      "👁️ Ver: abre el detalle de la cotización.",
+      "📝 Nueva presupuesto: arranca un borrador con la calculadora.",
+      "👁️ Ver: abre el detalle de la presupuesto.",
       "✏️ Editar: solo disponible en borrador.",
       "📤 Compartir: links para enviar al cliente.",
     ],
-    tip: "Tip: una cotización no-borrador es solo lectura; cualquier cambio se hace desde una nueva versión.",
+    tip: "Tip: una presupuesto no-borrador es solo lectura; cualquier cambio se hace desde una nueva versión.",
   },
 };

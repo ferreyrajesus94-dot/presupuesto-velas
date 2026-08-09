@@ -58,7 +58,7 @@ export function buildWhatsAppShareText(quote: Quote, visibility: WhatsAppVisibil
       `• ${model.quantity} × ${templateNames[index] ?? model.recipeId}: ${formatArsFromDecimalString(model.lineTotal)}`,
   );
   const sections = [
-    `*Cotización — ${quote.quote.customerName?.trim() || "Sin cliente"}*\nVencimiento: ${formatDate(snapshot.expirationDate)}`,
+    `*Presupuesto — ${quote.quote.customerName?.trim() || "Sin cliente"}*\nVencimiento: ${formatDate(snapshot.expirationDate)}`,
     `*Modelos:*\n${modelLines.join("\n")}`,
   ];
 

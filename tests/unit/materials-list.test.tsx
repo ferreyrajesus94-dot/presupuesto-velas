@@ -433,7 +433,7 @@ describe("MaterialCreateForm — per-field FieldHelp", () => {
     expect(within(dialog).getByText("Qué es")).toBeInTheDocument();
     expect(within(dialog).getByText(/nombre humano del insumo/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/Por qué lo pedimos/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Lo usamos en plantillas y cotizaciones/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Lo usamos en plantillas y presupuestos/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/Tiene que ser único por owner/i)).toBeInTheDocument();
   });
 

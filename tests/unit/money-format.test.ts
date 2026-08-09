@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatArsCompact,
   formatArsDecimalDisplay,
   formatArsFromDecimalString,
   formatDecimalDisplay,
@@ -154,5 +155,46 @@ describe("formatDecimalDisplay (two-decimal quantization trims long fractionals)
     expect(formatArsDecimalDisplay("1.5")).toBe("ARS 1,5");
     expect(formatArsDecimalDisplay("200")).toBe("ARS 200");
     expect(formatArsDecimalDisplay("0")).toBe("ARS 0");
+  });
+});
+
+describe("formatArsCompact (card-preview helper, K/M notation)", () => {
+  it("keeps the exact format for amounts below ten thousand", () => {
+    expect(formatArsCompact("0")).toBe("ARS 0,00");
+    expect(formatArsCompact("500")).toBe("ARS 500,00");
+    expect(formatArsCompact("1234.5")).toBe("ARS 1.234,50");
+    expect(formatArsCompact("9999.99")).toBe("ARS 9.999,99");
+  });
+
+  it("collapses thousands into a K suffix once the integer part crosses 10.000", () => {
+    expect(formatArsCompact("10000")).toBe("ARS 10K");
+    expect(formatArsCompact("12345")).toBe("ARS 12K");
+    expect(formatArsCompact("25000")).toBe("ARS 25K");
+    expect(formatArsCompact("123456")).toBe("ARS 123K");
+    expect(formatArsCompact("999999")).toBe("ARS 1.000K");
+  });
+
+  it("collapses millions into an M suffix with one decimal of leading precision", () => {
+    expect(formatArsCompact("1000000")).toBe("ARS 1,0M");
+    expect(formatArsCompact("1500000")).toBe("ARS 1,5M");
+    expect(formatArsCompact("6500000")).toBe("ARS 6,5M");
+    expect(formatArsCompact("65000000")).toBe("ARS 65,0M");
+  });
+
+  it("collapses trillions into a B suffix so 10 trillion doesn't render as 10.000.000M", () => {
+    expect(formatArsCompact("1000000000")).toBe("ARS 1,0B");
+    expect(formatArsCompact("6500000000")).toBe("ARS 6,5B");
+    expect(formatArsCompact("9999999999999")).toBe("ARS 10.000,0B");
+  });
+
+  it("preserves the sign on negative values", () => {
+    expect(formatArsCompact("-25000")).toBe("ARS -25K");
+    expect(formatArsCompact("-1500000")).toBe("ARS -1,5M");
+    expect(formatArsCompact("-6500000000")).toBe("ARS -6,5B");
+  });
+
+  it("falls back to the precise format for empty or invalid input", () => {
+    expect(formatArsCompact("")).toBe("ARS 0,00");
+    expect(formatArsCompact("garbage")).toBe("ARS 0,00");
   });
 });

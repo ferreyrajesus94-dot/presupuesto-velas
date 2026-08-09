@@ -358,7 +358,7 @@ describe("QuoteEditForm — submit", () => {
     expect(mocks.push).toHaveBeenCalledWith(`/quotes/${QUOTE_ID}`);
   });
 
-  it("shows the Spanish fallback 'No se pudo actualizar la cotización.' when appendQuoteVersionAction fails", async () => {
+  it("shows the Spanish fallback 'No se pudo actualizar la presupuesto.' when appendQuoteVersionAction fails", async () => {
     mocks.appendQuoteVersionAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
@@ -368,7 +368,7 @@ describe("QuoteEditForm — submit", () => {
     render(<QuoteEditForm quote={record} templates={[VANILLA]} />);
     await user.click(screen.getByRole("button", { name: /Guardar cambios/ }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent("No se pudo actualizar la cotización.");
+    expect(liveRegion).toHaveTextContent("No se pudo actualizar la presupuesto.");
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(mocks.push).not.toHaveBeenCalled();
   });

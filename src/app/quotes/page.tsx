@@ -79,16 +79,16 @@ export default async function QuotesPage({
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
             Calculadora Flor
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">💬 Cotizaciones</h1>
+          <h1 className="mt-2 text-3xl font-semibold text-ink text-wrap-balance">💬 Presupuestos</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/quotes/new"
             className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition-transform hover:-translate-y-1"
           >
-            ✨ + Nueva cotización
+            ✨ + Nueva presupuesto
           </Link>
-          <button type="button" data-help="quotes" aria-label="Ayuda sobre cotizaciones" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
+          <button type="button" data-help="quotes" aria-label="Ayuda sobre presupuestos" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
             ?
           </button>
         </div>

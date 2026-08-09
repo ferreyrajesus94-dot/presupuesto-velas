@@ -268,7 +268,7 @@ describe("GET /api/quotes/[id]/pdf route handler (PR5a)", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     expect(response.headers.get("Content-Disposition")).toBe(
-      'attachment; filename="cotizacion-quote-abc-123.pdf"',
+      'attachment; filename="presupuesto-quote-abc-123.pdf"',
     );
     const body = Buffer.from(await response.arrayBuffer());
     expect(body.length).toBeGreaterThan(0);

@@ -16,9 +16,9 @@ import type { QuoteRecord } from "@/server/repositories/quotes";
  * lockVersion it captures via `transitionQuoteStatusAction`.
  */
 const ERROR_FALLBACK: Record<"draft->sent" | "sent->accepted" | "sent->rejected", string> = {
-  "draft->sent": "No se pudo enviar la cotización.",
-  "sent->accepted": "No se pudo aceptar la cotización.",
-  "sent->rejected": "No se pudo rechazar la cotización.",
+  "draft->sent": "No se pudo enviar la presupuesto.",
+  "sent->accepted": "No se pudo aceptar la presupuesto.",
+  "sent->rejected": "No se pudo rechazar la presupuesto.",
 };
 
 /**
@@ -91,7 +91,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "accepted" || status === "rejected") {
     return (
       <Wrapper>
-        <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
+        <p className="text-ink">Inmutable — esta presupuesto no puede modificarse.</p>
         <FeedbackRegion feedback={feedback} />
       </Wrapper>
     );
@@ -102,9 +102,9 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   if (status === "sent" && expired) {
     return (
       <Wrapper>
-        <p className="text-ink">Vencida — esta cotización ya pasó su fecha de vencimiento.</p>
+        <p className="text-ink">Vencida — esta presupuesto ya pasó su fecha de vencimiento.</p>
         <div role="alert" className={ALERT_CLASS}>
-          Esta cotización está vencida. Duplicar para aceptar.
+          Esta presupuesto está vencida. Duplicar para aceptar.
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -140,7 +140,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
                 event.currentTarget,
                 "draft",
                 "sent",
-                "Cotización enviada",
+                "Presupuesto enviada",
                 "draft->sent",
               )
             }
@@ -167,7 +167,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
                 event.currentTarget,
                 "sent",
                 "accepted",
-                "Cotización aceptada",
+                "Presupuesto aceptada",
                 "sent->accepted",
               )
             }
@@ -183,7 +183,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
                 event.currentTarget,
                 "sent",
                 "rejected",
-                "Cotización rechazada",
+                "Presupuesto rechazada",
                 "sent->rejected",
               )
             }
@@ -202,7 +202,7 @@ export function QuoteLifecycleControls({ quote, now }: { quote: QuoteRecord; now
   // message so the page never renders action buttons we can't fulfill.
   return (
     <Wrapper>
-      <p className="text-ink">Inmutable — esta cotización no puede modificarse.</p>
+      <p className="text-ink">Inmutable — esta presupuesto no puede modificarse.</p>
       <FeedbackRegion feedback={feedback} />
     </Wrapper>
   );
@@ -213,7 +213,7 @@ const SECTION_CLASS =
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <section aria-label="Acciones de cotización" className={SECTION_CLASS}>
+    <section aria-label="Acciones de presupuesto" className={SECTION_CLASS}>
       {children}
     </section>
   );

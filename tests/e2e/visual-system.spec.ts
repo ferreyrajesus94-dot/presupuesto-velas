@@ -28,7 +28,7 @@ const VIEWPORTS = [
 async function assertNav(page: Page): Promise<void> {
   const nav = page.getByRole("navigation", { name: /navegación principal/i });
   await expect(nav).toBeVisible();
-  for (const label of ["Inicio", "Materiales", "Recetas", "Cotizaciones"]) {
+  for (const label of ["Inicio", "Materiales", "Recetas", "Presupuestos"]) {
     await expect(nav.getByRole("link", { name: new RegExp(`^${label}$`, "i") })).toBeVisible();
   }
 }
@@ -156,8 +156,8 @@ for (const vp of VIEWPORTS) {
         { path: "/", h1: /^inicio$/i },
         { path: "/materials", h1: /^materiales$/i },
         { path: "/templates", h1: /^plantillas$/i },
-        { path: "/quotes", h1: /^cotizaciones$/i },
-        { path: "/quotes/new", h1: /^nueva cotización$/i },
+        { path: "/quotes", h1: /^presupuestos$/i },
+        { path: "/quotes/new", h1: /^nueva presupuesto$/i },
       ];
       for (const p of PAGES) {
         test(`${p.path} meets the visual contract`, async ({ page }) => {
@@ -170,7 +170,7 @@ for (const vp of VIEWPORTS) {
 
       test(`/quotes/:id detail meets the visual contract`, async ({ page }) => {
         const card = await findFixtureCard(page);
-        await card.getByRole("link", { name: /ver cotización/i }).click();
+        await card.getByRole("link", { name: /ver presupuesto/i }).click();
         await page.waitForURL(/\/quotes\/[a-z0-9-]+$/);
         await expect(page.getByRole("heading", { level: 1, name: /detalle/i })).toBeVisible();
         await assertNav(page);
@@ -179,7 +179,7 @@ for (const vp of VIEWPORTS) {
 
       test(`/quotes/:id/edit meets the visual contract`, async ({ page }) => {
         const card = await findFixtureCard(page);
-        await card.getByRole("link", { name: /ver cotización/i }).click();
+        await card.getByRole("link", { name: /ver presupuesto/i }).click();
         await page.waitForURL(/\/quotes\/[a-z0-9-]+$/);
         const editLink = page.getByRole("link", { name: /^editar$/i });
         await expect(editLink, "visible Editar link on draft").toBeVisible();

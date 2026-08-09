@@ -61,8 +61,8 @@ test.describe("Quote lifecycle — sign-in to PDF to WhatsApp", () => {
 
     // ----- 2. Create a quote -----
     await page.goto("/quotes");
-    await expect(page.getByRole("heading", { name: /cotizaciones/i })).toBeVisible();
-    await page.getByRole("link", { name: /\+ nueva cotización/i }).click();
+    await expect(page.getByRole("heading", { name: /presupuestos/i })).toBeVisible();
+    await page.getByRole("link", { name: /\+ nueva presupuesto/i }).click();
     await expect(page).toHaveURL(/\/quotes\/new$/);
 
     await page.getByLabel("Cliente").fill("Cliente Test E2E");
@@ -134,7 +134,7 @@ test.describe("Quote lifecycle — sign-in to PDF to WhatsApp", () => {
     expect(pdfResponse.status()).toBe(200);
     expect(pdfResponse.headers()["content-type"] ?? "").toContain("application/pdf");
     expect(pdfResponse.headers()["content-disposition"] ?? "").toContain(
-      `cotizacion-${quoteId}.pdf`,
+      `presupuesto-${quoteId}.pdf`,
     );
     const pdfBytes = await pdfResponse.body();
     expect(pdfBytes.subarray(0, 5).toString("utf8")).toBe("%PDF-");

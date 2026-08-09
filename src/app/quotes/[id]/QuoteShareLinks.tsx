@@ -27,7 +27,7 @@ export function QuoteShareLinks({
 
   return (
     <section
-      aria-label="Compartir cotización"
+      aria-label="Compartir presupuesto"
       className="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm"
     >
       {oversized ? (

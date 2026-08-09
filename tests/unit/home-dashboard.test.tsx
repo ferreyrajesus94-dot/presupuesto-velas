@@ -86,7 +86,7 @@ describe("Home dashboard", () => {
       "href",
       "/templates",
     );
-    expect(screen.getByRole("link", { name: /Nueva cotización/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Nueva presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );
@@ -129,7 +129,7 @@ describe("Home dashboard", () => {
     render(await Home());
     expect(screen.getByLabelText("3 materiales")).toBeInTheDocument();
     expect(screen.getByLabelText("1 plantilla")).toBeInTheDocument();
-    expect(screen.getByLabelText("2 cotizaciones activas")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 presupuestos activas")).toBeInTheDocument();
   });
 
   it("renders the first-use empty state without crashing when every list is empty", async () => {
@@ -145,7 +145,7 @@ describe("Home dashboard", () => {
       "href",
       "/templates",
     );
-    expect(screen.getByRole("link", { name: /Crear cotización/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Crear presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );
@@ -174,7 +174,7 @@ describe("Home dashboard", () => {
     ]);
     render(await Home());
     const items = within(
-      screen.getByRole("list", { name: /cotizaciones recientes/i }),
+      screen.getByRole("list", { name: /presupuestos recientes/i }),
     ).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(within(items[0]!).getByText("Sin cliente")).toBeInTheDocument();
@@ -199,7 +199,7 @@ describe("Home dashboard", () => {
     );
     render(await Home());
     const items = within(
-      screen.getByRole("list", { name: /cotizaciones recientes/i }),
+      screen.getByRole("list", { name: /presupuestos recientes/i }),
     ).getAllByRole("listitem");
     expect(items).toHaveLength(5);
     expect(within(items[0]!).getByText("Cliente 6")).toBeInTheDocument();
@@ -209,7 +209,7 @@ describe("Home dashboard", () => {
   it("renders a friendly empty state for recent quotes when none are active", async () => {
     mocks.listMaterials.mockResolvedValue([{ id: "m1" }]);
     render(await Home());
-    expect(screen.queryByRole("list", { name: /cotizaciones recientes/i })).toBeNull();
-    expect(screen.getByText(/todavía no hay cotizaciones activas/i)).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /presupuestos recientes/i })).toBeNull();
+    expect(screen.getByText(/todavía no hay presupuestos activas/i)).toBeInTheDocument();
   });
 });

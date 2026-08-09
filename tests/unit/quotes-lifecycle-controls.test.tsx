@@ -156,30 +156,30 @@ describe("QuoteLifecycleControls — action", () => {
     expect(mocks.transitionQuoteStatusAction).toHaveBeenCalledWith(QUOTE_ID, "sent", "rejected", 3);
   });
 
-  it("shows 'Cotización enviada' in the live region on success", async () => {
+  it("shows 'Presupuesto enviada' in the live region on success", async () => {
     const quote = buildQuoteRecord("draft", "2026-05-01");
     const user = userEvent.setup();
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como enviado" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent(/Cotización enviada/);
+    expect(liveRegion).toHaveTextContent(/Presupuesto enviada/);
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
   });
 
-  it("shows 'Cotización aceptada' in the live region after a successful accept", async () => {
+  it("shows 'Presupuesto aceptada' in the live region after a successful accept", async () => {
     const quote = buildQuoteRecord("sent", "2026-05-01");
     const user = userEvent.setup();
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como aceptado" }));
-    expect(screen.getByRole("status")).toHaveTextContent(/Cotización aceptada/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Presupuesto aceptada/);
   });
 
-  it("shows 'Cotización rechazada' in the live region after a successful reject", async () => {
+  it("shows 'Presupuesto rechazada' in the live region after a successful reject", async () => {
     const quote = buildQuoteRecord("sent", "2026-05-01");
     const user = userEvent.setup();
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como rechazado" }));
-    expect(screen.getByRole("status")).toHaveTextContent(/Cotización rechazada/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Presupuesto rechazada/);
   });
 
   it("calls router.refresh() after a successful transition", async () => {
@@ -190,7 +190,7 @@ describe("QuoteLifecycleControls — action", () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the Spanish 'No se pudo enviar la cotización.' fallback in the live region when the server returns an English error", async () => {
+  it("shows the Spanish 'No se pudo enviar la presupuesto.' fallback in the live region when the server returns an English error", async () => {
     // The repository/action keeps the English payload; presentation maps the
     // (draft → sent) transition to a direct Spanish fallback so the user sees
     // a localized message regardless of what the backend returns.
@@ -203,13 +203,13 @@ describe("QuoteLifecycleControls — action", () => {
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como enviado" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent("No se pudo enviar la cotización.");
+    expect(liveRegion).toHaveTextContent("No se pudo enviar la presupuesto.");
     expect(liveRegion).not.toHaveTextContent(/quote is terminal/);
     expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
-  it("shows the Spanish 'No se pudo aceptar la cotización.' fallback for the (sent → accepted) failure", async () => {
+  it("shows the Spanish 'No se pudo aceptar la presupuesto.' fallback for the (sent → accepted) failure", async () => {
     mocks.transitionQuoteStatusAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "LOCK_VERSION_MISMATCH", message: "stale lock" },
@@ -219,12 +219,12 @@ describe("QuoteLifecycleControls — action", () => {
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como aceptado" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent("No se pudo aceptar la cotización.");
+    expect(liveRegion).toHaveTextContent("No se pudo aceptar la presupuesto.");
     expect(liveRegion).not.toHaveTextContent(/stale lock/);
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
-  it("shows the Spanish 'No se pudo rechazar la cotización.' fallback for the (sent → rejected) failure", async () => {
+  it("shows the Spanish 'No se pudo rechazar la presupuesto.' fallback for the (sent → rejected) failure", async () => {
     mocks.transitionQuoteStatusAction.mockResolvedValueOnce({
       ok: false,
       error: { code: "EXPIRED_SENT_CANNOT_ACCEPT", message: "expired sent cannot accept" },
@@ -234,7 +234,7 @@ describe("QuoteLifecycleControls — action", () => {
     render(<QuoteLifecycleControls quote={quote} now={NOW} />);
     await user.click(screen.getByRole("button", { name: "Marcar como rechazado" }));
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent("No se pudo rechazar la cotización.");
+    expect(liveRegion).toHaveTextContent("No se pudo rechazar la presupuesto.");
     expect(liveRegion).not.toHaveTextContent(/expired sent/);
     expect(mocks.refresh).not.toHaveBeenCalled();
   });

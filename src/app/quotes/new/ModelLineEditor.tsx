@@ -34,7 +34,7 @@ export function ModelLineEditor({
     <section className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-soft p-4">
       <header className="flex items-center justify-between">
         <h3 className="font-medium text-ink">Modelos</h3>
-        <span className="text-sm text-ink-muted">{fields.length} en la cotización</span>
+        <span className="text-sm text-ink-muted">{fields.length} en la presupuesto</span>
       </header>
       <ol aria-label="Modelos" className="flex flex-col gap-3">
         {fields.map((field, index) => (

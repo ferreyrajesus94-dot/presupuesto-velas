@@ -11,7 +11,7 @@ export default function SignUpPage() {
         </p>
         <h1 className="text-2xl font-semibold text-wrap-balance">Crear cuenta</h1>
         <p className="text-sm text-ink-muted text-wrap-balance">
-          Registrate para guardar tus materiales, plantillas y cotizaciones.
+          Registrate para guardar tus materiales, plantillas y presupuestos.
         </p>
       </header>
       <div className="w-full rounded-2xl border border-border-subtle bg-surface p-6 shadow-sm">

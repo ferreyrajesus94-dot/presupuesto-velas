@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Inicio" },
   { href: "/materials", label: "Materiales" },
   { href: "/templates", label: "Plantillas" },
-  { href: "/quotes", label: "Cotizaciones" },
+  { href: "/quotes", label: "Presupuestos" },
 ];
 
 const HIDDEN_PREFIXES = ["/sign-in", "/sign-up", "/verify-email", "/403"];

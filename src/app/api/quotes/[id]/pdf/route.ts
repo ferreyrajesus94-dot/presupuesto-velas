@@ -48,7 +48,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="cotizacion-${record.quote.id}.pdf"`,
+      "Content-Disposition": `attachment; filename="presupuesto-${record.quote.id}.pdf"`,
     },
   });
 }

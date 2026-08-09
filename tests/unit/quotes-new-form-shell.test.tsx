@@ -91,9 +91,9 @@ describe("/quotes/new page loader", () => {
     render(element);
     expect(mocks.requireUser).toHaveBeenCalledTimes(1);
     expect(mocks.listTemplates).toHaveBeenCalledWith("user-1");
-    expect(screen.getByRole("link", { name: /Cotizaciones/ })).toHaveAttribute("href", "/quotes");
+    expect(screen.getByRole("link", { name: /Presupuestos/ })).toHaveAttribute("href", "/quotes");
     // Page mounts exactly one H1; the form uses an aria-label (not a heading).
-    expect(screen.getAllByRole("heading", { name: "Nueva cotización" })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { name: "Nueva presupuesto" })).toHaveLength(1);
   });
 
   it("filters out archived templates before passing the list to the form", async () => {

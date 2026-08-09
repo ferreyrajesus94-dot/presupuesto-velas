@@ -67,7 +67,7 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
         >
           ← Volver
         </Link>
-        <button type="button" data-help="quotes" aria-label="Ayuda sobre cotizaciones" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink">
+        <button type="button" data-help="quotes" aria-label="Ayuda sobre presupuestos" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink">
           ?
         </button>
       </nav>
@@ -76,7 +76,7 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
           Calculadora Flor
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-ink">
-          {isDraft ? "Editar cotización" : "Cotización no editable"}
+          {isDraft ? "Editar presupuesto" : "Presupuesto no editable"}
         </h1>
       </header>
       {isDraft ? (
@@ -84,7 +84,7 @@ export default async function QuoteEditPage({ params }: { params: Promise<{ id: 
       ) : (
         <section className="rounded-2xl border border-border-subtle bg-surface-raised p-5 shadow-sm">
           <p className="text-sm text-ink-muted">
-            Solo borradores editables. Esta cotización está en estado{" "}
+            Solo borradores editables. Esta presupuesto está en estado{" "}
             <span className="font-semibold text-ink">
               {
                 STATUS_LABEL[

@@ -44,7 +44,7 @@ export default async function SignInPage({
         </p>
         <h1 className="text-2xl font-semibold text-wrap-balance">Iniciar sesión</h1>
         <p className="text-sm text-ink-muted text-wrap-balance">
-          Accedé con tu cuenta autorizada para ver materiales, recetas y cotizaciones.
+          Accedé con tu cuenta autorizada para ver materiales, recetas y presupuestos.
         </p>
       </header>
       {showVerifyBanner ? (

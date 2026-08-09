@@ -92,7 +92,7 @@ const FIELD_HELP: Record<
   name: {
     title: "Nombre",
     intro: 'Es el nombre humano del insumo (por ejemplo, "Cera de soja").',
-    bullets: ["Lo usamos en plantillas y cotizaciones para identificar el material."],
+    bullets: ["Lo usamos en plantillas y presupuestos para identificar el material."],
     tip: "Tiene que ser único por owner; si ya existe uno igual, el server lo rechaza.",
   },
   dimension: {

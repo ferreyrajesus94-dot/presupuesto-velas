@@ -234,7 +234,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
     startTransition(async () => {
       const draft = await createQuoteDraftAction(data);
       if (!draft.ok) {
-        setSubmitError("No se pudo crear la cotización.");
+        setSubmitError("No se pudo crear la presupuesto.");
         return;
       }
       const quoteId = draft.value.quote.id;
@@ -254,7 +254,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
         lockVersion,
       );
       if (!version.ok) {
-        setSubmitError("No se pudo crear la cotización.");
+        setSubmitError("No se pudo crear la presupuesto.");
         return;
       }
       router.push(`/quotes/${quoteId}`);
@@ -280,7 +280,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
   return (
     <section
       id="new-quote"
-      aria-label="Nueva cotización"
+      aria-label="Nueva presupuesto"
       data-tour-target="calculator"
        className="rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
@@ -341,8 +341,8 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
               🕯️ Primero creá una plantilla
             </h2>
             <p className="text-sm text-ink-muted">
-              Una cotización necesita al menos un modelo con sus materiales y costos para calcular
-              el precio. Cuando termines la plantilla, volvé acá para armar la cotización.
+              Una presupuesto necesita al menos un modelo con sus materiales y costos para calcular
+              el precio. Cuando termines la plantilla, volvé acá para armar la presupuesto.
             </p>
             <a
               href="/templates"

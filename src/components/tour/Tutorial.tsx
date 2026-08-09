@@ -50,7 +50,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
       "📦 Insumos y precios",
       "⚙️ Configuración general",
       "📋 Plantillas de recetas",
-      "🧮 Calculadora de cotizaciones",
+      "🧮 Calculadora de presupuestos",
     ],
     tip: "Podés saltar el tour en cualquier momento. Después lo abrís con el botón ❓ del menú.",
     targetSelector: "nav",
@@ -60,7 +60,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     emoji: "📦",
     title: "Insumos y precios",
     description:
-      "Cargá cada material con su unidad de compra y precio. Calculamos el costo por unidad base para usarlo en plantillas y cotizaciones.",
+      "Cargá cada material con su unidad de compra y precio. Calculamos el costo por unidad base para usarlo en plantillas y presupuestos.",
     bullets: [
       "✨ + Agregar insumo",
       "🗂️ Filtrá entre activos y archivados",
@@ -74,13 +74,13 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     emoji: "⚙️",
     title: "Configuración general",
     description:
-      "Página de inicio con tu resumen general: totales, cotizaciones recientes y atajos para arrancar.",
+      "Página de inicio con tu resumen general: totales, presupuestos recientes y atajos para arrancar.",
     bullets: [
       "📊 Resumen de actividad",
-      "📝 Cotizaciones recientes",
+      "📝 Presupuestos recientes",
       "⬆️ Atajos a todas las secciones",
     ],
-    tip: "Tip: la calculadora con plantillas vive en Cotizaciones → Nueva cotización.",
+    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nueva presupuesto.",
     targetSelector: "[data-tour-target='config']",
   },
   {
@@ -88,7 +88,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     emoji: "📋",
     title: "Plantillas",
     description:
-      "Armá recetas reutilizables: cada plantilla define materiales y un costo unitario que alimenta las cotizaciones.",
+      "Armá recetas reutilizables: cada plantilla define materiales y un costo unitario que alimenta las presupuestos.",
     bullets: [
       "✨ + Nueva plantilla",
       "📄 + Crear una copia",
@@ -102,7 +102,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     emoji: "🧮",
     title: "Calculadora",
     description:
-      "Elegí una plantilla, indicá cantidad y armá la cotización con seña, ganancia y descuento por mayoreo inline.",
+      "Elegí una plantilla, indicá cantidad y armá la presupuesto con seña, ganancia y descuento por mayoreo inline.",
     bullets: [
       "📐 Plantilla, cantidad, costo unitario",
       "🎯 Descuento por mayoreo",

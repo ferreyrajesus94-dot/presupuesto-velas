@@ -77,7 +77,7 @@ describe("/sign-in public presentation (U3)", () => {
     expect(view.container.querySelector("nav")).toBeNull();
     expect(
       screen.queryByRole("link", {
-        name: /^(inicio|materiales|recetas|cotizaciones)$/i,
+        name: /^(inicio|materiales|recetas|presupuestos)$/i,
       }),
     ).toBeNull();
     expect(screen.queryByRole("link", { name: /cerrar sesi(?:ó|o)n/i })).toBeNull();
@@ -130,7 +130,7 @@ describe("/403 forbidden public presentation (U3)", () => {
     expect(view.container.querySelector("nav")).toBeNull();
     expect(
       screen.queryByRole("link", {
-        name: /^(inicio|materiales|recetas|cotizaciones)$/i,
+        name: /^(inicio|materiales|recetas|presupuestos)$/i,
       }),
     ).toBeNull();
     expect(screen.queryByRole("link", { name: /cerrar sesi(?:ó|o)n/i })).toBeNull();

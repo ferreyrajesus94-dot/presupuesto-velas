@@ -19,7 +19,7 @@ describe("AppNav", () => {
       ["Inicio", "/"],
       ["Materiales", "/materials"],
       ["Plantillas", "/templates"],
-      ["Cotizaciones", "/quotes"],
+      ["Presupuestos", "/quotes"],
       ["Configuración", "/settings"],
     ]);
   });

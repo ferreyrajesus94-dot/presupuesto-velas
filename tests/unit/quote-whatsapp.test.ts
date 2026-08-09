@@ -73,7 +73,7 @@ const visible = { internalCost: true, profitMargin: true };
 describe("buildWhatsAppShareText", () => {
   it("includes customer, expiration, model lines, and total from the snapshot", () => {
     const text = buildWhatsAppShareText(makeQuote(), visible);
-    expect(text).toContain("*Cotización — Ana Pérez*");
+    expect(text).toContain("*Presupuesto — Ana Pérez*");
     expect(text).toContain("Vencimiento: 31/12/2026");
     expect(text).toContain("• 10 × Vela clásica: ARS 1.500,00");
     expect(text).toContain("Total: ARS 2.210,00");
@@ -102,7 +102,7 @@ describe("buildWhatsAppShareText", () => {
 
   it("uses the customer fallback when customerName is null", () => {
     expect(buildWhatsAppShareText(makeQuote({ customerName: null }), visible)).toContain(
-      "*Cotización — Sin cliente*",
+      "*Presupuesto — Sin cliente*",
     );
   });
 

@@ -85,7 +85,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
 
   return (
     <section
-      aria-label="Detalle de cotización"
+      aria-label="Detalle de presupuesto"
       className="flex flex-col gap-6 rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -252,7 +252,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
             </div>
           ) : (
             <p className="text-sm text-ink-muted">
-              Solo lectura — esta cotización no puede editarse.
+              Solo lectura — esta presupuesto no puede editarse.
             </p>
           )}
         </div>

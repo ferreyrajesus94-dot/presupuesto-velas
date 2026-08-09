@@ -72,26 +72,26 @@ beforeEach(() => {
 describe("quotes list", () => {
   it("renders an actionable empty state", () => {
     renderList([]);
-    expect(screen.getByRole("heading", { name: /Aún no tenés cotizaciones/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /\+ Crear cotización/i })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /Aún no tenés presupuestos/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /\+ Crear presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );
   });
 
   it.each([
-    ["active", "1 cotización activa"],
-    ["archived", "1 cotización archivada"],
+    ["active", "1 presupuesto activo"],
+    ["archived", "1 presupuesto archivado"],
   ] as const)("renders the %s view count and quote card content", (view, count) => {
     renderList([base], view);
     expect(screen.getByText(count)).toBeInTheDocument();
-    const list = screen.getByRole("list", { name: "Cotizaciones" });
+    const list = screen.getByRole("list", { name: "Presupuestos" });
     const cards = within(list).getAllByTestId("quote-card");
     expect(cards).toHaveLength(1);
     expect(within(cards[0]).getByText("Ana Pérez")).toBeInTheDocument();
     expect(within(cards[0]).getByText("10/04/2026")).toBeInTheDocument();
-    expect(within(cards[0]).getByText("ARS 1.234.567,50")).toBeInTheDocument();
-    expect(within(cards[0]).getByRole("link", { name: /Ver cotización/i })).toHaveAttribute(
+    expect(within(cards[0]).getByText("ARS 1,2M")).toBeInTheDocument();
+    expect(within(cards[0]).getByRole("link", { name: /Ver presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/quote-1",
     );
@@ -133,7 +133,7 @@ describe("quotes list", () => {
       total: "200",
     };
     renderList([base, second]);
-    const list = screen.getByRole("list", { name: "Cotizaciones" });
+    const list = screen.getByRole("list", { name: "Presupuestos" });
     const cards = within(list).getAllByTestId("quote-card");
     expect(cards).toHaveLength(2);
     expect(within(cards[0]).getByText("Ana Pérez")).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("quotes list", () => {
     expect(className).toMatch(/\bmin-w-0\b/);
     expect(className).toMatch(/\bbreak-words\b/);
     expect(className).toMatch(/\boverflow-wrap-anywhere\b/);
-    const total = within(card).getByText("ARS 9.999.999.999.999,99");
+    const total = within(card).getByText("ARS 10.000,0B");
     expect(total.className).toMatch(/\bmin-w-0\b/);
     expect(total.className).toMatch(/\bbreak-words\b/);
   });
@@ -196,7 +196,7 @@ describe("quotes list primary action target", () => {
   it("renders each card's primary action link with the >=44px min-h-11 target class and a width-safe wrapper", () => {
     renderList([base]);
     const card = screen.getByTestId("quote-card");
-    const action = within(card).getByRole("link", { name: /Ver cotización/i });
+    const action = within(card).getByRole("link", { name: /Ver presupuesto/i });
     expect(action.className).toMatch(/\bmin-h-11\b/);
     expect(action.className).toMatch(/\bmin-w-0\b/);
   });

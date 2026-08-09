@@ -134,10 +134,10 @@ function QuotePdfDocument({ model }: { model: QuotePdfModel }): ReactElement {
   const showInternalCost = model.materialsTotal !== undefined;
   const showProfit = model.profitValue !== undefined && model.profitMethod !== undefined;
   return (
-    <Document title={`Cotización ${model.id}`}>
+    <Document title={`Presupuesto ${model.id}`}>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>Cotización</Text>
+          <Text style={styles.title}>Presupuesto</Text>
           <Text style={styles.meta}>Cliente: {model.customerName || "Sin cliente"}</Text>
           <Text style={styles.meta}>Vencimiento: {model.expirationDate}</Text>
         </View>

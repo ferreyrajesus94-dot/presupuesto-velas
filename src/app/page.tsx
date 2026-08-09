@@ -46,7 +46,7 @@ export default async function Home() {
             </p>
             <h1 className="text-3xl font-semibold text-wrap-balance">🕯️ Calculadora de Velas Flor</h1>
             <p className="max-w-2xl text-sm text-on-brand/85">
-              Organizá tus insumos, plantillas y cotizaciones desde un solo lugar.
+              Organizá tus insumos, plantillas y presupuestos desde un solo lugar.
             </p>
           </div>
           <button
@@ -72,7 +72,7 @@ export default async function Home() {
             Empezá con tu primer material
           </h2>
           <p className="text-sm text-ink-muted">
-            Cargá los materiales que usás para hacer velas, armá recetas y generá cotizaciones para
+            Cargá los materiales que usás para hacer velas, armá recetas y generá presupuestos para
             tus clientas.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
@@ -92,7 +92,7 @@ export default async function Home() {
               href="/quotes/new"
               className="inline-flex min-h-11 items-center rounded-md border border-border-subtle bg-surface px-4 text-ink hover:bg-surface-soft"
             >
-              Crear cotización
+              Crear presupuesto
             </Link>
           </div>
         </section>
@@ -118,12 +118,12 @@ export default async function Home() {
           />
           <SummaryCard
             icon="🧮"
-            title="Cotizaciones activas"
+            title="Presupuestos activas"
             count={quotes.length}
-            singular="cotización activa"
-            plural="cotizaciones activas"
+            singular="presupuesto activa"
+            plural="presupuestos activas"
             href="/quotes"
-            cta="Ver cotizaciones"
+            cta="Ver presupuestos"
           />
         </section>
       )}
@@ -134,7 +134,7 @@ export default async function Home() {
             id="recent-quotes-heading"
             className="text-xl font-semibold text-ink text-wrap-balance"
           >
-            Cotizaciones recientes
+            Presupuestos recientes
           </h2>
           <Link href="/quotes" className="text-sm font-semibold text-brand underline">
             Ver todas
@@ -142,11 +142,11 @@ export default async function Home() {
         </header>
         {recentQuotes.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border-subtle bg-surface p-6 text-sm text-ink-muted">
-            Todavía no hay cotizaciones activas. Empezá creando una.
+            Todavía no hay presupuestos activas. Empezá creando una.
           </p>
         ) : (
           <ul
-            aria-label="Cotizaciones recientes"
+            aria-label="Presupuestos recientes"
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
             {recentQuotes.map(({ quote }) => (
@@ -180,7 +180,7 @@ export default async function Home() {
             href="/quotes/new"
             className="inline-flex min-h-11 items-center rounded-md bg-brand px-4 text-on-brand"
           >
-            + Nueva cotización
+            + Nueva presupuesto
           </Link>
         </footer>
       )}

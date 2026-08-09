@@ -23,14 +23,14 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
           href="/quotes"
           className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4"
         >
-          ← Cotizaciones
+          ← Presupuestos
         </Link>
       </nav>
       <header>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold text-ink">Detalle de cotización</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink">Detalle de presupuesto</h1>
       </header>
       <QuoteDetailView quote={quote} now={new Date()} />
     </div>

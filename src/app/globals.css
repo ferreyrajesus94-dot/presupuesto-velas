@@ -127,28 +127,33 @@
  * so the user can see which section is being discussed. The Tutorial
  * component stamps `data-tour-highlight="true"` on the matched target
  * via JS, the CSS picks it up, and a slow 1.6s ease-in-out animation
- * scales + tints the icon and label. `prefers-reduced-motion` collapses
- * it to a static brand tint so we don't trip accessibility.
+ * scales + glows the label. The label color uses --pv-on-brand
+ * (the off-brand surface, near-white) so it reads against BOTH the
+ * active nav item (which has bg-brand → the surface is pink) and
+ * the dark tour backdrop (rgba(43,13,24,0.55) over a light page).
+ * The previous version set color to --pv-brand, which on the active
+ * item (pink background) painted the text the same pink as the
+ * background, making the label briefly invisible in the 0.5.18
+ * desktop build. `prefers-reduced-motion` collapses the animation
+ * to a static brand tint so we don't trip accessibility.
  */
 @keyframes tour-pulse {
   0%, 100% {
     transform: translateY(0) scale(1);
     filter: drop-shadow(0 0 0 rgba(214, 51, 108, 0));
-    color: var(--pv-ink);
   }
   50% {
     transform: translateY(-2px) scale(1.08);
     filter: drop-shadow(0 0 12px rgba(214, 51, 108, 0.55));
-    color: var(--pv-brand);
   }
 }
 [data-tour-highlight="true"] {
   animation: tour-pulse 1.6s ease-in-out infinite;
-  color: var(--pv-brand);
+  color: var(--pv-on-brand);
 }
 [data-tour-highlight="true"] > span,
 [data-tour-highlight="true"] > svg {
-  color: var(--pv-brand);
+  color: var(--pv-on-brand);
 }
 @media (prefers-reduced-motion: reduce) {
   [data-tour-highlight="true"] {

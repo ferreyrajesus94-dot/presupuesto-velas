@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.2 - 2026-08-09
+
+- **UX: detail view shows more metadata.** A new meta strip renders between the header and the model list with: short UUID (`<8 chars>`), current version number, item count (`<n> modelo(s), <m> costo(s) indirecto(s)`), creation date+time, and last-edit date+time. No new query — the `quote.createdAt` and `version.createdAt` were already loaded by `getQuote`. `formatDateTime` accepts both string and Date to absorb the Drizzle `Date` vs `string` mismatch between the two columns.
+- **NEW: sort bar on `/quotes`.** Six options above the list, server-side sorting driven by the `?sort=` query param (the active view param is preserved):
+  - Vencimiento · próximo (default, `expiration-asc`)
+  - Vencimiento · lejano (`expiration-desc`)
+  - Creado · reciente (`created-desc`)
+  - Creado · antiguo (`created-asc`)
+  - Total · mayor (`total-desc`)
+  - Total · menor (`total-asc`)
+  The `created-*` sorts use the UUID as a creation-time proxy because the `QuoteListItem` projection doesn't carry `createdAt`; the detail view has the real timestamp if needed. The selected option is rendered as a pressed toggle so screen readers announce its state.
+- **UX: drop the leading "+" from the "✨ + Nuevo presupuesto" / "+ Crear presupuesto" CTAs.** The user reported the "+" was redundant on an action that already has an explicit "Nuevo / Crear" verb. Updated on `/quotes`, `/quotes` (empty state), and the home dashboard.
+- **LINT: removed a synchronous `setAutoShowEnabled` inside a `useEffect` in `<Tutorial />`.** The `react-hooks/set-state-in-effect` rule now flags it. Moved the initialization to a `useState` lazy initializer so the mount effect can stay read-only.
+- **TESTS:** Updated `tests/unit/quotes-list.test.tsx` for the CTA copy change. New `scripts/qa-quotes-enhance.ts` Playwright runner covers the three changes (CTA copy, six sort options + URL after click, four `data-testid` anchors on the detail view). 13/13 checks pass.
+
 ## 0.5.1 - 2026-08-09
 
 - **FIX: deposit-suggestion copy mixed two different percentages.** The "Sugerencia para cubrir materiales" line used to render `9.1% (ARS 2.750.000,00 con el porcentaje actual)` — the `9.1%` is the *suggested* percent (materiales / total × 100, rounded up so the deposit always covers materiales), but the `ARS 2.750.000,00` is the deposit amount computed with the *typed* percent (50% of total). Reading the line, the user could reasonably believe the ARS figure was what they would pay under the suggestion. Split into two explicit lines: the suggestion now shows the monto that would *actually* cover the materiales if the user clicked "Aplicar sugerencia" (`9.1% (= ARS 500.000,00 con el porcentaje sugerido)`), and a new line shows the actual deposit under the typed percent with a context clause that compares it to the materiales (`Con tu porcentaje actual (50%) el monto de seña es ARS 2.750.000,00 — cubre los materiales y sobra de la ganancia` for `gt`, `cubre exactamente los materiales` for `eq`, `no alcanza a cubrir los materiales; te faltan ARS X` for `lt`). The materials-covering helper and its tests are unchanged — the fix is purely in the rendered copy.

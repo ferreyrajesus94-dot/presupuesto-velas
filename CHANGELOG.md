@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 - 2026-08-09
+
+- **FIX: deposit-suggestion copy mixed two different percentages.** The "Sugerencia para cubrir materiales" line used to render `9.1% (ARS 2.750.000,00 con el porcentaje actual)` — the `9.1%` is the *suggested* percent (materiales / total × 100, rounded up so the deposit always covers materiales), but the `ARS 2.750.000,00` is the deposit amount computed with the *typed* percent (50% of total). Reading the line, the user could reasonably believe the ARS figure was what they would pay under the suggestion. Split into two explicit lines: the suggestion now shows the monto that would *actually* cover the materiales if the user clicked "Aplicar sugerencia" (`9.1% (= ARS 500.000,00 con el porcentaje sugerido)`), and a new line shows the actual deposit under the typed percent with a context clause that compares it to the materiales (`Con tu porcentaje actual (50%) el monto de seña es ARS 2.750.000,00 — cubre los materiales y sobra de la ganancia` for `gt`, `cubre exactamente los materiales` for `eq`, `no alcanza a cubrir los materiales; te faltan ARS X` for `lt`). The materials-covering helper and its tests are unchanged — the fix is purely in the rendered copy.
+
 ## 0.5.0 - 2026-08-09
 
 - **UX: full rename to "Presupuestos".** Every user-visible string referring to the quote entity now reads "presupuesto" / "presupuestos" (was "cotización" / "cotizaciones"): the AppNav link, the `/quotes` page heading, the empty-state copy, the breadcrumb back link, the detail view, the PDF filename, the WhatsApp share text, every dialog label, every error message, and the in-page help bullets. Plural grammar gender is updated throughout ("presupuestos activos" / "archivados", the view filter labels "Activos" / "Archivados", the "Nuevo presupuesto" CTA).

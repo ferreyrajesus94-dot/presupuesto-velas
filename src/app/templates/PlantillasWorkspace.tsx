@@ -420,11 +420,17 @@ export function PlantillasWorkspace({
       const result = await cleanupOrphanTemplatesAction();
       if (result.status === "success") {
         setOrphanCount(0);
+        // Force a server re-render so the in-memory list, the "N en tu lista"
+        // counter, and the server-side `orphanCount` prop all re-sync from
+        // the persisted state. Without this, the deleted rows linger in the
+        // client's local state even though the action removed them from the
+        // DB and revalidated the path.
+        router.refresh();
       } else {
         setActionError(result.message);
       }
     });
-  }, [orphanCount]);
+  }, [orphanCount, router]);
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * PR3.auth-ui (Task 3.5) — `signUpAction` RED-first unit test.
+ * PR3.auth-ui (Task 3.4) + v0.4.6 hotfix — `signUpAction` RED-first unit test.
  *
  * Covers the SIGN-UP scenario from SPEC §2 (auth-public-signup):
  *   - Happy path: valid email + matching passwords → Neon POST
- *     `/sign-up/email` is issued with `email_verification: 'link'`, the
- *     user is upserted in Neon Auth with `emailVerified=false`, and the
- *     action redirects to `/sign-in?hint=verify-email`. NO session
- *     cookie is set (verification-first flow).
+ *     `/sign-up/email` is issued with `email_verification: 'link'`. The
+ *     action redirects to `/verify-email` (NOT `/sign-in?hint=...`) and,
+ *     if Better Auth returned a session cookie in the response, the
+ *     cookie is forwarded to our jar so the user lands on `/verify-email`
+ *     already signed in. v0.4.6 added the auto-sign-in + redirect change
+ *     so the user doesn't have to manually navigate to the verify page.
  *   - Duplicate email: Neon returns 4xx → action returns
- *     `state.errors._form` and no redirect, no upsertUser call.
+ *     `state.errors._form` and no redirect, no session set.
  *   - Weak password: Neon returns 4xx → action returns
  *     `state.errors._form` and no redirect.
  *   - Password mismatch: Zod refinement surfaces a `confirmPassword`
@@ -55,7 +57,7 @@ function makeFormData(fields: Record<string, string>): FormData {
   return fd;
 }
 
-const NEON_SIGNUP_OK = (overrides: { id?: string; email?: string } = {}) =>
+const NEON_SIGNUP_OK = (overrides: { id?: string; email?: string; setCookie?: string } = {}) =>
   new Response(
     JSON.stringify({
       user: {
@@ -68,13 +70,14 @@ const NEON_SIGNUP_OK = (overrides: { id?: string; email?: string } = {}) =>
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        // Critical: NO Set-Cookie. Verification-first flow does not
-        // establish a session until the user clicks the email link.
+        ...(overrides.setCookie !== undefined
+          ? { "set-cookie": overrides.setCookie }
+          : {}),
       },
     },
   );
 
-describe("signUpAction public sign-up (PR3 task 3.4)", () => {
+describe("signUpAction public sign-up (PR3 task 3.4 + v0.4.6 hotfix)", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_BASE_URL", "https://app.example.com");
@@ -87,7 +90,7 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
     vi.clearAllMocks();
   });
 
-  it("redirects to /sign-in?hint=verify-email on a happy path Neon /sign-up/email 200", async () => {
+  it("redirects to /verify-email on a happy path Neon /sign-up/email 200 (v0.4.6 was /sign-in?hint=verify-email)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(NEON_SIGNUP_OK());
     vi.stubGlobal("fetch", fetchMock);
 
@@ -100,7 +103,7 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
           confirmPassword: "supersecret123",
         }),
       ),
-    ).rejects.toMatchObject({ __redirect: "/sign-in?hint=verify-email" });
+    ).rejects.toMatchObject({ __redirect: "/verify-email" });
 
     // Neon POST issued with email_verification: 'link'
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -113,8 +116,71 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
       password: "supersecret123",
       email_verification: "link",
     });
-    // Verification-first: no session cookie is set.
+  });
+
+  it("does NOT call setSessionCookie when Better Auth returns no set-cookie header (defensive)", async () => {
+    // NEON_SIGNUP_OK() default has NO set-cookie header
+    const fetchMock = vi.fn().mockResolvedValue(NEON_SIGNUP_OK());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      signUpAction(
+        {},
+        makeFormData({
+          email: "newbie@example.com",
+          password: "supersecret123",
+          confirmPassword: "supersecret123",
+        }),
+      ),
+    ).rejects.toMatchObject({ __redirect: "/verify-email" });
+
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("extracts the Better Auth session cookie from set-cookie and forwards it (v0.4.6 auto-sign-in)", async () => {
+    const setCookieValue =
+      "__Secure-neon-auth.session_token=jwt-abc.DefGhi; HttpOnly; Path=/; SameSite=Lax";
+    const fetchMock = vi.fn().mockResolvedValue(NEON_SIGNUP_OK({ setCookie: setCookieValue }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      signUpAction(
+        {},
+        makeFormData({
+          email: "newbie@example.com",
+          password: "supersecret123",
+          confirmPassword: "supersecret123",
+        }),
+      ),
+    ).rejects.toMatchObject({ __redirect: "/verify-email" });
+
+    expect(mocks.setSessionCookieMock).toHaveBeenCalledTimes(1);
+    expect(mocks.setSessionCookieMock).toHaveBeenCalledWith(
+      "jwt-abc.DefGhi",
+      "__Secure-neon-auth.session_token",
+    );
+  });
+
+  it("handles the legacy 'better-auth.session_token' variant in the set-cookie header", async () => {
+    const setCookieValue = "better-auth.session_token=legacy-jwt-value; Path=/; HttpOnly";
+    const fetchMock = vi.fn().mockResolvedValue(NEON_SIGNUP_OK({ setCookie: setCookieValue }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      signUpAction(
+        {},
+        makeFormData({
+          email: "newbie@example.com",
+          password: "supersecret123",
+          confirmPassword: "supersecret123",
+        }),
+      ),
+    ).rejects.toMatchObject({ __redirect: "/verify-email" });
+
+    expect(mocks.setSessionCookieMock).toHaveBeenCalledWith(
+      "legacy-jwt-value",
+      "better-auth.session_token",
+    );
   });
 
   it("derives a Neon `name` from the email local part when no name is supplied", async () => {
@@ -135,12 +201,11 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
           confirmPassword: "supersecret123",
         }),
       ),
-    ).rejects.toMatchObject({ __redirect: "/sign-in?hint=verify-email" });
+    ).rejects.toMatchObject({ __redirect: "/verify-email" });
 
     const [, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(String(calledInit.body));
     expect(body.name).toBe("ada.lovelace");
-    expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
   });
 
   it("returns state.errors._form when Neon reports a duplicate email (422) and does not redirect", async () => {
@@ -162,7 +227,6 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
     );
 
     expect(result.errors?._form).toBeDefined();
-    // Localized user-facing copy — "Ya existe una cuenta con ese email."
     expect(result.errors?._form?.[0]).toMatch(/ya existe|cuenta|email/i);
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
@@ -189,7 +253,6 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
     );
 
     expect(result.errors?._form).toBeDefined();
-    // Localized user-facing copy — "La contraseña no cumple los requisitos..."
     expect(result.errors?._form?.[0]).toMatch(/contraseñ|requisitos|seguridad/i);
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();
@@ -210,7 +273,6 @@ describe("signUpAction public sign-up (PR3 task 3.4)", () => {
 
     expect(result.errors?.confirmPassword).toBeDefined();
     expect(result.errors?.confirmPassword?.[0]).toMatch(/match/i);
-    // Neon MUST NOT be called when the form fails local validation.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(mocks.setSessionCookieMock).not.toHaveBeenCalled();

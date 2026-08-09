@@ -2,6 +2,8 @@
 import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getNeonAuthBaseUrl } from "../auth/userEnv";
+import { setSessionCookie } from "../auth/session";
+import { extractNeonSessionCookie } from "../auth/neonCookie";
 import { SignUpSchema } from "../auth/authSchema";
 
 /**
@@ -85,7 +87,25 @@ export async function signUpAction(_prev: SignUpState, formData: FormData): Prom
     };
   }
 
-  // Verification-first: no session cookie is set here. The verification
-  // link in the user's inbox is what establishes the session.
-  redirect("/sign-in?hint=verify-email");
+  // Verification-first flow, but auto-sign-in: Better Auth's
+  // `/sign-up/email` response includes the same `set-cookie` header
+  // as `/sign-in/email`, so we forward it to our jar the same way
+  // `signInAction` does. The user lands on `/verify-email` already
+  // signed in (with `emailVerified: false`), so the page renders the
+  // OTP input form instead of redirecting back to `/sign-in`.
+  //
+  // If the upstream returns no cookie (some Better Auth configs skip
+  // the set-cookie on sign-up), we fall through to the redirect
+  // without setting a session — the user lands on `/verify-email`
+  // unauthenticated, where the form action still works (it accepts
+  // email + OTP and verifies via Better Auth's `/email-otp/verify-email`
+  // endpoint which DOES issue a session).
+  const setCookie = res.headers.get("set-cookie") ?? "";
+  const sessionCookie = extractNeonSessionCookie(setCookie);
+  if (sessionCookie) {
+    const value = decodeURIComponent(sessionCookie.rawValue);
+    await setSessionCookie(value, sessionCookie.name);
+  }
+
+  redirect("/verify-email");
 }

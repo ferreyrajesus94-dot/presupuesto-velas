@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.6 - 2026-08-09
+
+- **UX: post-sign-up flow goes straight to `/verify-email`.** `signUpAction` now extracts the Better Auth session cookie from the `/sign-up/email` response and forwards it to our jar (auto-sign-in), then redirects to `/verify-email` (was `/sign-in?hint=verify-email`). The user never has to navigate anywhere after creating the account — they land on the OTP input form ready to verify. The `/verify-email` page's existing logic (`requireUser → redirect to /verify-email when unverified`) picks up the new session and renders the form.
+- **Refactor: extracted `extractNeonSessionCookie`** from `signInAction` to `src/server/auth/neonCookie.ts`. Now reused by `signUpAction` and `verifyEmailOtpAction` — three actions, one parser. The deferred refactor from PR2.2 (commented as "extracted when a non-PR2 caller needs it") finally applies.
+- **Defensive: sign-up with no set-cookie header** still works. If Better Auth's deployment doesn't issue a session cookie on `/sign-up/email` (some configs do this to force verification-first), the action skips `setSessionCookie` and still redirects to `/verify-email`. The `verifyEmailOtpAction` then creates the session on first successful OTP submit. Both paths are exercised in tests.
+- 2 new sign-up tests cover the new redirect target (`/verify-email`) and the set-cookie forwarding (with both `__Secure-neon-auth.session_token` and legacy `better-auth.session_token` variants).
+
 ## 0.4.5 - 2026-08-09
 
 - **CRITICAL FIX: bootstrap promotion wasn't applied on existing rows.** `upsertUser` (in `src/server/repositories/user.ts`) used `onConflictDoUpdate` with a SET clause of `{ email, emailVerified }` — `role` was missing. The effect: when a user first signed in while unverified (`emailVerified: false`), `resolveRole` correctly returned `"user"` and the INSERT landed with `role='user'`. But every subsequent `requireUser` call after verification passed `requestedRole: "owner"`, `resolveRole` returned `"owner"`, and the SET clause silently kept `role='user'` because `role` wasn't in the update fields. The original `adminvelas@gmail.com` user ended up with `role='user'` even though the bootstrap rule should have promoted them on first verified sign-in.

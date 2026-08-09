@@ -3,12 +3,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getNeonAuthBaseUrl } from "../auth/userEnv";
-import {
-  NEON_SESSION_COOKIE_NAMES,
-  setSessionCookie,
-  type NeonSessionCookieName,
-} from "../auth/session";
-import { fetchSessionUser } from "../auth/session";
+import { setSessionCookie, fetchSessionUser } from "../auth/session";
+import { extractNeonSessionCookie } from "../auth/neonCookie";
 
 /**
  * v0.4.3 hotfix — `verifyEmailOtpAction`.
@@ -63,17 +59,6 @@ function localizedOtpError(upstreamMessage: string | null, status: number): stri
     return "Demasiados intentos. Esperá unos minutos y volvé a pedir un código.";
   }
   return "No pudimos verificar el código. Intentá de nuevo en unos minutos.";
-}
-
-function extractNeonSessionCookie(
-  setCookie: string,
-): { name: NeonSessionCookieName; rawValue: string } | null {
-  for (const name of NEON_SESSION_COOKIE_NAMES) {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const match = setCookie.match(new RegExp(`(?:^|,\\s*)${escapedName}=([^;,]+)`));
-    if (match) return { name, rawValue: match[1] };
-  }
-  return null;
 }
 
 export async function verifyEmailOtpAction(

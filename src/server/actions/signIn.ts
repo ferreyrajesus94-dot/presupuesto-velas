@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 import { getAppBaseUrl } from "../auth/appBaseUrl";
 import { getBootstrapOwnerEmail, getNeonAuthBaseUrl } from "../auth/userEnv";
 import {
-  NEON_SESSION_COOKIE_NAMES,
   setSessionCookie,
-  type NeonSessionCookieName,
 } from "../auth/session";
+import { extractNeonSessionCookie } from "../auth/neonCookie";
 import { AuthSchema } from "../auth/authSchema";
 import { upsertUser } from "../repositories/user";
 
@@ -110,15 +109,4 @@ export async function signInAction(_prev: SignInState, formData: FormData): Prom
   });
   await setSessionCookie(value, sessionCookie.name);
   redirect(readNext(formData));
-}
-
-function extractNeonSessionCookie(
-  setCookie: string,
-): { name: NeonSessionCookieName; rawValue: string } | null {
-  for (const name of NEON_SESSION_COOKIE_NAMES) {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const match = setCookie.match(new RegExp(`(?:^|,\\s*)${escapedName}=([^;,]+)`));
-    if (match) return { name, rawValue: match[1] };
-  }
-  return null;
 }

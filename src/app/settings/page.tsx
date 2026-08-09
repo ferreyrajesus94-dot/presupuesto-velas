@@ -1,4 +1,5 @@
 import { requireUser } from "@/server/auth/requireUser";
+import { ThemeToggle } from "@/components/theme/ThemeProvider";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SignOutForm } from "./SignOutForm";
 
@@ -58,6 +59,20 @@ export default async function SettingsPage() {
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section
+        aria-label="Apariencia"
+        className="w-full rounded-2xl border border-border-subtle bg-surface p-6 shadow-sm"
+      >
+        <h2 className="mb-3 text-base font-semibold text-ink">Apariencia</h2>
+        <p className="mb-3 text-sm text-ink-muted">
+          Cambiá entre tema claro, oscuro o seguí al sistema.
+        </p>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <span className="text-sm text-ink-muted">Cambiar tema</span>
+        </div>
       </section>
 
       <section

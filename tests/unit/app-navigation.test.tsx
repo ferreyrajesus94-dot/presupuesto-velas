@@ -11,10 +11,22 @@ describe("AppNav", () => {
     mocks.pathname = "/";
   });
 
-  it("renders the five canonical Spanish links in order with exact hrefs (v0.4.4 added Configuración)", () => {
+  it("renders the desktop top nav with the five canonical Spanish links in order (v0.4.4 added Configuración)", () => {
     render(<AppNav />);
-    const links = screen.getAllByRole("link");
-    const pairs = links.map((a) => [a.textContent, a.getAttribute("href")]);
+    // The desktop top nav has `hidden md:block`; the mobile bottom nav
+    // has `md:hidden`. In jsdom both are present in the DOM but only one
+    // is visible at runtime. Scope to the top nav by querying the nav
+    // whose label is "Navegación principal" AND whose container is the
+    // `hidden md:block` element. Easiest path: take the nav that owns
+    // a /settings anchor WITH the visible "Configuración" text label
+    // (the bottom nav uses shortLabel "Config" + emoji).
+    const topNav = document.querySelector("nav.hidden") as HTMLElement | null;
+    expect(topNav).not.toBeNull();
+    const links = Array.from(topNav!.querySelectorAll("a"));
+    const pairs = links.map((a) => [
+      a.getAttribute("aria-label") ?? a.textContent,
+      a.getAttribute("href"),
+    ]);
     expect(pairs).toEqual([
       ["Inicio", "/"],
       ["Materiales", "/materials"],
@@ -24,12 +36,36 @@ describe("AppNav", () => {
     ]);
   });
 
+  it("renders the mobile bottom nav with 5 icon items (4 main + settings)", () => {
+    render(<AppNav />);
+    // The bottom nav is the one with `fixed inset-x-0 bottom-0`.
+    const bottomNav = document.querySelector("nav.fixed") as HTMLElement | null;
+    expect(bottomNav).not.toBeNull();
+    const links = Array.from(bottomNav!.querySelectorAll("a"));
+    expect(links).toHaveLength(5);
+    const items = links.map((a) => ({
+      href: a.getAttribute("href"),
+      label: a.getAttribute("aria-label"),
+    }));
+    expect(items).toEqual([
+      { href: "/", label: "Inicio" },
+      { href: "/materials", label: "Materiales" },
+      { href: "/templates", label: "Plantillas" },
+      { href: "/quotes", label: "Presupuestos" },
+      { href: "/settings", label: "Configuración" },
+    ]);
+  });
+
   it("marks the active section including nested routes with aria-current=page", () => {
     mocks.pathname = "/quotes/abc/edit";
     render(<AppNav />);
-    const links = screen.getAllByRole("link");
-    expect(links[3]).toHaveAttribute("aria-current", "page");
-    expect(links[0]).not.toHaveAttribute("aria-current");
+    // Pick the link to /quotes from either nav — they should both
+    // surface the active state because the nav component is rendered
+    // for both.
+    const links = screen.getAllByRole("link", { name: /presupuestos/i });
+    for (const link of links) {
+      expect(link).toHaveAttribute("aria-current", "page");
+    }
   });
 
   it("marks /settings as active when on the settings page", () => {

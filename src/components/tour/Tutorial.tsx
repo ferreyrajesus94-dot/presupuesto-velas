@@ -8,19 +8,23 @@ import { isPublicPath } from "@/lib/publicPrefixes";
 /**
  * PR4 tutorial overlay — 5-step first-visit tour.
  *
- * - Auto-start on first visit (when `localStorage["pv-tour-done"]` is absent).
- * - Persist completion/skip back to `localStorage` so the tour never reopens.
+ * - Auto-start on first visit (when no `pv-tour-disabled` flag is set in
+ *   `localStorage`). The dialog now exposes an explicit "Mostrar este tour
+ *   al iniciar sesión" checkbox so the user controls persistence; closing
+ *   the dialog (skip / ✕ / ¡Listo!) writes that preference to storage.
+ * - Legacy `pv-tour-done = "1"` keys are honored on read so users who
+ *   completed the old one-shot tour keep their opt-in.
  * - Spotlight the active target via a `position: fixed` rectangle that
- *   re-measures on two `requestAnimationFrame` ticks after a scrollIntoView,
- *   so the highlight is positioned after the target's first paint.
- * - Honor `prefers-reduced-motion: reduce`: skip the pulse animation and
- *   use instant transitions.
+ *   re-measures on two `requestAnimationFrame` ticks after a scrollIntoView.
+ * - Honor `prefers-reduced-motion: reduce`.
  * - Manual trigger via a floating "?" button rendered by the layout.
  * - Keyboard accessible: Esc closes, Tab walks the focus trap, Enter activates.
  * - Suppressed on public routes (`/sign-in`, `/sign-up`, `/403`, ...) so the
  *   overlay never blocks the unauthenticated UI on first paint.
  */
 
+export const TOUR_DISABLED_KEY = "pv-tour-disabled";
+/** @deprecated kept only for migration — see `readTourDisabled`. */
 export const TOUR_STORAGE_KEY = "pv-tour-done";
 
 export type TutorialStep = {
@@ -113,21 +117,45 @@ type SpotlightRect = { top: number; left: number; width: number; height: number 
 
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 
-function readTourDone(): boolean {
+/**
+ * Read the user's opt-out preference. Treats the absence of the new key
+ * AND the legacy one-shot key as "auto-show enabled" (the default for
+ * first-time visitors).
+ */
+function readTourDisabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(TOUR_STORAGE_KEY) === "1";
+    if (window.localStorage.getItem(TOUR_DISABLED_KEY) === "1") return true;
+    // Legacy migration: a one-shot `pv-tour-done = "1"` from before the
+    // toggle shipped is honored so returning users keep their opt-out.
+    if (window.localStorage.getItem(TOUR_STORAGE_KEY) === "1") return true;
+    return false;
   } catch {
     return false;
   }
 }
 
-function writeTourDone(): void {
+/**
+ * Persist the user's opt-out preference. Removing the key when the user
+ * re-enables the tour keeps `localStorage` clean instead of storing
+ * `pv-tour-disabled = "0"`. Either branch also clears the legacy
+ * `pv-tour-done` key so the new flag is the single source of truth.
+ */
+function writeTourDisabled(disabled: boolean): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(TOUR_STORAGE_KEY, "1");
+    if (disabled) {
+      window.localStorage.setItem(TOUR_DISABLED_KEY, "1");
+    } else {
+      window.localStorage.removeItem(TOUR_DISABLED_KEY);
+    }
+    // Always clear the legacy one-shot key — once the toggle is in play,
+    // a stale `pv-tour-done = "1"` would incorrectly suppress auto-show
+    // (it overrides `pv-tour-disabled = null` on read).
+    window.localStorage.removeItem(TOUR_STORAGE_KEY);
   } catch {
-    // localStorage may be disabled — tour still completes in-memory.
+    // localStorage may be disabled — the in-memory state still drives the
+    // current session's UI.
   }
 }
 
@@ -148,6 +176,10 @@ export function Tutorial() {
   const [stepIndex, setStepIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
+  // User's preference for whether the tour should auto-open on next sign-in.
+  // Initialized lazily inside the mount effect so SSR doesn't read storage.
+  // Default: true (auto-show on first visit).
+  const [autoShowEnabled, setAutoShowEnabled] = useState<boolean>(true);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -169,7 +201,10 @@ export function Tutorial() {
   // Read storage + reduced motion on mount.
   useEffect(() => {
     setReducedMotion(readReducedMotion());
-    if (!readTourDone()) {
+    const disabled = readTourDisabled();
+    // Mirror storage into state so the dialog checkbox starts in sync.
+    setAutoShowEnabled(!disabled);
+    if (!disabled) {
       setOpen(true);
     }
     const mq = window.matchMedia(reducedMotionQuery);
@@ -180,15 +215,24 @@ export function Tutorial() {
 
   const close = useCallback(() => {
     setOpen(false);
-    writeTourDone();
+    // Persist the user's opt-out preference. Closing with the toggle on
+    // (default) re-enables the tour on next visit; closing with the
+    // toggle off writes `pv-tour-disabled = "1"` so the dialog never
+    // reopens on its own.
+    writeTourDisabled(!autoShowEnabled);
     // Return focus to the toolbar "?" button so keyboard users don't lose
     // their place. Only refocus if the trigger is actually mounted (not
     // on public routes).
     window.setTimeout(() => triggerRef.current?.focus(), 0);
-  }, []);
+  }, [autoShowEnabled]);
 
   const startTour = useCallback(() => {
     setStepIndex(0);
+    // When the user manually opens the tour, reset the toggle to ON
+    // optimistically. The act of asking for the tour back is itself a
+    // signal that they want it to keep showing on next sign-in — they
+    // can still uncheck before closing if not.
+    setAutoShowEnabled(true);
     setOpen(true);
   }, []);
 
@@ -295,6 +339,8 @@ export function Tutorial() {
           onNext={goNext}
           onPrev={goPrev}
           onSkip={skip}
+          autoShowEnabled={autoShowEnabled}
+          onAutoShowChange={setAutoShowEnabled}
         />
       ) : null}
     </>
@@ -312,6 +358,8 @@ type TutorialDialogProps = {
   onNext: () => void;
   onPrev: () => void;
   onSkip: () => void;
+  autoShowEnabled: boolean;
+  onAutoShowChange: (next: boolean) => void;
 };
 
 function TutorialDialog({
@@ -325,6 +373,8 @@ function TutorialDialog({
   onNext,
   onPrev,
   onSkip,
+  autoShowEnabled,
+  onAutoShowChange,
 }: TutorialDialogProps) {
   // Position the dialog card so it stays on-screen regardless of the
   // spotlight's position. If the spotlight is in the top half, place the
@@ -435,6 +485,22 @@ function TutorialDialog({
           ))}
         </ul>
         <p className="mt-3 rounded-lg bg-surface-soft p-3 text-xs text-ink-muted">💡 {step.tip}</p>
+        <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={autoShowEnabled}
+            onChange={(e) => onAutoShowChange(e.target.checked)}
+            data-testid="tour-auto-show"
+            aria-label="Mostrar este tour al iniciar sesión"
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border-subtle text-brand focus:ring-2 focus:ring-brand"
+          />
+          <span>
+            <span className="font-semibold">Mostrar este tour al iniciar sesión</span>
+            <span className="mt-0.5 block text-xs text-ink-muted">
+              Si lo desactivás, podés abrirlo cuando quieras con el botón ❓.
+            </span>
+          </span>
+        </label>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"

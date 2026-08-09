@@ -31,6 +31,19 @@ function formatDate(iso: string): string {
   return iso.split("-").reverse().join("/");
 }
 
+function formatDateTime(value: string | Date): string {
+  const iso = value instanceof Date ? value.toISOString() : value;
+  // `2026-08-23T14:30:00.000Z` → "23/08/2026 14:30"
+  const [datePart, timePart = ""] = iso.split("T");
+  const time = timePart.slice(0, 5);
+  return `${formatDate(datePart)}${time ? ` ${time}` : ""}`;
+}
+
+function shortId(id: string): string {
+  // `550e8400-e29b-41d4-a716-446655440000` → `550e8400`
+  return id.split("-")[0] ?? id.slice(0, 8);
+}
+
 /**
  * PR4h — Read-only quote detail view. Renders the current snapshot with
  * local visibility toggles (NOT persisted to the DB in PR4h — see PR4i).
@@ -114,6 +127,43 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
           </span>
         </div>
       </header>
+
+      <section
+        aria-label="Información del presupuesto"
+        data-testid="quote-meta"
+        className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-border-subtle bg-surface-soft p-3 text-sm text-ink-muted"
+      >
+        <p data-testid="quote-meta-id">
+          <span className="font-semibold text-ink">ID:</span>{" "}
+          <code className="rounded bg-surface-raised px-1.5 py-0.5 text-xs font-mono">
+            {shortId(quote.quote.id)}
+          </code>
+        </p>
+        {version ? (
+          <p data-testid="quote-meta-version">
+            <span className="font-semibold text-ink">Versión:</span> {version.versionNo}
+          </p>
+        ) : null}
+        <p data-testid="quote-meta-items">
+          <span className="font-semibold text-ink">Items:</span>{" "}
+          {models.length} modelo{models.length === 1 ? "" : "s"}
+          {indirects.length > 0
+            ? `, ${indirects.length} costo${indirects.length === 1 ? "" : "s"} indirecto${
+                indirects.length === 1 ? "" : "s"
+              }`
+            : ""}
+        </p>
+        <p data-testid="quote-meta-created">
+          <span className="font-semibold text-ink">Creado:</span>{" "}
+          {formatDateTime(quote.quote.createdAt)}
+        </p>
+        {version ? (
+          <p data-testid="quote-meta-updated">
+            <span className="font-semibold text-ink">Última edición:</span>{" "}
+            {formatDateTime(version.createdAt)}
+          </p>
+        ) : null}
+      </section>
 
       <section aria-label="Modelos" className="flex flex-col gap-2">
         <h2 className="font-medium text-ink">Modelos</h2>

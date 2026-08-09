@@ -180,7 +180,7 @@ export default async function Home() {
             href="/quotes/new"
             className="inline-flex min-h-11 items-center rounded-md bg-brand px-4 text-on-brand"
           >
-            + Nuevo presupuesto
+            Nuevo presupuesto
           </Link>
         </footer>
       )}

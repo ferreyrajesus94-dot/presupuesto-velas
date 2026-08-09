@@ -73,7 +73,7 @@ describe("quotes list", () => {
   it("renders an actionable empty state", () => {
     renderList([]);
     expect(screen.getByRole("heading", { name: /Aún no tenés presupuestos/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /\+ Crear presupuesto/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Crear presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );

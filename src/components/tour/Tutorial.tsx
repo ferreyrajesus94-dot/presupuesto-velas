@@ -177,9 +177,11 @@ export function Tutorial() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   // User's preference for whether the tour should auto-open on next sign-in.
-  // Initialized lazily inside the mount effect so SSR doesn't read storage.
-  // Default: true (auto-show on first visit).
-  const [autoShowEnabled, setAutoShowEnabled] = useState<boolean>(true);
+  // SSR-safe: the lazy initializer runs only on the client mount, where
+  // `localStorage` is available. The mount effect re-syncs the value when
+  // storage changes (e.g. another tab updates it) without going through
+  // a synchronous setState inside the effect.
+  const [autoShowEnabled, setAutoShowEnabled] = useState<boolean>(() => !readTourDisabled());
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -198,20 +200,19 @@ export function Tutorial() {
   // the `react-hooks/set-state-in-effect` lint rule).
   const effectiveOpen = open && tourAllowed;
 
-  // Read storage + reduced motion on mount.
+  // Read storage + reduced motion on mount. `autoShowEnabled` is already
+  // initialized lazily from `localStorage` so this effect only opens the
+  // dialog (or not) and wires up the reduced-motion media query.
   useEffect(() => {
     setReducedMotion(readReducedMotion());
-    const disabled = readTourDisabled();
-    // Mirror storage into state so the dialog checkbox starts in sync.
-    setAutoShowEnabled(!disabled);
-    if (!disabled) {
+    if (autoShowEnabled) {
       setOpen(true);
     }
     const mq = window.matchMedia(reducedMotionQuery);
     const onChange = (): void => setReducedMotion(mq.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
+  }, [autoShowEnabled]);
 
   const close = useCallback(() => {
     setOpen(false);

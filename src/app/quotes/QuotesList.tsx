@@ -60,7 +60,7 @@ export function QuotesList({
           className="mt-2 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand"
           href="/quotes/new"
         >
-          + Crear presupuesto
+          Crear presupuesto
         </Link>
       </section>
     );

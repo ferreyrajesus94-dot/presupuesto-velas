@@ -245,7 +245,11 @@ export function MaterialForm({
   const hasFeedback = Boolean(unitCostMessage || state.message || state.status === "success");
   const feedback = hasFeedback ? (
     <div
-      className={isRow ? "min-w-0 md:col-span-full md:col-start-1 md:row-start-2" : "sm:col-span-2"}
+      className={
+        isRow
+          ? "min-w-0 col-span-2 md:col-span-full md:col-start-1 md:row-start-2"
+          : "sm:col-span-2"
+      }
     >
       <FieldError id={errorId("unit-cost")} message={unitCostMessage} />
       {state.message ? (
@@ -279,7 +283,7 @@ export function MaterialForm({
             <input key={name} type="hidden" name={name} value={value} />
           ))
         : null}
-      <div className="min-w-0">
+      <div className="min-w-0 col-span-2 md:col-span-1">
         {isRow ? <h3 className="sr-only">{title}</h3> : null}
         <div className="flex items-start gap-1">
           <label
@@ -416,7 +420,7 @@ export function MaterialForm({
         </div>
       </div>
       {isRow ? (
-        <div className="min-w-0">
+        <div className="min-w-0 col-span-2 md:col-span-2">
           <div className="flex items-start gap-1">
             <label
               className="flex min-w-0 flex-1 flex-col gap-1 font-medium"
@@ -436,7 +440,9 @@ export function MaterialForm({
       ) : null}
       <div
         className={
-          isRow ? "flex min-w-0 flex-col gap-1 md:col-start-8 md:row-start-1" : "sm:col-span-2"
+          isRow
+            ? "flex min-w-0 flex-col gap-1 col-span-2 md:col-start-8 md:row-start-1"
+            : "sm:col-span-2"
         }
       >
         {isRow ? <span className={fieldLabelClass}>Acción de edición</span> : null}

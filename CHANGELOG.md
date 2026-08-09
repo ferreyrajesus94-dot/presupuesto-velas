@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 - 2026-08-09
+
+- **Hotfix: OTP verification UI**: PR3.2 (task 3.7) shipped the resend form but omitted the OTP input form, leaving users with no way to submit the 6-digit code from the verification email. This release adds `verifyEmailOtpAction` (POSTs to Neon Auth `/sign-in/email-otp`) and `VerifyOtpForm` (RHF-free client component with pre-filled email from session + 6-digit OTP input) on the `/verify-email` page.
+- **Hotfix: Neon Auth `verify_email_on_sign_up`**: was set to `false` in v0.4.0, so sign-up did NOT trigger the verification email. Flipped to `true` via `Neon_configure_neon_auth` so future sign-ups (and the existing `adminvelas@gmail.com` user via a manual `send-verification-email` call) get the OTP.
+- `/verify-email` page now renders both the OTP input form (NEW) and the resend form (existing) in separate cards; the email field is pre-filled from the session and the OTP input uses `inputMode="numeric"` + `autoComplete="one-time-code"` for mobile keyboards.
+- 12 new unit tests for `verifyEmailOtpAction` cover validation, session-vs-form email resolution, lowercasing, Origin header, error localization (INVALID_OTP, rate-limit, generic 5xx), and the post-success redirect to `/sign-in?verified=1`.
+
 ## 0.4.0 - 2026-08-08
 
 - **Public multi-user signup**: anyone with an email can create an account and use the calculator via `/sign-up` (RHF + Zod form, email + password, calls Neon Auth `/sign-up/email`). Replaces the prior single-owner Neon Auth allowlist.

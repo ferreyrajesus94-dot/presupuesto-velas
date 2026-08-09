@@ -116,10 +116,26 @@ export function PlantillasWorkspace({
   const [templates, setTemplates] = useState<PlantillaClientTemplate[]>(() =>
     [...initialTemplates].sort((a, b) => a.name.localeCompare(b.name)),
   );
+  // Sync the in-memory list with the server-preloaded prop after a
+  // `router.refresh()`. Without this, mutations driven by Server Actions
+  // (e.g. cleanupOrphanTemplatesAction) leave the client holding the stale
+  // array even though the server has revalidated the path. The optimistic
+  // local edits that haven't been saved yet (a freshly-prepended
+  // placeholder, a partial name change) get wiped by the sync — that's
+  // intentional: the server is now the source of truth, and the next
+  // render of the Server Component will repopulate them.
+  useEffect(() => {
+    setTemplates([...initialTemplates].sort((a, b) => a.name.localeCompare(b.name)));
+  }, [initialTemplates]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
   const [, startTemplatesTransition] = useTransition();
   const [orphanCount, setOrphanCount] = useState<number>(initialOrphanCount);
+  // Mirror `initialOrphanCount` so the CTA hides when the server-side
+  // count returns 0 after a router.refresh().
+  useEffect(() => {
+    setOrphanCount(initialOrphanCount);
+  }, [initialOrphanCount]);
   const [isCleaningOrphans, startCleanupTransition] = useTransition();
   // Per-template save lock so two concurrent Guardar clicks on different
   // cards don't share a single busy flag. Set to true at the start of the

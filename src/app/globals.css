@@ -155,6 +155,22 @@
 [data-tour-highlight="true"] > svg {
   color: var(--pv-on-brand);
 }
+/*
+ * When the tour backdrop is mounted, the dark overlay (rgba(43,13,24,0.55))
+ * is on top of the entire page. The nav items that AREN'T highlighted
+ * or active use `text-ink` (a dark tone in light mode) and would
+ * otherwise disappear into the dark overlay. Bump every nav link to
+ * the high-contrast label color (--pv-on-brand) while the tour is
+ * open. The active pill (bg-brand + text-on-brand) and the highlighted
+ * Link (data-tour-highlight) keep their own colors via the cascade
+ * since they have higher specificity or are pinned by the rules above.
+ * When the tour closes, the `[data-testid="tour-root"]` is removed
+ * from the DOM and the :has() selector no longer matches, so the
+ * nav items revert to their default `text-ink`.
+ */
+body:has([data-testid="tour-root"]) nav a {
+  color: var(--pv-on-brand);
+}
 @media (prefers-reduced-motion: reduce) {
   [data-tour-highlight="true"] {
     animation: none;

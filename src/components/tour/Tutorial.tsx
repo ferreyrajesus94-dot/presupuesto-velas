@@ -256,13 +256,31 @@ export function Tutorial() {
   // Spotlight measurement: scroll target into view, then schedule the
   // measurement on two consecutive rAF ticks so the target has its final
   // layout before we draw the spotlight.
+  //
+  // The mobile bottom nav and the desktop top nav both carry the same
+  // `data-tour-target` values, so a plain `querySelector` would pick the
+  // first match (the desktop link) even on a 390px viewport where that
+  // link is `display: none` (0×0 bounding box). The spotlight would
+  // silently fail and the user would see "the icons don't light up".
+  // Iterate all matches and pick the first one with a real rect.
+  //
+  // We also stamp `data-tour-highlight` on the matched target so a
+  // CSS animation (see globals.css `.tour-highlight`) can pulse the
+  // icon and label — the user gets a clear "this is the section we
+  // are talking about" cue in addition to the spotlight ring.
   useEffect(() => {
     if (!effectiveOpen || !step) {
       setSpotlight(null);
       return;
     }
     let cancelled = false;
-    const target = document.querySelector(step.targetSelector);
+    const targets = Array.from(
+      document.querySelectorAll<HTMLElement>(step.targetSelector),
+    );
+    const target = targets.find((t) => {
+      const r = t.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    });
     if (!target) {
       setSpotlight(null);
       return;
@@ -277,6 +295,7 @@ export function Tutorial() {
           setSpotlight(null);
           return;
         }
+        target.setAttribute("data-tour-highlight", "true");
         setSpotlight({
           top: rect.top,
           left: rect.left,
@@ -287,6 +306,12 @@ export function Tutorial() {
     });
     return () => {
       cancelled = true;
+      // Strip the highlight from every match (not just the one we set
+      // it on) so a viewport resize that swaps the visible target
+      // doesn't leak the pulse onto the stale one.
+      for (const t of targets) {
+        t.removeAttribute("data-tour-highlight");
+      }
     };
   }, [effectiveOpen, step, reducedMotion, stepIndex]);
 

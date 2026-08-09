@@ -22,8 +22,9 @@ export type MaterialListItem = {
 
 const rowGridClass =
   "grid min-w-0 grid-cols-1 gap-2 px-3 py-3 md:min-w-[72rem] md:grid-cols-[minmax(10rem,1.4fr)_minmax(6rem,0.7fr)_minmax(6rem,0.7fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.8fr)_minmax(8rem,0.9fr)_minmax(8rem,0.9fr)_minmax(6rem,0.65fr)_minmax(7.5rem,0.8fr)] md:items-start";
-const mobileCellLabelClass =
-  "mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted md:sr-only";
+// Per-cell label shown only on small screens (md:sr-only hides on ≥md).
+// Drop uppercase + tracking so 9 stacked fields don't feel like a contract.
+const mobileCellLabelClass = "mb-1 block text-xs font-semibold text-ink-muted md:sr-only";
 
 function ReadonlyCell({ label, children }: { label: string; children: ReactNode }) {
   return (

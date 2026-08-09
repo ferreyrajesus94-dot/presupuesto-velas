@@ -10,6 +10,12 @@ export type QuoteListItem = {
   customerName: string | null;
   expirationDate: string;
   total: string;
+  // Real creation timestamp (PR-followup). The list sort used to proxy
+  // creation order with `id`, which only works for time-ordered UUIDs
+  // (v7); the previous code shipped with v4 random UUIDs, so the
+  // "Creado" sorts were effectively random. Sort against the actual
+  // timestamp now that we project it down.
+  createdAt: Date;
   status: Exclude<QuoteStatus, "expired">;
 };
 

@@ -40,17 +40,22 @@ function sortQuotes(
   quotes: QuoteListItem[],
   sort: QuoteSort,
 ): QuoteListItem[] {
-  // We only have a subset of fields on QuoteListItem (id, customerName,
-  // expirationDate, total, status), so the "created at" sort uses
-  // `id` as a creation-order proxy (UUIDs sort by time when generated
-  // server-side). Adequate for the list; the detail view has the real
-  // createdAt if the user needs the exact timestamp.
   const compareDate = (a: QuoteListItem, b: QuoteListItem, dir: 1 | -1) =>
     dir * a.expirationDate.localeCompare(b.expirationDate);
-  const compareId = (a: QuoteListItem, b: QuoteListItem, dir: 1 | -1) =>
-    dir * a.id.localeCompare(b.id);
+  // Sort by the real creation timestamp (epoch ms as a number) instead
+  // of proxying through `id` — the previous code assumed time-ordered
+  // UUIDs but the server generates v4 (random) UUIDs, which made the
+  // "Creado" sorts effectively random. `createdAt` is now projected
+  // onto every `QuoteListItem`, so the comparison is deterministic.
+  const compareCreatedAt = (a: QuoteListItem, b: QuoteListItem, dir: 1 | -1) =>
+    dir * (a.createdAt.getTime() - b.createdAt.getTime());
+  // Parens matter: `dir * Number(a.total) - Number(b.total)` parses as
+  // `(dir * a) - b` due to operator precedence, which collapses desc to
+  // `-(a + b) < 0` for any positive totals and turns the sort into a
+  // no-op (Array.sort is stable, so it preserves the DB input order).
+  // The fix is the parens below.
   const compareTotal = (a: QuoteListItem, b: QuoteListItem, dir: 1 | -1) =>
-    dir * Number(a.total) - Number(b.total);
+    dir * (Number(a.total) - Number(b.total));
 
   const cmp = (() => {
     switch (sort) {
@@ -59,9 +64,9 @@ function sortQuotes(
       case "expiration-desc":
         return (a: QuoteListItem, b: QuoteListItem) => compareDate(a, b, -1);
       case "created-desc":
-        return (a: QuoteListItem, b: QuoteListItem) => compareId(a, b, -1);
+        return (a: QuoteListItem, b: QuoteListItem) => compareCreatedAt(a, b, -1);
       case "created-asc":
-        return (a: QuoteListItem, b: QuoteListItem) => compareId(a, b, 1);
+        return (a: QuoteListItem, b: QuoteListItem) => compareCreatedAt(a, b, 1);
       case "total-desc":
         return (a: QuoteListItem, b: QuoteListItem) => compareTotal(a, b, -1);
       case "total-asc":
@@ -108,6 +113,7 @@ function projectListItem(record: QuoteRecord): QuoteListItem | null {
     customerName: quote.customerName,
     expirationDate: quote.expirationDate,
     total: projectQuote(snapshot).total,
+    createdAt: quote.createdAt,
     status: quote.status,
   };
 }

@@ -79,6 +79,20 @@ export interface QuoteSnapshot {
   indirectCosts: ReadonlyArray<QuoteSnapshotIndirectCost>;
   materialsTotal: string;
   indirectTotal: string;
+  /**
+   * Original profit input from the user, canonical decimal string.
+   * For `mode === "percentage"` this is the percent (e.g. "30" for 30%).
+   * For `mode === "fixed"` this is the ARS amount (e.g. "5000" for ARS 5K).
+   * Persisted in the DB so the edit form can round-trip the user input
+   * verbatim — without it, an edit always re-opens with the calculated
+   * amount in the percent field.
+   *
+   * Optional on the read-side: consumers that reconstruct a snapshot
+   * from a DB row (PDF, WhatsApp, detail view) only need the calculated
+   * `profitValue`. `buildQuoteSnapshot` always sets it.
+   */
+  profitInput?: string;
+  /** Quantized 2-decimal money string — the calculated profit in ARS. */
   profitValue: string;
   total: string;
   depositAmount: string;
@@ -152,8 +166,12 @@ export function buildQuoteSnapshot(input: BuildQuoteSnapshotInput): QuoteSnapsho
   const materialsTotal = models.reduce((acc, m) => acc.add(m.lineTotal), new Decimal(0));
   const indirectTotal = indirectCosts.reduce((acc, ic) => acc.add(ic.amount), new Decimal(0));
 
-  // 4. Profit at full precision.
+  // 4. Profit at full precision. `profitInput` preserves the user's
+  // original string so the edit form can re-display it verbatim; the
+  // calculated money value is `profitValue` (mapped to `profit_amount` on
+  // persist; `profitInput` goes into the `profit_value` column).
   let profitValue: Decimal;
+  let profitInput: string;
   let profitMethod: "percentage" | "fixed";
   if (input.profit.mode === "percentage") {
     if (!isValidPercentageString(input.profit.percent)) {
@@ -162,11 +180,15 @@ export function buildQuoteSnapshot(input: BuildQuoteSnapshotInput): QuoteSnapsho
       );
     }
     profitValue = materialsTotal.add(indirectTotal).mul(new Decimal(input.profit.percent)).div(100);
+    profitInput = new Decimal(input.profit.percent)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toFixed();
     profitMethod = "percentage";
   } else {
     const fixedAmount = parseStrictDecimal(input.profit.amount);
     assertNonNegative(fixedAmount, "profit.amount");
     profitValue = fixedAmount;
+    profitInput = fixedAmount.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed();
     profitMethod = "fixed";
   }
 
@@ -206,6 +228,7 @@ export function buildQuoteSnapshot(input: BuildQuoteSnapshotInput): QuoteSnapsho
     materialsTotal: quantize2(materialsTotal).toFixed(2),
     indirectTotal: quantize2(indirectTotal).toFixed(2),
     profitValue: quantize2(profitValue).toFixed(2),
+    profitInput,
     total: quantize2(total).toFixed(2),
     depositAmount: quantize2(depositAmount).toFixed(2),
     depositPercent: depositPercent.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString(),

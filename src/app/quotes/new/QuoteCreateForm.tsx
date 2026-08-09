@@ -528,7 +528,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+          className="sticky bottom-2 rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand shadow-lg transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60 md:bottom-4"
         >
           {isPending ? "Creando..." : "Crear borrador"}
         </button>

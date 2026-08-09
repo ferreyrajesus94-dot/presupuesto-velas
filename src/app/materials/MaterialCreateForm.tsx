@@ -233,8 +233,13 @@ export function MaterialForm({
     startTransition(() => formAction(new FormData(form)));
   }
 
+  // In row layout the label is visible only on small screens (md:sr-only
+  // hides it on ≥md). Drop the uppercase + tracking there so the row
+  // labels stay scannable on a 390px viewport — uppercase + wide
+  // tracking stacked vertically for ~9 fields feels like reading a
+  // contract, not a form.
   const fieldLabelClass = isRow
-    ? "text-xs font-semibold uppercase tracking-wide text-ink-muted md:sr-only"
+    ? "text-xs font-semibold text-ink-muted md:sr-only"
     : undefined;
   const formControlClass = isRow ? `${controlClass} text-sm` : controlClass;
   const hasFeedback = Boolean(unitCostMessage || state.message || state.status === "success");

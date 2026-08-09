@@ -337,7 +337,13 @@ export function Tutorial() {
   return (
     <>
       {tourAllowed ? (
-        <div className="fixed bottom-4 right-4 z-[58]">
+        // On <md the bottom nav is fixed to the viewport edge (~4.5rem +
+        // safe-area), so the previous `bottom-4 right-4` placement put the
+        // trigger button right on top of the rightmost nav item ("Config").
+        // Bump the trigger to `bottom-20` (5rem) on mobile so it floats
+        // above the nav, and revert to `md:bottom-4` on desktop where the
+        // top nav doesn't compete for that corner.
+        <div className="fixed bottom-20 right-4 z-[58] md:bottom-4">
           <button
             type="button"
             ref={triggerRef}

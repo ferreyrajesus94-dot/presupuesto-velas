@@ -21,7 +21,13 @@ export type MaterialListItem = {
 };
 
 const rowGridClass =
-  "grid min-w-0 grid-cols-1 gap-2 px-3 py-3 md:min-w-[72rem] md:grid-cols-[minmax(10rem,1.4fr)_minmax(6rem,0.7fr)_minmax(6rem,0.7fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.8fr)_minmax(8rem,0.9fr)_minmax(8rem,0.9fr)_minmax(6rem,0.65fr)_minmax(7.5rem,0.8fr)] md:items-start";
+  // Mobile (<md): two columns so the user can scan a wider field pair
+  // (e.g. Cantidad / Precio) side-by-side instead of a tall stack.
+  // Name + Precio unitario + Action span both columns on <md so the
+  // form keeps a sensible vertical rhythm: short scalar pairs sit
+  // next to each other, and full-width controls (Name, the derived
+  // unit cost, the Guardar/Archivar buttons) own the full row.
+  "grid min-w-0 grid-cols-2 gap-2 px-3 py-3 md:min-w-[72rem] md:grid-cols-[minmax(10rem,1.4fr)_minmax(6rem,0.7fr)_minmax(6rem,0.7fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.8fr)_minmax(8rem,0.9fr)_minmax(8rem,0.9fr)_minmax(6rem,0.65fr)_minmax(7.5rem,0.8fr)] md:items-start";
 // Per-cell label shown only on small screens (md:sr-only hides on ≥md).
 // Drop uppercase + tracking so 9 stacked fields don't feel like a contract.
 const mobileCellLabelClass = "mb-1 block text-xs font-semibold text-ink-muted md:sr-only";

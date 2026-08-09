@@ -491,8 +491,27 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
               {suggestedPercent}%
             </span>{" "}
             <span className="text-xs text-ink-muted">
-              ({formatArsFromDecimalString(depositAmount.toString())} con el porcentaje actual)
+              (= {formatArsFromDecimalString(materialsTotal.toString())} con el porcentaje sugerido)
             </span>
+          </p>
+          <p className="text-xs text-ink-muted">
+            Con tu porcentaje actual ({watchedDepositPercent}%) el monto de seña es{" "}
+            <span
+              className="font-semibold text-ink"
+              data-testid="deposit-amount-with-typed-percent"
+            >
+              {formatArsFromDecimalString(depositAmount.toString())}
+            </span>
+            {depositAmount.gt(materialsTotal) ? (
+              <> — cubre los materiales y sobra de la ganancia.</>
+            ) : depositAmount.lt(materialsTotal) ? (
+              <>
+                 — no alcanza a cubrir los materiales; te faltan{" "}
+                {formatArsFromDecimalString(materialsTotal.sub(depositAmount).toString())}.
+              </>
+            ) : (
+              <> — cubre exactamente los materiales.</>
+            )}
           </p>
           <button
             type="button"

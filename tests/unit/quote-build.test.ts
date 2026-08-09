@@ -25,6 +25,23 @@ describe("buildQuoteSnapshot (PR #4a.calc foundation)", () => {
     expect(snap.profitMethod).toBe("percentage");
   });
 
+  it("profitInput preserves the user-entered percent verbatim (so the edit form can round-trip)", () => {
+    const snap = buildQuoteSnapshot(baseInput);
+    expect(snap.profitMethod).toBe("percentage");
+    // Canonical decimal: "30" is canonical for the value 30.00. The
+    // string the user typed is preserved exactly — no zero-padding.
+    expect(snap.profitInput).toBe("30");
+    // Calculated ARS is still in profitValue (existing contract).
+    expect(snap.profitValue).toBe("450.00");
+  });
+
+  it("profitInput carries the ARS amount verbatim in fixed mode", () => {
+    const snap = buildQuoteSnapshot({ ...baseInput, profit: { mode: "fixed", amount: "1234.5" } });
+    expect(snap.profitMethod).toBe("fixed");
+    expect(snap.profitInput).toBe("1234.5");
+    expect(snap.profitValue).toBe("1234.50");
+  });
+
   it("Multi-model quote: two templates with different quantities aggregate into a single materials total", () => {
     const snap = buildQuoteSnapshot({
       ...baseInput,

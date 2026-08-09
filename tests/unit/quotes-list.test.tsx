@@ -32,6 +32,7 @@ const base: QuoteListItem = {
   customerName: "Ana Pérez",
   expirationDate: "2026-04-10",
   total: "1234567.5",
+  createdAt: NOW,
   status: "sent",
 };
 

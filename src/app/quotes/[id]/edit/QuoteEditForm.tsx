@@ -13,6 +13,7 @@ import type { Template } from "@/server/repositories/templates";
 import { ModelLineEditor } from "@/app/quotes/new/ModelLineEditor";
 import { IndirectCostEditor } from "@/app/quotes/new/IndirectCostEditor";
 import { QuoteVisibilityToggles } from "@/app/quotes/new/QuoteVisibilityToggles";
+import { formatDecimalInput } from "@/lib/moneyFormat";
 
 const controlClass = "rounded-md border border-border-subtle bg-surface-raised px-3 py-2 text-ink";
 
@@ -42,19 +43,27 @@ export default function QuoteEditForm({
     (row) => row.versionNo === quote.quote.currentVersion,
   );
 
+  // DB stores every decimal as a fixed-precision string
+  // (e.g. "6.000000000000000000", "0.00"). Strip the trailing zeros via
+  // `formatDecimalInput` so the form opens with "6" / "0" instead of
+  // full-precision noise — otherwise the user sees "6.000000" in a
+  // number input on a tiny phone viewport and wonders what changed.
   const initialProfit: QuoteEditFormValues["profit"] =
     version?.profitMethod === "fixed"
-      ? { mode: "fixed", amount: version.profitValue }
-      : { mode: "percentage", percent: version?.profitValue ?? "0" };
+      ? { mode: "fixed", amount: formatDecimalInput(version.profitValue) }
+      : { mode: "percentage", percent: formatDecimalInput(version?.profitValue ?? "0") };
 
   const initial: QuoteEditFormValues = {
     expirationDate: quote.quote.expirationDate,
     profit: initialProfit,
-    depositPercent: version?.depositPercent ?? "0",
-    indirectCosts: indirects.map((ic) => ({ name: ic.name, amount: ic.amount })),
+    depositPercent: formatDecimalInput(version?.depositPercent ?? "0"),
+    indirectCosts: indirects.map((ic) => ({
+      name: ic.name,
+      amount: formatDecimalInput(ic.amount),
+    })),
     models: models.map((m) => ({
       recipeId: m.templateId,
-      quantity: m.quantity,
+      quantity: formatDecimalInput(m.quantity),
     })),
     visibility: {
       internalCost: version?.visibilityInternal ?? true,
@@ -272,11 +281,11 @@ export default function QuoteEditForm({
         <div role="status" aria-live="polite" className="text-sm text-status-danger">
           {submitError ? submitError : null}
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="sticky bottom-2 flex flex-wrap gap-3 md:bottom-4">
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+            className="rounded-md bg-brand px-4 py-2.5 font-semibold text-on-brand shadow-lg transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             {isPending ? "Guardando..." : "Guardar cambios"}
           </button>

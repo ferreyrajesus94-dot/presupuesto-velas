@@ -109,8 +109,18 @@ export async function appendQuoteVersion(
       versionNo,
       visibilityInternal: snapshot.visibility.internalCost,
       visibilityProfit: snapshot.visibility.profitMargin,
+      // `profitValue` (DB) = user input (percent or fixed amount), so the
+      // edit form can round-trip it verbatim. `profitAmount` (DB) = the
+      // calculated ARS amount for the totals strip. `snapshot.profitValue`
+      // is the calculated amount — the previous code wrote the SAME value
+      // to both columns, which lost the original user input and made the
+      // edit form re-open with the calculated ARS in the percent field.
+      // `profitInput` is optional on the snapshot type (read-side
+      // consumers like PDF/WhatsApp reconstruct from DB rows and don't
+      // need it), so we fall back to "0" defensively — `buildQuoteSnapshot`
+      // always sets it for write paths.
       profitMethod: snapshot.profitMethod,
-      profitValue: snapshot.profitValue,
+      profitValue: snapshot.profitInput ?? "0",
       depositPercent: snapshot.depositPercent,
       materialsTotal: snapshot.materialsTotal,
       indirectTotal: snapshot.indirectTotal,

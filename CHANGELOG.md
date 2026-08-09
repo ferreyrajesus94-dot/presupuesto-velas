@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4 - 2026-08-09
+
+- **FIX: `DeleteQuoteButton` no longer flashes the "This page couldn't load" screen.** The previous version used `window.location.reload()` after a successful delete. In dev mode, a hard reload triggers Next.js's "compiling…" fallback, which the dev runtime renders as the "This page couldn't load" screen for a few hundred ms — the user saw the flash even though the action succeeded. Switched to `router.refresh()`: same RSC payload is re-streamed from the server, the `QuoteList` re-renders with the deleted row gone, but no document reload, so the dev-mode spinner never surfaces. Verified with `scripts/qa-delete-final.ts`: delete leaves the page on `/quotes` with one fewer card and no error overlay in the pageerror stream.
+
 ## 0.5.3 - 2026-08-09
 
 - **FIX: `deleteQuoteDraft` now tears down child rows explicitly.** The "This page couldn't load" error on Eliminar was a Postgres FK violation. The docstring claimed the child FKs were CASCADE, but `information_schema.referential_constraints` shows they are `NO ACTION` for both `quote_versions.quote_id` and `quote_status_events.quote_id`. Postgres refused the parent delete with `update or delete on table "quotes" violates foreign key constraint`. Fixed by walking the child tree in dependency order inside the existing transaction (`quote_version_materials` → `quote_version_models` → `quote_version_indirect_costs` → `quote_versions` → `quote_status_events` → `quotes`).

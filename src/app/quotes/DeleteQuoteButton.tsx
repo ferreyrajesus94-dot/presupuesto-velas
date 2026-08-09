@@ -6,9 +6,17 @@ import { deleteQuoteDraftAction } from "@/server/actions/quotes-delete";
 
 /**
  * Per-card trash button. Confirms via `window.confirm` (Playwright handles
- * this through a one-shot dialog listener). On success, hard-reloads so
- * the server-preloaded list and per-card `data-testid="quote-card"` nodes
- * collapse together — same pattern as the templates cleanup CTA.
+ * this through a one-shot dialog listener). On success, calls
+ * `router.refresh()` so the server-preloaded list collapses without a
+ * hard reload.
+ *
+ * Why not `window.location.reload()`? A hard reload in dev mode
+ * triggers Next.js's "compiling…" fallback, which the dev runtime
+ * renders as the "This page couldn't load" screen for a few hundred
+ * ms. The user sees that flash even though the action succeeded.
+ * `router.refresh()` is a soft refetch — same RSC payload is re-streamed
+ * from the server, but no document reload, so the dev-mode spinner
+ * never surfaces.
  */
 export function DeleteQuoteButton({
   quoteId,
@@ -32,9 +40,11 @@ export function DeleteQuoteButton({
     startTransition(async () => {
       const result = await deleteQuoteDraftAction(quoteId);
       if (result.ok) {
-        // Hard reload keeps the server-preloaded list in sync without
-        // mirroring the entire `quotes` array into client state.
-        window.location.reload();
+        // Soft refetch — re-runs the Server Component pipeline, which
+        // re-queries `listQuotes` and re-streams the new RSC payload
+        // for the page. The QuoteList re-renders with the deleted row
+        // gone, no full document reload.
+        router.refresh();
       } else {
         // Surface server-side errors as a non-blocking alert. The most
         // common case is `TERMINAL_STATUS` for an already-sent/accepted

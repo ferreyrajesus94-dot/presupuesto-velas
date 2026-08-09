@@ -99,7 +99,7 @@ export function MaterialsList({
             </section>
           )
         ) : (
-          <div className="relative w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="relative w-full min-w-0 md:overflow-x-auto md:overscroll-x-contain md:rounded-2xl md:border md:border-border md:bg-surface md:shadow-sm">
             <h2 id="materials-list-label" className="sr-only">
               Lista editable de materiales
             </h2>
@@ -116,13 +116,28 @@ export function MaterialsList({
               <span>Precio unitario</span>
               <span className="md:col-span-2">Acciones</span>
             </div>
-            <ul aria-labelledby="materials-list-label" className="divide-y divide-border-subtle">
+            {/*
+             * Mobile: each material is its own rounded card with a gap
+             * between them — without this, the inline edit form for one
+             * material runs directly into the next material's name
+             * field and there's no visual signal where one ends and the
+             * other begins. Desktop: the <ul> stays a single table
+             * surface with the column header, so `md:gap-0` and
+             * `md:rounded-none` revert the items to the previous
+             * row-divided layout. `space-y-3` on the <ul> gives each
+             * mobile card breathing room; `md:divide-y md:divide-border-subtle`
+             * re-enables the subtle row separator on ≥md.
+             */}
+            <ul
+              aria-labelledby="materials-list-label"
+              className="flex flex-col gap-3 md:gap-0 md:divide-y md:divide-border-subtle"
+            >
               {materials.map((material) =>
                 material.archived ? (
                   <li
                     key={material.id}
                     aria-label={`Material archivado: ${material.name}`}
-                    className={`${rowGridClass} bg-surface-soft`}
+                    className={`${rowGridClass} rounded-2xl border border-border bg-surface-soft p-3 md:rounded-none md:border-0 md:bg-surface-soft md:p-3`}
                   >
                     <ReadonlyCell label="Insumo">
                       <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -174,7 +189,7 @@ export function MaterialsList({
                   <li
                     key={material.id}
                     aria-label={`Editar material: ${material.name}`}
-                    className={`${rowGridClass} bg-surface`}
+                    className={`${rowGridClass} rounded-2xl border border-border bg-surface p-3 md:rounded-none md:border-0 md:bg-surface md:p-3`}
                   >
                     <MaterialEditForm material={material} />
                     <div className="min-w-0 md:col-start-9 md:row-start-1">

@@ -11,7 +11,7 @@ describe("AppNav", () => {
     mocks.pathname = "/";
   });
 
-  it("renders exactly the four canonical Spanish links in order with exact hrefs", () => {
+  it("renders the five canonical Spanish links in order with exact hrefs (v0.4.4 added Configuración)", () => {
     render(<AppNav />);
     const links = screen.getAllByRole("link");
     const pairs = links.map((a) => [a.textContent, a.getAttribute("href")]);
@@ -20,6 +20,7 @@ describe("AppNav", () => {
       ["Materiales", "/materials"],
       ["Plantillas", "/templates"],
       ["Cotizaciones", "/quotes"],
+      ["Configuración", "/settings"],
     ]);
   });
 
@@ -29,6 +30,21 @@ describe("AppNav", () => {
     const links = screen.getAllByRole("link");
     expect(links[3]).toHaveAttribute("aria-current", "page");
     expect(links[0]).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks /settings as active when on the settings page", () => {
+    mocks.pathname = "/settings";
+    render(<AppNav />);
+    const links = screen.getAllByRole("link");
+    const settingsLink = links.find((a) => a.getAttribute("href") === "/settings");
+    expect(settingsLink).toHaveAttribute("aria-current", "page");
+  });
+
+  it("renders a sign-out button with the localized label", () => {
+    render(<AppNav />);
+    const button = screen.getByRole("button", { name: /cerrar sesión/i });
+    expect(button).toBeInTheDocument();
+    expect(button.closest("form")).not.toBeNull();
   });
 
   it("renders no nav on /sign-in and /403", () => {

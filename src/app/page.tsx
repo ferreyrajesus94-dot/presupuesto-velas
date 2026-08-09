@@ -162,27 +162,41 @@ export default async function Home() {
             aria-label="Presupuestos recientes"
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {recentQuotes.map(({ quote }) => (
-            <li
-                key={quote.id}
-                className="rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover"
-              >
-                <Link
-                  href={`/quotes/${quote.id}`}
-                  className="flex flex-col gap-2 text-ink no-underline"
+            {recentQuotes.map(({ quote }) => {
+              const customer = quote.customerName?.trim() || "Sin cliente";
+              return (
+                <li
+                  key={quote.id}
+                  className="rounded-2xl border border-border bg-surface shadow transition-transform pv-card-hover"
                 >
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                    Vence {formatExpirationDate(quote.expirationDate)}
-                  </span>
-                  <span className="text-base font-semibold text-ink">
-                    {quote.customerName?.trim() || "Sin cliente"}
-                  </span>
-                  <span className="inline-flex w-fit rounded-full bg-surface-soft px-2 py-1 text-xs font-semibold text-ink">
-                    {statusLabel(quote.status)}
-                  </span>
-                </Link>
-              </li>
-            ))}
+                  {/*
+                   * Compact card: on <md the layout is a single row
+                   * (date + customer + status badge) so the user can
+                   * see ~5 recent quotes without much scrolling. The
+                   * original p-6 / flex-col stacked the same three
+                   * fields vertically and burned ~120px per card. On
+                   * ≥sm the card reverts to a vertical stack with
+                   * bigger padding so the desktop grid reads cleanly.
+                   */}
+                  <Link
+                    href={`/quotes/${quote.id}`}
+                    className="flex items-center gap-3 px-4 py-3 text-ink no-underline sm:flex-col sm:items-stretch sm:gap-2 sm:p-5"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                        Vence {formatExpirationDate(quote.expirationDate)}
+                      </span>
+                      <span className="truncate text-base font-semibold text-ink">
+                        {customer}
+                      </span>
+                    </div>
+                    <span className="inline-flex w-fit shrink-0 rounded-full bg-surface-soft px-2 py-1 text-xs font-semibold text-ink sm:self-start">
+                      {statusLabel(quote.status)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

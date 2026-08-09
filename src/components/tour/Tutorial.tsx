@@ -402,10 +402,39 @@ function TutorialDialog({
   autoShowEnabled,
   onAutoShowChange,
 }: TutorialDialogProps) {
+  // SSR-safe viewport tracker. We only need a boolean — `max-md` is the
+  // breakpoint — and the initial `false` keeps the first paint honest
+  // for the desktop case (the `useEffect` below adjusts the value on
+  // mount + whenever the viewport resizes). The first mobile render
+  // uses the desktop default and re-positions within a frame, which
+  // is invisible because the dialog is already pinned to the top via
+  // `top-4` on mobile in the className — only the `style.top` inline
+  // override changes.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = (): void => setIsMobileViewport(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   // Position the dialog card so it stays on-screen regardless of the
-  // spotlight's position. If the spotlight is in the top half, place the
-  // card below it; otherwise place it above.
+  // spotlight's position. On <md the bottom nav owns the spotlight
+  // (which is the spotlight the user expects to see highlighted), but
+  // the available vertical space above the nav is too short for the
+  // spotlight-based "card above the spotlight" placement — the dialog
+  // would shrink to ~280px and the body would have to scroll inside
+  // it. On mobile we pin the dialog to `top: 1rem` and let the
+  // spotlight + pulse draw the eye to the nav item separately.
   const cardBelow = spotlight ? spotlight.top < window.innerHeight / 2 : false;
+  const dialogTop: string | number = isMobileViewport
+    ? "1rem"
+    : spotlight
+      ? cardBelow
+        ? spotlight.top + spotlight.height + 24
+        : Math.max(24, spotlight.top - 320)
+      : "20%";
   return (
     <div
       role="presentation"
@@ -485,11 +514,7 @@ function TutorialDialog({
         }
         style={{
           pointerEvents: "auto",
-          top: spotlight
-            ? cardBelow
-              ? spotlight.top + spotlight.height + 24
-              : Math.max(24, spotlight.top - 320)
-            : "20%",
+          top: dialogTop,
         }}
       >
         <div className="flex shrink-0 items-center justify-between gap-2">

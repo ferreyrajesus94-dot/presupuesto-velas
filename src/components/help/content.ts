@@ -29,7 +29,7 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
       "Cargá cada material con su unidad de compra y precio. Calculamos el costo por unidad base para usarlo en plantillas y presupuestos.",
     bullets: [
       "✨ + Agregar insumo: crea un nuevo material activo.",
-      "🗂️ Filtro Activas / Archivadas: cambia la vista sin perder filtros.",
+      "🗂️ Filtro Activos / Archivados: cambia la vista sin perder filtros.",
       "✏️ Editar: actualiza precio y unidades — el historial de presupuestos conserva sus montos.",
       "🗑️ Archivar: oculta el insumo de futuros formularios sin eliminarlo.",
     ],
@@ -45,7 +45,7 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
       "📝 Presupuestos recientes: atajo a las últimas 5.",
       "⬆️ Atajos: navegando a la sección que querés trabajar.",
     ],
-    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nueva presupuesto.",
+    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nuevo presupuesto.",
   },
   templates: {
     emoji: "📋",
@@ -81,7 +81,7 @@ export const HELP_CONTENT: Record<HelpTabKey, HelpContent> = {
     intro:
       "Lista de presupuestos existentes y ciclo de vida (borrador → enviada → aceptada/rechazada).",
     bullets: [
-      "📝 Nueva presupuesto: arranca un borrador con la calculadora.",
+      "📝 Nuevo presupuesto: arranca un borrador con la calculadora.",
       "👁️ Ver: abre el detalle de la presupuesto.",
       "✏️ Editar: solo disponible en borrador.",
       "📤 Compartir: links para enviar al cliente.",

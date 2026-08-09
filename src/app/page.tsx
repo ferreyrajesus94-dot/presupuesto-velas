@@ -120,8 +120,8 @@ export default async function Home() {
             icon="🧮"
             title="Presupuestos activas"
             count={quotes.length}
-            singular="presupuesto activa"
-            plural="presupuestos activas"
+            singular="presupuesto activo"
+            plural="presupuestos activos"
             href="/quotes"
             cta="Ver presupuestos"
           />
@@ -142,7 +142,7 @@ export default async function Home() {
         </header>
         {recentQuotes.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border-subtle bg-surface p-6 text-sm text-ink-muted">
-            Todavía no hay presupuestos activas. Empezá creando una.
+            Todavía no hay presupuestos activos. Empezá creando una.
           </p>
         ) : (
           <ul
@@ -180,7 +180,7 @@ export default async function Home() {
             href="/quotes/new"
             className="inline-flex min-h-11 items-center rounded-md bg-brand px-4 text-on-brand"
           >
-            + Nueva presupuesto
+            + Nuevo presupuesto
           </Link>
         </footer>
       )}

@@ -171,8 +171,8 @@ describe("quotes list", () => {
 describe("quote view filter", () => {
   it("marks the active view as pressed and exposes both views", () => {
     render(<QuoteViewFilter current="active" />);
-    const active = screen.getByRole("button", { name: "Activas" });
-    const archived = screen.getByRole("button", { name: "Archivadas" });
+    const active = screen.getByRole("button", { name: "Activos" });
+    const archived = screen.getByRole("button", { name: "Archivados" });
     expect(active).toHaveAttribute("aria-pressed", "true");
     expect(archived).toHaveAttribute("aria-pressed", "false");
   });
@@ -187,7 +187,7 @@ describe("quote view filter", () => {
 
   it("preserves other params when switching to archived quotes", async () => {
     render(<QuoteViewFilter current="active" />);
-    await userEvent.click(screen.getByRole("button", { name: "Archivadas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Archivados" }));
     expect(mocks.push).toHaveBeenCalledWith("/quotes?sort=recent&view=archived");
   });
 });

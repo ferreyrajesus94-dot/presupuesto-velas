@@ -36,7 +36,7 @@ export default async function NewQuotePage() {
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
           Calculadora Flor
         </p>
-        <h1 className="mt-2 text-3xl font-semibold text-ink">Nueva presupuesto</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-ink">Nuevo presupuesto</h1>
       </header>
       <QuoteCreateForm templates={activeTemplates} />
     </div>

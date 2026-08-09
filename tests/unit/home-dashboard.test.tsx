@@ -86,7 +86,7 @@ describe("Home dashboard", () => {
       "href",
       "/templates",
     );
-    expect(screen.getByRole("link", { name: /Nueva presupuesto/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Nuevo presupuesto/i })).toHaveAttribute(
       "href",
       "/quotes/new",
     );
@@ -129,7 +129,7 @@ describe("Home dashboard", () => {
     render(await Home());
     expect(screen.getByLabelText("3 materiales")).toBeInTheDocument();
     expect(screen.getByLabelText("1 plantilla")).toBeInTheDocument();
-    expect(screen.getByLabelText("2 presupuestos activas")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 presupuestos activos")).toBeInTheDocument();
   });
 
   it("renders the first-use empty state without crashing when every list is empty", async () => {
@@ -210,6 +210,6 @@ describe("Home dashboard", () => {
     mocks.listMaterials.mockResolvedValue([{ id: "m1" }]);
     render(await Home());
     expect(screen.queryByRole("list", { name: /presupuestos recientes/i })).toBeNull();
-    expect(screen.getByText(/todavía no hay presupuestos activas/i)).toBeInTheDocument();
+    expect(screen.getByText(/todavía no hay presupuestos activos/i)).toBeInTheDocument();
   });
 });

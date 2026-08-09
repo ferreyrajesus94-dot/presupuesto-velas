@@ -86,7 +86,7 @@ export default async function QuotesPage({
             href="/quotes/new"
             className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition-transform hover:-translate-y-1"
           >
-            ✨ + Nueva presupuesto
+            ✨ + Nuevo presupuesto
           </Link>
           <button type="button" data-help="quotes" aria-label="Ayuda sobre presupuestos" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-ink transition-transform hover:-translate-y-1">
             ?

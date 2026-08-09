@@ -80,7 +80,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
       "📝 Presupuestos recientes",
       "⬆️ Atajos a todas las secciones",
     ],
-    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nueva presupuesto.",
+    tip: "Tip: la calculadora con plantillas vive en Presupuestos → Nuevo presupuesto.",
     targetSelector: "[data-tour-target='config']",
   },
   {

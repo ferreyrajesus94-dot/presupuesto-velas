@@ -280,7 +280,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
   return (
     <section
       id="new-quote"
-      aria-label="Nueva presupuesto"
+      aria-label="Nuevo presupuesto"
       data-tour-target="calculator"
        className="rounded-2xl border border-border bg-surface p-6 shadow sm:p-8"
     >

@@ -31,7 +31,7 @@ export function QuoteViewFilter({ current }: { current: QuoteView }) {
               : "inline-flex min-h-11 items-center rounded-full border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-brand hover:bg-surface-soft"
           }
         >
-          {view === "active" ? "Activas" : "Archivadas"}
+          {view === "active" ? "Activos" : "Archivados"}
         </button>
       ))}
     </nav>

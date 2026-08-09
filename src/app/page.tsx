@@ -40,20 +40,33 @@ export default async function Home() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 bg-canvas px-4 py-8 text-ink sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 rounded-2xl bg-brand-gradient p-6 text-on-brand shadow sm:p-8">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-on-brand/80">
-              Calculadora Flor
-            </p>
-            <h1 className="text-3xl font-semibold text-wrap-balance">🕯️ Calculadora de Velas Flor</h1>
-            <p className="max-w-2xl text-sm text-on-brand/85">
-              Organizá tus insumos, plantillas y presupuestos desde un solo lugar.
-            </p>
+          {/*
+           * Drop the duplicate "Calculadora Flor" eyebrow that previously
+           * sat above the title — the title already says "Calculadora de
+           * Velas Flor", so the eyebrow was the same brand name twice.
+           * The candle emoji now lives as a large decorative mark on
+           * the left of the title (text-5xl) instead of as a small
+           * leading character in the same line, so it complements
+           * the typography instead of fighting it.
+           */}
+          <div className="flex items-start gap-3">
+            <span className="shrink-0 text-5xl leading-none" aria-hidden="true">
+              🕯️
+            </span>
+            <div className="flex flex-col gap-2">
+              <h1 className="text-2xl font-semibold text-wrap-balance sm:text-3xl">
+                Calculadora de Velas Flor
+              </h1>
+              <p className="max-w-2xl text-sm text-on-brand/85">
+                Organizá tus insumos, plantillas y presupuestos desde un solo lugar.
+              </p>
+            </div>
           </div>
           <button
             type="button"
             data-help="config"
             aria-label="Ayuda sobre el inicio"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-on-brand/40 text-on-brand transition-transform hover:-translate-y-1"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-on-brand/40 text-on-brand transition-transform hover:-translate-y-1"
           >
             <span aria-hidden="true">?</span>
           </button>
@@ -207,15 +220,32 @@ function SummaryCard({
 }) {
   const noun = count === 1 ? singular : plural;
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-6 shadow transition-transform pv-card-hover">
-      <span className="text-3xl" aria-hidden="true">{icon}</span>
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-muted">{title}</p>
-      <p className="text-3xl font-semibold text-ink" aria-label={`${count} ${noun}`}>
-        {count}
-      </p>
+    // Compact card: on <md the layout is a single row (icon + title +
+    // count + CTA) so the user can see all three summary cards without
+    // much scrolling; on ≥md the layout reverts to a vertical stack
+    // that pairs the larger emoji with a bigger number. `min-w-0`
+    // keeps the long Spanish labels from blowing out the grid cell.
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow transition-transform pv-card-hover sm:flex-col sm:items-stretch sm:gap-2 sm:p-6">
+      <span
+        className="shrink-0 text-2xl leading-none sm:text-3xl"
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted sm:text-sm">
+          {title}
+        </p>
+        <p
+          className="text-2xl font-semibold leading-tight text-ink sm:text-3xl"
+          aria-label={`${count} ${noun}`}
+        >
+          {count}
+        </p>
+      </div>
       <Link
         href={href}
-        className="inline-flex min-h-11 items-center text-sm font-semibold text-brand underline"
+        className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold text-brand underline sm:self-start"
       >
         {cta} →
       </Link>

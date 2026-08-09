@@ -1,6 +1,6 @@
 {
   "name": "presupuestovelas",
-  "version": "0.5.14",
+  "version": "0.5.17",
   "private": true,
   "scripts": {
     "dev": "next dev",

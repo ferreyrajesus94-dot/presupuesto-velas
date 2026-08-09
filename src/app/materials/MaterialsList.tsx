@@ -5,7 +5,7 @@ import { dimensionLabel, unitLabel, unitSingularLabel } from "@/lib/unitLabels";
 import { MaterialArchiveControl } from "./MaterialArchiveControl";
 import { MaterialsArchiveFeedback } from "./MaterialsArchiveFeedback";
 import { MaterialEditForm } from "./MaterialEditForm";
-import { MaterialViewFilter, type MaterialView } from "./MaterialViewFilter";
+import type { MaterialView } from "./MaterialViewFilter";
 import type { MaterialInput } from "@/server/validation/materialSchema";
 
 export type MaterialListItem = {
@@ -52,10 +52,11 @@ export function MaterialsList({
   // provider only inside the list branch (the previous wiring) caused the
   // success announcement to disappear and the "Show archived" focus move
   // to be skipped when the last active row was archived.
+  // The filter row (Activos / Mostrar archivados + Tarjetas / Lista) is
+  // rendered at the page level so the toggle works in both display modes.
   const hasRemainingRows = materials.length > 0;
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <MaterialViewFilter current={view} />
       <MaterialsArchiveFeedback view={view} hasRemainingRows={hasRemainingRows}>
         {materials.length === 0 ? (
           view === "active" && archivedCount > 0 ? (

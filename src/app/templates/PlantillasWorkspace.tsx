@@ -775,7 +775,7 @@ function PlantillaCardMaterials({
                 inputMode="decimal"
                 min="0"
                 step="any"
-                value={row.quantity}
+                value={formatDecimalInput(row.quantity)}
                 onChange={(e) => onUpdateItem(row.id, { quantity: e.target.value })}
                 className="w-20 rounded-md border border-border-subtle bg-surface px-2 py-1.5 text-sm text-ink"
                 placeholder="Cant."

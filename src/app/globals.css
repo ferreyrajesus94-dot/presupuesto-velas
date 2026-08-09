@@ -131,6 +131,21 @@ textarea {
   min-width: 44px;
 }
 
+/* Hide the WebKit/Firefox native spinner buttons on type="number"
+ * inputs. The arrows steal horizontal space inside narrow form fields
+ * (the per-row material quantity input was the worst offender) and
+ * clash with the brand's keyboard-first design. Users can still type
+ * a value directly or use the up/down keys to nudge. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 :focus-visible {
   outline: 3px solid var(--pv-focus);
   outline-offset: 3px;

@@ -438,3 +438,64 @@ export async function restoreTemplate(userId: string, id: string): Promise<Templ
     return restored;
   });
 }
+
+// deleteOrphanTemplates removes every user-scoped template that still
+// matches the auto-generated `Nueva plantilla` naming AND has zero items.
+// These are the placeholders that the workspace's "Nueva plantilla" CTA
+// persists eagerly so a refresh keeps the card — left untouched, they
+// accumulate as noise. Only the caller's own rows are affected (id-
+// enumeration defense). Returns the ids that were deleted so the caller
+// can report them to the UI.
+export async function deleteOrphanTemplates(userId: string): Promise<string[]> {
+  return db.transaction(async (tx) => {
+    const candidates = await tx
+      .select({ id: templates.id })
+      .from(templates)
+      .where(
+        and(
+          eq(templates.userId, userId),
+          isNull(templates.archivedAt),
+          like(templates.name, "Nueva plantilla%"),
+        ),
+      );
+    if (candidates.length === 0) return [];
+    const ids = candidates.map((row) => row.id);
+    // Keep only those that have zero items. A LEFT JOIN with `null` on the
+    // items side is the canonical SQL shape; here we use a NOT EXISTS to
+    // stay portable across the Drizzle query builder.
+    const referenced = await tx
+      .select({ templateId: templateItems.templateId })
+      .from(templateItems)
+      .where(inArray(templateItems.templateId, ids));
+    const referencedSet = new Set(referenced.map((row) => row.templateId));
+    const orphanIds = ids.filter((id) => !referencedSet.has(id));
+    if (orphanIds.length === 0) return [];
+    await tx.delete(templates).where(inArray(templates.id, orphanIds));
+    return orphanIds;
+  });
+}
+
+// countOrphanTemplates is the read-only partner of deleteOrphanTemplates.
+// Used by the /templates page to surface a "Limpiar placeholders" CTA
+// only when there is at least one row to clean up.
+export async function countOrphanTemplates(userId: string): Promise<number> {
+  return db.transaction(async (tx) => {
+    const candidates = await tx
+      .select({ id: templates.id })
+      .from(templates)
+      .where(
+        and(
+          eq(templates.userId, userId),
+          isNull(templates.archivedAt),
+          like(templates.name, "Nueva plantilla%"),
+        ),
+      );
+    if (candidates.length === 0) return 0;
+    const ids = candidates.map((row) => row.id);
+    const referenced = await tx
+      .select({ templateId: templateItems.templateId })
+      .from(templateItems)
+      .where(inArray(templateItems.templateId, ids));
+    return candidates.length - referenced.length;
+  });
+}

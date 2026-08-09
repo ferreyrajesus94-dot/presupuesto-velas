@@ -18,10 +18,23 @@ export const blankMaterialValues: MaterialInput = {
   name: "",
   dimension: "mass",
   baseUnit: "g",
-  purchaseUnit: "g",
+  purchaseUnit: "kg",
   purchaseQuantity: "",
   purchasePrice: "",
 };
+
+// Smart defaults for the unit pair when the dimension changes. The base
+// unit is the smaller one (used in templates / quotes) and the purchase
+// unit is the larger one (the typical bulk-buy unit from a supplier). The
+// `count` dimension has a single unit so both slots collapse to it.
+function defaultUnitsForDimension(
+  dimension: MaterialInput["dimension"],
+): { baseUnit: MaterialInput["baseUnit"]; purchaseUnit: MaterialInput["purchaseUnit"] } {
+  const units = UNITS_BY_DIMENSION[dimension] ?? UNITS_BY_DIMENSION.mass;
+  const baseUnit = units[0] ?? "g";
+  const purchaseUnit = units[1] ?? baseUnit;
+  return { baseUnit, purchaseUnit };
+}
 
 // U4: rosa-crema tokens; focus/touch targets inherit from globals.css.
 const controlClass =
@@ -174,8 +187,14 @@ export function MaterialForm({
   useEffect(() => {
     if (initialDimension.current === dimension) return;
     initialDimension.current = dimension;
-    setValue("baseUnit", units[0]);
-    setValue("purchaseUnit", units[0]);
+    // Reset the unit pair to the dimension's smart defaults: baseUnit → the
+    // smaller unit (g/ml/cm/unit), purchaseUnit → the larger one (kg/L/m)
+    // when the dimension has two. This avoids the previous "g/g" default
+    // that silently produced a 1000× too-high unit cost. The schema's
+    // dimension/unit compatibility check still validates the final pair.
+    const { baseUnit, purchaseUnit } = defaultUnitsForDimension(dimension);
+    setValue("baseUnit", baseUnit);
+    setValue("purchaseUnit", purchaseUnit);
   }, [dimension, setValue, units]);
 
   const handledActionState = useRef(state);

@@ -4,8 +4,10 @@
  * Asserts the optimistic-cookie-only redirect in `src/proxy.ts` honors
  * the SPEC §PUBLIC-PREFIXES contract:
  *
- *   - `PUBLIC_PREFIXES` exported from `src/proxy.ts` is a strict superset
- *     of `['/sign-in', '/sign-up', '/403', '/api/auth', '/_next']`.
+ *   - `PUBLIC_PREFIXES` exported from `src/lib/publicPrefixes.ts` is a
+ *     strict superset of `['/sign-in', '/sign-up', '/403', '/api/auth',
+ *     '/_next']` (single source of truth consumed by the middleware and
+ *     the `<Tutorial />` gating).
  *   - Unsigned request to `/sign-up` returns `NextResponse.next()`
  *     (bypasses the optimistic redirect — `requireUser` enforces the
  *     verified gate at the page layer).
@@ -21,7 +23,8 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 
-import { PUBLIC_PREFIXES, proxy } from "../../src/proxy";
+import { proxy } from "../../src/proxy";
+import { PUBLIC_PREFIXES } from "../../src/lib/publicPrefixes";
 
 const REQUIRED_SUPERSET = [
   "/sign-in",

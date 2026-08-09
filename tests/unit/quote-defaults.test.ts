@@ -9,8 +9,13 @@ import {
 } from "@/domain/quoteDefaults";
 
 describe("quote defaults (PR #4a.math foundation)", () => {
-  it("DEFAULT_INDIRECT_COST_NAMES contains exactly ['labor', 'electricity', 'transport', 'waste'] in that order", () => {
-    expect(DEFAULT_INDIRECT_COST_NAMES).toEqual(["labor", "electricity", "transport", "waste"]);
+  it("DEFAULT_INDIRECT_COST_NAMES contains the four canonical concepts in Spanish, in order", () => {
+    expect(DEFAULT_INDIRECT_COST_NAMES).toEqual([
+      "mano de obra",
+      "electricidad",
+      "transporte",
+      "residuos",
+    ]);
   });
 
   it("DEFAULT_VISIBILITY exposes both internalCost: true and profitMargin: true", () => {

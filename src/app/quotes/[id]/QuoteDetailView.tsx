@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { isExpiredSent } from "@/domain/quoteExpired";
 import { projectQuote, type ProjectionVisibility } from "@/domain/projection";
-import { formatArsFromDecimalString } from "@/lib/moneyFormat";
+import { formatArsFromDecimalString, formatDecimalInput } from "@/lib/moneyFormat";
 import type { QuoteRecord } from "@/server/repositories/quotes";
 import { QuoteLifecycleControls } from "./QuoteLifecycleControls";
 import { QuoteShareLinks } from "./QuoteShareLinks";
@@ -124,7 +124,7 @@ export function QuoteDetailView({ quote, now }: { quote: QuoteRecord; now: Date 
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-surface-soft px-3 py-2"
             >
               <span className="font-medium text-ink">{m.templateName}</span>
-              <span className="text-sm text-ink-muted">Cantidad: {m.quantity}</span>
+              <span className="text-sm text-ink-muted">Cantidad: {formatDecimalInput(m.quantity)}</span>
               <span className="min-w-0 break-words text-sm font-semibold text-ink">
                 {formatArsFromDecimalString(m.lineTotal)}
               </span>

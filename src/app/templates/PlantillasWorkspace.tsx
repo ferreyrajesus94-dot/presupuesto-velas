@@ -6,6 +6,7 @@ import { calcTemplateSummary } from "@/domain/templateSummary";
 import { formatArsDecimalDisplay, formatDecimalInput } from "@/lib/moneyFormat";
 import { unitSingularLabel } from "@/lib/unitLabels";
 import {
+  cleanupOrphanTemplatesAction,
   createBlankTemplateAction,
   deleteTemplateAction,
   saveTemplateAction,
@@ -105,9 +106,11 @@ function snapshotsFromTemplates(templates: readonly PlantillaClientTemplate[]): 
 export function PlantillasWorkspace({
   initialTemplates,
   materials,
+  orphanCount: initialOrphanCount = 0,
 }: {
   initialTemplates: readonly PlantillaClientTemplate[];
   materials: readonly PlantillaClientMaterial[];
+  orphanCount?: number;
 }) {
   const router = useRouter();
   const [templates, setTemplates] = useState<PlantillaClientTemplate[]>(() =>
@@ -116,6 +119,8 @@ export function PlantillasWorkspace({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
   const [, startTemplatesTransition] = useTransition();
+  const [orphanCount, setOrphanCount] = useState<number>(initialOrphanCount);
+  const [isCleaningOrphans, startCleanupTransition] = useTransition();
   // Per-template save lock so two concurrent Guardar clicks on different
   // cards don't share a single busy flag. Set to true at the start of the
   // save transition and cleared when the transition settles.
@@ -401,18 +406,54 @@ export function PlantillasWorkspace({
 
   const hasRows = templates.length > 0;
 
+  const cleanupOrphans = useCallback(() => {
+    setActionError(null);
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `¿Eliminar ${orphanCount} placeholder${orphanCount === 1 ? "" : "s"} sin materiales? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    startCleanupTransition(async () => {
+      const result = await cleanupOrphanTemplatesAction();
+      if (result.status === "success") {
+        setOrphanCount(0);
+      } else {
+        setActionError(result.message);
+      }
+    });
+  }, [orphanCount]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-ink-muted">{templates.length} en tu lista</p>
-        <button
-          type="button"
-          onClick={createTemplate}
-          data-testid="plantilla-new"
-          className="inline-flex min-h-11 items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand hover:opacity-90"
-        >
-          Nueva plantilla
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {orphanCount > 0 ? (
+            <button
+              type="button"
+              onClick={cleanupOrphans}
+              disabled={isCleaningOrphans}
+              data-testid="plantilla-cleanup-orphans"
+              aria-label={`Limpiar ${orphanCount} placeholder${orphanCount === 1 ? "" : "s"} sin materiales`}
+              className="inline-flex min-h-11 items-center rounded-md border border-border-subtle bg-surface-raised px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
+            >
+              {isCleaningOrphans
+                ? "Limpiando…"
+                : `Limpiar ${orphanCount} placeholder${orphanCount === 1 ? "" : "s"}`}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={createTemplate}
+            data-testid="plantilla-new"
+            className="inline-flex min-h-11 items-center rounded-md bg-brand px-4 text-sm font-semibold text-on-brand hover:opacity-90"
+          >
+            Nueva plantilla
+          </button>
+        </div>
       </div>
       {actionError ? (
         <p
@@ -724,7 +765,7 @@ function PlantillaCardMaterials({
         data-testid="plantilla-add-material"
         className="self-start font-semibold text-brand underline decoration-brand/40 underline-offset-4 hover:text-ink"
       >
-        Material
+        Agregar material
       </button>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <label className="flex flex-col gap-0.5">

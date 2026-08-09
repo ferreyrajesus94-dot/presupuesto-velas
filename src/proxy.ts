@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "@/lib/publicPrefixes";
 
 /**
  * Optimistic redirect only — no DB or upstream auth call.
@@ -9,17 +10,9 @@ import { NextResponse, type NextRequest } from "next/server";
  * pin this contract as a strict superset of `['/sign-in', '/sign-up', '/403',
  * '/api/auth', '/_next']`.
  */
-export const PUBLIC_PREFIXES = ["/sign-in", "/sign-up", "/403", "/api/auth", "/_next"];
-
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p),
-  );
-}
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (isPublic(pathname)) return NextResponse.next();
+  if (isPublicPath(pathname)) return NextResponse.next();
   const session = request.cookies.get("session")?.value;
   if (!session) {
     const url = new URL("/sign-in", request.url);

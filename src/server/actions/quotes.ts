@@ -35,11 +35,9 @@ import { buildQuoteSnapshot, type BuildQuoteSnapshotInput } from "../../domain/q
 import type { QuoteStatus } from "../../domain/snapshot";
 
 // Server-side draft shape mirrored from the PR4d Zod schema. `customerName`
-// rides along even though the Zod schema doesn't validate it (PR4d is
-// stable); we forward it from the raw `input` to `createQuoteDraft`.
-type QuoteDraftInput = z.infer<typeof quoteDraftInputSchema> & {
-  customerName?: string | null;
-};
+// is now part of the schema (nullable, optional), so the inferred type
+// already includes it. The override is no longer needed.
+type QuoteDraftInput = z.infer<typeof quoteDraftInputSchema>;
 
 /** All error codes a quote Server Action can surface. Mirrors `QuoteRepositoryError`. */
 type ErrorCode =
@@ -83,9 +81,7 @@ export async function createQuoteDraftAction(
   try {
     const record = await createQuoteDraft(user.id, {
       expirationDate: parsed.expirationDate,
-      // Pulled from raw `input` because the PR4d Zod schema doesn't declare
-      // `customerName` and would strip it during parsing.
-      customerName: input.customerName ?? null,
+      customerName: parsed.customerName ?? null,
     });
     revalidatePath("/quotes");
     return { ok: true, value: record };

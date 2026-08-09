@@ -177,8 +177,8 @@ describe("QuoteCreateForm — interactive inputs", () => {
     expect(screen.getByLabelText("Porcentaje")).toBeChecked();
     expect(screen.getByLabelText(/Porcentaje de ganancia/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Monto fijo de ganancia/)).not.toBeInTheDocument();
-    await user.click(screen.getByLabelText("Modo fijo"));
-    expect(screen.getByLabelText("Modo fijo")).toBeChecked();
+    await user.click(screen.getByLabelText("Monto fijo"));
+    expect(screen.getByLabelText("Monto fijo")).toBeChecked();
     expect(screen.getByLabelText("Porcentaje")).not.toBeChecked();
     expect(screen.getByLabelText(/Monto fijo de ganancia/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Porcentaje de ganancia/)).not.toBeInTheDocument();

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
   listTemplates: vi.fn(),
   countArchivedTemplates: vi.fn(),
+  countOrphanTemplates: vi.fn(),
   listMaterials: vi.fn(),
 }));
 
@@ -14,6 +15,7 @@ vi.mock("../../src/server/auth/requireUser", () => ({
 vi.mock("../../src/server/repositories/templates", () => ({
   listTemplates: mocks.listTemplates,
   countArchivedTemplates: mocks.countArchivedTemplates,
+  countOrphanTemplates: mocks.countOrphanTemplates,
 }));
 vi.mock("../../src/server/repositories/materials", () => ({
   listMaterials: mocks.listMaterials,
@@ -73,6 +75,7 @@ beforeEach(() => {
       visibility.includeArchived ? ALL : ACTIVE_TEMPLATES,
   );
   mocks.countArchivedTemplates.mockResolvedValue(0);
+  mocks.countOrphanTemplates.mockResolvedValue(0);
   mocks.listMaterials.mockResolvedValue(ACTIVE_MATERIALS);
 });
 

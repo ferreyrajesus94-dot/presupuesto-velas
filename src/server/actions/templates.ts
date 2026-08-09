@@ -6,6 +6,7 @@ import {
   archiveTemplate,
   createBlankTemplate,
   createTemplate,
+  deleteOrphanTemplates,
   deleteTemplateRow,
   findNextDefaultTemplateName,
   TemplateRepositoryError,
@@ -253,6 +254,26 @@ export async function deleteTemplateAction(formData: FormData): Promise<DeleteTe
     return { status: "success", id };
   } catch (error) {
     return blankFailure("delete", error);
+  }
+}
+
+// cleanupOrphanTemplatesAction removes every user-scoped active template
+// whose name matches the auto-generated `Nueva plantilla` prefix AND has
+// no items. The workspace surfaces it as a "Limpiar placeholders" CTA so
+// users can drop the noise that the optimistic "Nueva plantilla" path
+// accumulates when a card is never saved.
+export type CleanupOrphanTemplatesResult =
+  | { status: "success"; deleted: number }
+  | { status: "error"; message: string };
+
+export async function cleanupOrphanTemplatesAction(): Promise<CleanupOrphanTemplatesResult> {
+  const user = await requireUser();
+  try {
+    const deletedIds = await deleteOrphanTemplates(user.id);
+    if (deletedIds.length > 0) revalidatePath(TEMPLATES_PATH);
+    return { status: "success", deleted: deletedIds.length };
+  } catch (error) {
+    return { status: "error", message: "No se pudieron limpiar los placeholders." };
   }
 }
 

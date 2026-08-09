@@ -286,6 +286,10 @@ it("shows and focuses a client-derived unit-cost error before invoking the Serve
   const user = userEvent.setup();
   render(<MaterialCreateForm />);
   await user.type(screen.getByLabelText("Nombre"), "Soy wax");
+  // Force the unit pair to g/g so the denormalized unit cost still exceeds
+  // MAX_UNIT_COST. The new smart defaults default to g/kg, which keeps the
+  // unit cost well within bounds for any realistic input.
+  await user.selectOptions(screen.getByLabelText("Unidad de compra"), "g");
   await user.type(screen.getByLabelText("Cantidad de compra"), "0.000001");
   const price = screen.getByLabelText("Precio de compra (ARS)");
   await user.type(price, "1000000000000000");
@@ -353,7 +357,7 @@ it("resets the form after a successful create without dispatching a duplicate ac
     expect(screen.getByLabelText("Nombre")).toHaveValue("");
     expect(screen.getByLabelText("Dimensión")).toHaveValue("mass");
     expect(screen.getByLabelText("Unidad base")).toHaveValue("g");
-    expect(screen.getByLabelText("Unidad de compra")).toHaveValue("g");
+    expect(screen.getByLabelText("Unidad de compra")).toHaveValue("kg");
     expect(screen.getByLabelText("Cantidad de compra")).toHaveValue(null);
     expect(screen.getByLabelText("Precio de compra (ARS)")).toHaveValue(null);
   });

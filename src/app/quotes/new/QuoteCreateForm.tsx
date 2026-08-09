@@ -300,7 +300,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
             maxLength={50}
             placeholder="Opcional"
             aria-describedby="quote-customer-hint"
-            {...register("customerName" as keyof QuoteDraftFormValues)}
+            {...register("customerName")}
             className={controlClass}
           />
           <p id="quote-customer-hint" className="text-xs text-ink-muted">
@@ -381,7 +381,7 @@ export function QuoteCreateForm({ templates }: { templates: readonly Template[] 
                       setValue("profit.percent", "");
                     }}
                   />
-                  Modo fijo
+                  Monto fijo
                 </label>
               </div>
             )}

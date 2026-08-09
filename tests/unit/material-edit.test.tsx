@@ -61,7 +61,7 @@ it("keeps the current values until the editor's dimension changes", async () => 
   await user.selectOptions(screen.getByLabelText("Dimensión para Soy wax"), "volume");
 
   expect(screen.getByLabelText("Unidad base para Soy wax")).toHaveValue("ml");
-  expect(screen.getByLabelText("Unidad de compra para Soy wax")).toHaveValue("ml");
+  expect(screen.getByLabelText("Unidad de compra para Soy wax")).toHaveValue("L");
 });
 
 it("submits the material id and changed values, then reports success", async () => {

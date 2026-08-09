@@ -4,6 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Tutorial, TOUR_STORAGE_KEY } from "../../src/components/tour/Tutorial";
 
+// Mock `next/navigation` so `usePathname()` returns a non-public path. The
+// Tour component gates its trigger + dialog on `!isPublicPath(pathname)`;
+// without a mock, jsdom leaves pathname undefined and the test would
+// surprise-mount the gating rather than the dialog.
+vi.mock("next/navigation", () => ({
+  usePathname: (): string => "/materials",
+}));
+
 function setTourDone(value: "1" | null): void {
   if (typeof window === "undefined") return;
   const ls = window.localStorage;

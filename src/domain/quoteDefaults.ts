@@ -4,7 +4,12 @@
  * here instead of redefining literals.
  */
 
-export const DEFAULT_INDIRECT_COST_NAMES = ["labor", "electricity", "transport", "waste"] as const;
+export const DEFAULT_INDIRECT_COST_NAMES = [
+  "mano de obra",
+  "electricidad",
+  "transporte",
+  "residuos",
+] as const;
 
 export const DEFAULT_QUOTE_DEPOSIT_PERCENT = "0";
 

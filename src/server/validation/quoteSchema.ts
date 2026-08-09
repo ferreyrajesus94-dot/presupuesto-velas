@@ -73,8 +73,18 @@ export const profitSchema = z.discriminatedUnion("mode", [
  * Quote draft input — mirrors `BuildQuoteSnapshotInput` (PR #4a.calc) minus
  * the `visibility`/`currentDate` defaults (those are applied by the builder).
  * An empty models list is accepted per the orchestrator's literal `min(0)`.
+ *
+ * `customerName` is declared as an optional nullable string (max 50 chars to
+ * match the form's `maxLength`). The draft-write path forwards it to the
+ * `quotes` row; the append-version path ignores it — versioning snapshots
+ * the calculator output, not the customer label. The form's
+ * `register("customerName" as keyof QuoteDraftFormValues)` cast was a
+ * type-only workaround for the missing field; the cast hid a real bug
+ * because the Zod strip mode silently dropped the field at the form/
+ * action boundary, so every saved quote rendered as "Sin cliente".
  */
 export const quoteDraftInputSchema = z.object({
+  customerName: z.string().max(50).nullable().optional(),
   expirationDate: expirationDateString,
   profit: profitSchema,
   depositPercent: depositPercentString,

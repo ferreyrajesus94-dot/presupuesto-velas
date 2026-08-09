@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useFocusTrap } from "@/components/a11y/useFocusTrap";
+import { isPublicPath } from "@/lib/publicPrefixes";
 
 /**
  * PR4 tutorial overlay — 5-step first-visit tour.
@@ -15,6 +17,8 @@ import { useFocusTrap } from "@/components/a11y/useFocusTrap";
  *   use instant transitions.
  * - Manual trigger via a floating "?" button rendered by the layout.
  * - Keyboard accessible: Esc closes, Tab walks the focus trap, Enter activates.
+ * - Suppressed on public routes (`/sign-in`, `/sign-up`, `/403`, ...) so the
+ *   overlay never blocks the unauthenticated UI on first paint.
  */
 
 export const TOUR_STORAGE_KEY = "pv-tour-done";
@@ -147,8 +151,20 @@ export function Tutorial() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
+  const pathname = usePathname();
+  // Tour is disabled on public routes — the overlay would otherwise cover
+  // the sign-in/sign-up form on first paint. Re-evaluated when the
+  // pathname changes so navigating into a private page from a public one
+  // re-enables the trigger without a full reload.
+  const tourAllowed = pathname !== null && !isPublicPath(pathname);
+
   const step = TUTORIAL_STEPS[stepIndex];
   const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
+  // Effective open state: the user can keep `open` true across a
+  // navigation into a public route, but the dialog is suppressed via this
+  // gate so we don't have to mutate state from an effect (which violates
+  // the `react-hooks/set-state-in-effect` lint rule).
+  const effectiveOpen = open && tourAllowed;
 
   // Read storage + reduced motion on mount.
   useEffect(() => {
@@ -166,7 +182,8 @@ export function Tutorial() {
     setOpen(false);
     writeTourDone();
     // Return focus to the toolbar "?" button so keyboard users don't lose
-    // their place.
+    // their place. Only refocus if the trigger is actually mounted (not
+    // on public routes).
     window.setTimeout(() => triggerRef.current?.focus(), 0);
   }, []);
 
@@ -195,7 +212,7 @@ export function Tutorial() {
   // measurement on two consecutive rAF ticks so the target has its final
   // layout before we draw the spotlight.
   useEffect(() => {
-    if (!open || !step) {
+    if (!effectiveOpen || !step) {
       setSpotlight(null);
       return;
     }
@@ -226,13 +243,13 @@ export function Tutorial() {
     return () => {
       cancelled = true;
     };
-  }, [open, step, reducedMotion, stepIndex]);
+  }, [effectiveOpen, step, reducedMotion, stepIndex]);
 
   // Escape closes; focus is trapped inside the dialog via useFocusTrap so
   // Tab/Shift+Tab cycles between the close button, "Saltar tour", "Atrás",
   // and "Siguiente" — never escapes into the page below.
   useEffect(() => {
-    if (!open) return;
+    if (!effectiveOpen) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -241,30 +258,32 @@ export function Tutorial() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, close]);
+  }, [effectiveOpen, close]);
 
   // Focus the dialog content while the tour is open so the trap has a
   // container to cycle through.
-  useFocusTrap(dialogRef, open);
+  useFocusTrap(dialogRef, effectiveOpen);
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-[58]">
-        <button
-          type="button"
-          ref={triggerRef}
-          onClick={startTour}
-          aria-label="Iniciar tour guiado"
-          title="¿Cómo funciona? Iniciá el tour"
-          data-testid="tour-trigger"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-ink transition-transform hover:-translate-y-1"
-        >
-          <span aria-hidden="true" className="text-base leading-none">
-            ❓
-          </span>
-        </button>
-      </div>
-      {open && step ? (
+      {tourAllowed ? (
+        <div className="fixed bottom-4 right-4 z-[58]">
+          <button
+            type="button"
+            ref={triggerRef}
+            onClick={startTour}
+            aria-label="Iniciar tour guiado"
+            title="¿Cómo funciona? Iniciá el tour"
+            data-testid="tour-trigger"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-ink transition-transform hover:-translate-y-1"
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              ❓
+            </span>
+          </button>
+        </div>
+      ) : null}
+      {effectiveOpen && step ? (
         <TutorialDialog
           step={step}
           stepIndex={stepIndex}

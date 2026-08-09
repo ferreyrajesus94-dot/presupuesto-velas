@@ -68,10 +68,10 @@ describe("IndirectCostEditor — defaults", () => {
     const list = screen.getByRole("list", { name: "Costos indirectos" });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(4);
-    expect(within(list).getByDisplayValue("labor")).toBeInTheDocument();
-    expect(within(list).getByDisplayValue("electricity")).toBeInTheDocument();
-    expect(within(list).getByDisplayValue("transport")).toBeInTheDocument();
-    expect(within(list).getByDisplayValue("waste")).toBeInTheDocument();
+    expect(within(list).getByDisplayValue("mano de obra")).toBeInTheDocument();
+    expect(within(list).getByDisplayValue("electricidad")).toBeInTheDocument();
+    expect(within(list).getByDisplayValue("transporte")).toBeInTheDocument();
+    expect(within(list).getByDisplayValue("residuos")).toBeInTheDocument();
   });
 });
 

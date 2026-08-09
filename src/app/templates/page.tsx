@@ -1,6 +1,10 @@
 import { requireUser } from "@/server/auth/requireUser";
 import { listMaterials } from "@/server/repositories/materials";
-import { countArchivedTemplates, listTemplates } from "@/server/repositories/templates";
+import {
+  countArchivedTemplates,
+  countOrphanTemplates,
+  listTemplates,
+} from "@/server/repositories/templates";
 import { TemplateViewFilter } from "./TemplateViewFilter";
 import { resolveTemplateView, type TemplateView } from "./TemplateViewFilter";
 import { PlantillasWorkspace } from "./PlantillasWorkspace";
@@ -28,6 +32,7 @@ export default async function TemplatesPage({
 
   const archivedCount =
     view === "active" && records.length === 0 ? await countArchivedTemplates(user.id) : 0;
+  const orphanCount = await countOrphanTemplates(user.id);
 
   // The create and edit forms both accept active materials. We fetch the
   // catalog here so the Client Components receive a stable, user-scoped
@@ -90,7 +95,11 @@ export default async function TemplatesPage({
       </header>
 
       <TemplateViewFilter current={view} />
-      <PlantillasWorkspace initialTemplates={initialTemplates} materials={materialOptions} />
+      <PlantillasWorkspace
+        initialTemplates={initialTemplates}
+        materials={materialOptions}
+        orphanCount={orphanCount}
+      />
       {archivedCount > 0 && view === "active" ? (
         <p className="text-xs text-ink-muted">
           {archivedCount === 1

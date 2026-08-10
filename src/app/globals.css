@@ -155,38 +155,18 @@
 [data-tour-highlight="true"] > svg {
   color: #ffffff;
 }
-@media (prefers-color-scheme: light) {
-  /* The highlighted label sits inside the spotlight area where the
-   * backdrop is masked out, so it reads against the page
-   * background. In light mode that's near-white → dark text. In
-   * dark mode it's near-black → white text. (The rule above
-   * hardcodes white which is the right pick in dark mode but washes
-   * out on a light page, so we override per-theme.) */
-  [data-tour-highlight="true"],
-  [data-tour-highlight="true"] > span,
-  [data-tour-highlight="true"] > svg {
-    color: #1a0d14;
-  }
-}
 /*
- * When the tour backdrop is mounted (rgba(43,13,24,0.55) over the
- * page), every nav link that isn't already a high-contrast pill
- * needs a high-contrast label color so the text is legible against
- * the overlay. The overlay is darker in dark mode (page is already
- * near-black) than in light mode (page is near-white, so the alpha
- * just darkens it to a medium tone). Use theme-aware picks: dark
- * text in light mode (high contrast on the medium backdrop), white
- * in dark mode (high contrast on the near-black backdrop). The
- * active pill (.bg-brand) is excluded via :not(.bg-brand) so it
- * keeps its theme-appropriate on-brand color.
+ * When the tour backdrop is mounted, the nav items that aren't the
+ * active pill need a high-contrast label color so the text is
+ * legible against the dark overlay. The backdrop was bumped to
+ * rgba(15,8,14,0.78) in v0.5.22 so it's consistently dark in BOTH
+ * themes (no more washed-out medium tone in light mode), so white
+ * (#ffffff) is the right pick everywhere. The active pill
+ * (.bg-brand) is excluded via :not(.bg-brand) so it keeps its
+ * theme-appropriate on-brand color.
  */
 body:has([data-testid="tour-root"]) nav a:not(.bg-brand) {
   color: #ffffff;
-}
-@media (prefers-color-scheme: light) {
-  body:has([data-testid="tour-root"]) nav a:not(.bg-brand) {
-    color: #1a0d14;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   [data-tour-highlight="true"] {

@@ -150,30 +150,39 @@
 [data-tour-highlight="true"] {
   animation: tour-pulse 1.6s ease-in-out infinite;
   color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
 }
 [data-tour-highlight="true"] > span,
 [data-tour-highlight="true"] > svg {
   color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
 }
 /*
- * When the tour backdrop is mounted, the nav items that aren't the
- * active pill need a high-contrast label color so the text is
- * legible against the dark overlay. The backdrop was bumped to
- * rgba(15,8,14,0.78) in v0.5.23 so it's consistently dark in BOTH
- * themes, so white (#ffffff) is the right pick everywhere. The
- * active pill (.bg-brand) is excluded via :not(.bg-brand) so it
- * keeps its theme-appropriate on-brand color.
+ * When the tour backdrop is mounted, every nav link (except the
+ * active .bg-brand pill) gets a high-contrast white label + a
+ * heavy dark text-shadow so the text reads on top of the dark
+ * backdrop in BOTH themes regardless of the exact alpha blend on
+ * the underlying page. The active pill (.bg-brand) is excluded
+ * via :not(.bg-brand) so it keeps its theme-appropriate on-brand
+ * color.
  *
- * `!important` is needed here because Tailwind's utility classes
- * (text-ink, text-on-brand, etc.) are emitted after the custom rules
- * in globals.css, so the cascade order gives them higher precedence
- * than our rule. Without !important the inactive nav labels can end
- * up with the default text-ink color (dark in light mode, light in
- * dark mode) over the dim overlay, which is exactly what the user
- * reported as "no se ve el texto".
+ * The combination of #fff + dark text-shadow is much more robust
+ * than just a color override because the shadow stays dark even
+ * if the page happens to be a light tone (in which case white
+ * text by itself washed out, as the user reported in the v0.5.22
+ * → v0.5.23 → v0.5.24 cycle). Bumping font-weight to semibold
+ * also gives the text more visual weight against the dim backdrop.
+ *
+ * `!important` is needed because Tailwind's utility classes
+ * (text-ink, text-on-brand, text-ink-muted) are emitted after
+ * the custom @layer base rules in globals.css, so the cascade
+ * order gives them higher precedence than our rule without
+ * !important.
  */
 body:has([data-testid="tour-root"]) nav a:not(.bg-brand) {
   color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  font-weight: 600 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-tour-highlight="true"] {

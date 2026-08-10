@@ -472,7 +472,12 @@ function TutorialDialog({
             ) : null}
           </mask>
         </defs>
-        <rect width="100%" height="100%" fill="rgba(43, 13, 24, 0.55)" mask="url(#tour-mask)" />
+        <rect
+          width="100%"
+          height="100%"
+          fill="rgba(15, 8, 14, 0.78)"
+          mask="url(#tour-mask)"
+        />
       </svg>
       {spotlight ? (
         <div

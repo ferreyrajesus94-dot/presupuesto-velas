@@ -441,7 +441,7 @@ export function MaterialForm({
       <div
         className={
           isRow
-            ? "flex min-w-0 flex-col gap-1 col-span-2 md:col-start-8 md:row-start-1"
+            ? "flex min-w-0 flex-col gap-1 col-span-2 md:col-span-1 md:col-start-8 md:row-start-1"
             : "sm:col-span-2"
         }
       >

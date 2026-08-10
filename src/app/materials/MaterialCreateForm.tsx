@@ -427,19 +427,13 @@ export function MaterialForm({
               htmlFor={inputId("unit-cost")}
             >
               <span className={fieldLabelClass}>{label("Precio unitario derivado")}</span>
-              {/*
-               * Two-line display (price + "por <unit>") so the value
-               * never overflows the 8rem column on ≥md. The price
-               * is semibold, the suffix is muted; the readOnly
-               * input gets the same shape as a regular control so
-               * the row reads as a consistent form.
-               */}
-              <div className="flex min-h-11 w-full min-w-0 items-center gap-1 rounded-md border border-border-subtle bg-surface-soft px-3 py-1 text-sm font-semibold text-ink tabular-nums">
-                <span>{unitCost ? formatArsDecimalDisplay(unitCost) : "ARS —"}</span>
-                <span className="font-normal text-ink-muted">
-                  por {unitSingularLabel(defaultValues.baseUnit)}
-                </span>
-              </div>
+              <input
+                id={inputId("unit-cost")}
+                type="text"
+                value={`${unitCost ? formatArsDecimalDisplay(unitCost) : "ARS —"} por ${unitSingularLabel(defaultValues.baseUnit)}`}
+                readOnly
+                className={`${formControlClass} bg-surface-soft font-semibold tabular-nums`}
+              />
             </label>
           </div>
         </div>

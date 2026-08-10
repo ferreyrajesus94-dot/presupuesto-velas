@@ -149,24 +149,31 @@
 }
 [data-tour-highlight="true"] {
   animation: tour-pulse 1.6s ease-in-out infinite;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 [data-tour-highlight="true"] > span,
 [data-tour-highlight="true"] > svg {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 /*
  * When the tour backdrop is mounted, the nav items that aren't the
  * active pill need a high-contrast label color so the text is
  * legible against the dark overlay. The backdrop was bumped to
- * rgba(15,8,14,0.78) in v0.5.22 so it's consistently dark in BOTH
- * themes (no more washed-out medium tone in light mode), so white
- * (#ffffff) is the right pick everywhere. The active pill
- * (.bg-brand) is excluded via :not(.bg-brand) so it keeps its
- * theme-appropriate on-brand color.
+ * rgba(15,8,14,0.78) in v0.5.23 so it's consistently dark in BOTH
+ * themes, so white (#ffffff) is the right pick everywhere. The
+ * active pill (.bg-brand) is excluded via :not(.bg-brand) so it
+ * keeps its theme-appropriate on-brand color.
+ *
+ * `!important` is needed here because Tailwind's utility classes
+ * (text-ink, text-on-brand, etc.) are emitted after the custom rules
+ * in globals.css, so the cascade order gives them higher precedence
+ * than our rule. Without !important the inactive nav labels can end
+ * up with the default text-ink color (dark in light mode, light in
+ * dark mode) over the dim overlay, which is exactly what the user
+ * reported as "no se ve el texto".
  */
 body:has([data-testid="tour-root"]) nav a:not(.bg-brand) {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-tour-highlight="true"] {
